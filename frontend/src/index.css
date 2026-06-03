@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CRM design tokens.
+ *  - shadcn semantic vars (HSL channels) drive the shadcn/ui primitives.
+ *  - the raw CRM vars (--maroon, --surface-2, --text-2, --line, …) are the exact
+ *    hex values from the source page, exposed to Tailwind as bg-maroon,
+ *    text-ink-2, border-line, etc. for a faithful replica. */
+@layer base {
+  :root {
+    /* shadcn semantic (maroon brand) — HSL channels */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 352 60% 30%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 11% 97%;
+    --secondary-foreground: 45 5% 34%;
+    --muted: 40 11% 97%;
+    --muted-foreground: 47 6% 53%;
+    --accent: 40 16% 94%;
+    --accent-foreground: 0 0% 10%;
+    --destructive: 4 77% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 42 19% 88%;
+    --input: 42 19% 88%;
+    --ring: 352 60% 30%;
+    --radius: 6px;
+
+    /* CRM raw palette — exact hex from source */
+    --maroon: #7a1f2b;
+    --maroon-2: #5a141f;
+    --maroon-soft: #fbeef0;
+    --maroon-text: #5a141f;
+    --surface: #ffffff;
+    --surface-2: #f8f7f5;
+    --surface-3: #efede9;
+    --hover: #f2f0ec;
+    --selected: #fbeef0;
+    --line: #e6e3dc;
+    --line-2: #cdc9bf;
+    --text: #1a1a1a;
+    --text-2: #5a5852;
+    --text-3: #8e8b80;
+    --good: #2d6a4f;
+    --good-soft: #e6f0ea;
+    --warn: #9a6700;
+    --warn-soft: #faf0d0;
+    --bad: #b42318;
+    --bad-soft: #fbe5e7;
+    --info: #175cd3;
+    --info-soft: #e0eaff;
+    --f: 'Poppins', system-ui, sans-serif;
+    --mono: 'Poppins', system-ui, sans-serif;
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    font-size: 18px;
+    line-height: 1;
+    vertical-align: middle;
+  }
+}
+
+/* Data-dense primitives copied from the source CRM page (tables, pipeline
+ * stages, status badges, mail rows). Scoped to the crm bundle. */
+@layer components {
+  .tbl-wrap { max-height: calc(100vh - 240px); overflow-y: auto; }
+  .tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .tbl th {
+    text-align: left; padding: 8px 12px; font-family: var(--mono); font-size: 9px;
+    color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; font-weight: 600;
+    background: var(--surface-2); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 1;
+  }
+  .tbl td { padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  .tbl tbody tr.clickable { cursor: pointer; }
+  .tbl tbody tr.clickable:hover { background: var(--hover); }
+  .cell-id { font-family: var(--mono); font-size: 10.5px; color: var(--text-2); }
+  .cell-num { font-family: var(--mono); text-align: right; font-size: 11px; }
+
+  .stages { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; }
+  .stage { flex: 1; min-width: 130px; background: var(--surface-2); border-radius: 5px; padding: 9px 11px; border-left: 2px solid var(--maroon); }
+  .stage-name { font-family: var(--mono); font-size: 9px; color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 3px; }
+  .stage-cnt { font-family: var(--mono); font-size: 16px; font-weight: 600; color: var(--text); }
+  .stage-pct { font-family: var(--mono); font-size: 9.5px; color: var(--text-3); margin-top: 1px; }
+
+  .bdg { font-family: var(--mono); font-size: 9px; padding: 2px 6px; border-radius: 3px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; display: inline-block; }
+  .bdg-open { background: var(--info-soft); color: var(--info); }
+  .bdg-good { background: var(--good-soft); color: var(--good); }
+  .bdg-bad { background: var(--bad-soft); color: var(--bad); }
+  .bdg-warn { background: var(--warn-soft); color: var(--warn); }
+  .bdg-other { background: var(--surface-3); color: var(--text-2); }
+
+  .mail-row { display: grid; grid-template-columns: 32px 22px 180px 1fr 90px; align-items: center; padding: 0 12px; height: 38px; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 12px; position: relative; }
+  .mail-row.unread { font-weight: 600; }
+  .mail-row:hover { background: var(--hover); }
+  .m-avatar { width: 20px; height: 20px; border-radius: 3px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 9px; font-family: var(--mono); flex-shrink: 0; }
+  .m-from { display: flex; align-items: center; gap: 7px; overflow: hidden; padding-right: 8px; }
+  .m-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-subj { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; }
+  .m-subj-cell { display: flex; align-items: center; gap: 8px; overflow: hidden; padding-right: 12px; }
+  .m-time { text-align: right; font-family: var(--mono); font-size: 10px; color: var(--text-2); }
+  .m-chip { display: inline-flex; align-items: center; height: 16px; padding: 0 6px; border-radius: 3px; font-size: 9px; font-weight: 600; font-family: var(--mono); text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0; background: var(--maroon-soft); color: var(--maroon-text); }
+  .m-snip { color: var(--text-3); font-weight: 400; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-star { display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-3); }
+  .m-star.on { color: #e3b341; }
+  .m-dir { font-family: var(--mono); font-size: 9px; color: var(--text-3); }
+
+  .crm-empty { padding: 40px; text-align: center; color: var(--text-3); font-family: var(--mono); font-size: 11px; }
+}
+
+/* Thin, subtle scrollbars across the CRM (sidebar, main, tables). */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(122, 31, 43, 0.16); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(122, 31, 43, 0.32); }
+* { scrollbar-width: thin; scrollbar-color: rgba(122, 31, 43, 0.16) transparent; }

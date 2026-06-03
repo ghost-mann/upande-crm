@@ -1,4 +1,4 @@
-"""Server-side boot context for the Upande CRM dashboard at /crm.
+"""Server-side boot context for the Upande CRM dashboard at /customer-relationship-management.
 
 Requires login + a sales/CRM role. Boot exposes the csrf token + user info; the
 React app loads everything else via the upande_crm.api.crm.* whitelisted methods.

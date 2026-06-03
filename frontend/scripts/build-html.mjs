@@ -1,5 +1,5 @@
 // Post-build: take the Vite-emitted index.html and write it to the Frappe www/
-// template at upande_crm/www/crm.html, injecting the Jinja boot block (the page's
+// template at upande_crm/www/customer-relationship-management.html, injecting the Jinja boot block (the page's
 // `boot` dict is exposed on window.* for the SPA to read) and inlining the CSS.
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -12,7 +12,7 @@ const BUILT = path.resolve(ROOT, '../upande_crm/public/frontend');
 const WWW   = path.resolve(ROOT, '../upande_crm/www');
 
 const SRC  = path.resolve(BUILT, 'index.html');
-const DEST = path.resolve(WWW, 'crm.html');
+const DEST = path.resolve(WWW, 'customer-relationship-management.html');
 
 const JINJA_BOOT = `
     <script>
@@ -49,4 +49,4 @@ if (!html.includes('</body>')) {
 html = await inlineCss(html);
 const out = html.replace('</body>', JINJA_BOOT + '\n  </body>');
 await writeFile(DEST, out, 'utf8');
-console.log(`✓ crm → www/crm.html`);
+console.log(`✓ crm → www/customer-relationship-management.html`);

@@ -6,8 +6,8 @@ import proxyOptions from './proxyOptions.js';
 // Single-page CRM build. Source lives under frontend/src (+ frontend/shared for
 // the Frappe API client). Output goes to upande_crm/public/frontend/, served by
 // Frappe at /assets/upande_crm/frontend/ (matching `base`). scripts/build-html.mjs
-// then writes the emitted index.html to upande_crm/www/crm.html with the Jinja
-// boot block so the SPA mounts at /crm.
+// then writes the emitted index.html to upande_crm/www/customer-relationship-management.html with the Jinja
+// boot block so the SPA mounts at /customer-relationship-management.
 export default defineConfig({
   plugins: [react()],
   base: '/assets/upande_crm/frontend/',

@@ -5,6 +5,7 @@ import ChartCard from '../components/ChartCard';
 import DataTable from '../components/DataTable';
 import EmailsTable from '../components/EmailsTable';
 import { DoughnutChart, HBarsChart } from '../charts/Charts';
+import { isMine, MINE_FIELDS, currentUser } from '@/lib/crm';
 
 const COLUMNS = [
   { key: 'company_name', label: 'Company', render: (r) => r.company_name || r.name },
@@ -20,9 +21,13 @@ export default function Prospects() {
   const { data, table } = useStore();
   const P = data.prosp;
   if (!P) return <div className="crm-empty">No prospects data</div>;
-  if (table === 'rows') {
-    return <DataTable title="All Prospects" columns={COLUMNS} rows={P.rows || []} doctype="Prospect"
-      searchFields={['name', 'company_name', 'industry', 'territory']} emptyText="No prospects" />;
+  if (table === 'rows' || table === 'mine') {
+    const u = currentUser();
+    const mine = table === 'mine';
+    const rows = mine ? (P.rows || []).filter((r) => isMine(r, u, MINE_FIELDS.prosp)) : (P.rows || []);
+    return <DataTable title={mine ? 'My Prospects' : 'All Prospects'} columns={COLUMNS} rows={rows} doctype="Prospect"
+      searchFields={['name', 'company_name', 'industry', 'territory']}
+      emptyText={mine ? (u ? 'No prospects owned by or assigned to you' : 'Sign in to see your prospects') : 'No prospects'} />;
   }
   if (table === 'emails') return <EmailsTable refType="Prospect" />;
 

@@ -27,3 +27,31 @@ export function avatarBg(s) {
 export function shortUser(u) {
   return u ? String(u).split('@')[0] : '';
 }
+
+// The logged-in user's email, from the Jinja boot block (window.frappe_user).
+export function currentUser() {
+  if (typeof window === 'undefined') return '';
+  return String(window.frappe_user || window.user || '').toLowerCase();
+}
+
+// True if `row` belongs to `user` via any of `fields`. Plain link fields match
+// on equality; the Frappe `_assign` field is a JSON array string, matched by
+// substring. `user` should already be lower-cased.
+export function isMine(row, user, fields) {
+  if (!user) return false;
+  return fields.some((f) => {
+    const v = String(row?.[f] || '').toLowerCase();
+    if (!v) return false;
+    return f === '_assign' ? v.includes(user) : v === user;
+  });
+}
+
+// Ownership/assignment fields checked per section for the "My …" views.
+export const MINE_FIELDS = {
+  leads: ['lead_owner', 'owner', '_assign'],
+  opps: ['opportunity_owner', 'owner', '_assign'],
+  cust: ['account_manager', 'owner', '_assign'],
+  prosp: ['owner', '_assign'],
+  events: ['owner', '_assign'],
+  todos: ['allocated_to', 'owner', '_assign'],
+};

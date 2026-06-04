@@ -3,6 +3,7 @@ import TopBar from './components/TopBar';
 import Sidebar from './components/Sidebar';
 import SettingsSheet from './components/SettingsSheet';
 import ComposeDialog from './components/ComposeDialog';
+import ThreadView from './components/ThreadView';
 import Overview from './sections/Overview';
 import Mail from './sections/Mail';
 import Leads from './sections/Leads';
@@ -26,6 +27,7 @@ function fmtTime(d) {
 export default function App() {
   const { section, loadAll, lastUpdated, customerFilter } = useStore();
   const openCompose = useStore((s) => s.openCompose);
+  const openMsg = useStore((s) => s.openMsg);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
@@ -53,7 +55,7 @@ export default function App() {
             <div className="font-mono text-[10.5px] text-ink-3">Updated {updated}</div>
           </div>
           <div className="flex-1 overflow-y-auto px-5 pt-3.5 pb-8">
-            <Section />
+            {openMsg ? <ThreadView /> : <Section />}
           </div>
         </main>
       </div>

@@ -7,6 +7,7 @@ import DataTable from '../components/DataTable';
 import EmailsTable from '../components/EmailsTable';
 import StatusBadge from '../components/StatusBadge';
 import { DoughnutChart, HBarsChart } from '../charts/Charts';
+import { isMine, MINE_FIELDS, currentUser } from '@/lib/crm';
 
 const COLUMNS = [
   { key: 'name', label: 'ID', cls: 'cell-id' },
@@ -24,9 +25,13 @@ export default function Opportunities() {
   const { data, table } = useStore();
   const O = data.opps;
   if (!O) return <div className="crm-empty">No opportunities data</div>;
-  if (table === 'rows') {
-    return <DataTable title="All Opportunities" columns={COLUMNS} rows={O.rows || []} doctype="Opportunity"
-      searchFields={['name', 'customer_name', 'party_name', 'territory', 'source', 'status', 'sales_stage']} emptyText="No opportunities" />;
+  if (table === 'rows' || table === 'mine') {
+    const u = currentUser();
+    const mine = table === 'mine';
+    const rows = mine ? (O.rows || []).filter((r) => isMine(r, u, MINE_FIELDS.opps)) : (O.rows || []);
+    return <DataTable title={mine ? 'My Opportunities' : 'All Opportunities'} columns={COLUMNS} rows={rows} doctype="Opportunity"
+      searchFields={['name', 'customer_name', 'party_name', 'territory', 'source', 'status', 'sales_stage']}
+      emptyText={mine ? (u ? 'No opportunities owned by or assigned to you' : 'Sign in to see your opportunities') : 'No opportunities'} />;
   }
   if (table === 'emails') return <EmailsTable refType="Opportunity" />;
 

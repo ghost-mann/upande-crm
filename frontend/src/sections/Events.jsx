@@ -6,7 +6,7 @@ import DataTable from '../components/DataTable';
 import EmailsTable from '../components/EmailsTable';
 import StatusBadge from '../components/StatusBadge';
 import { BarsChart, DoughnutChart } from '../charts/Charts';
-import { shortUser } from '@/lib/crm';
+import { shortUser, isMine, MINE_FIELDS, currentUser } from '@/lib/crm';
 
 const EVENT_COLUMNS = [
   { key: 'name', label: 'ID', cls: 'cell-id' },
@@ -34,15 +34,23 @@ export default function Events() {
   const E = data.evt;
   if (!E) return <div className="crm-empty">No data</div>;
 
-  if (table === 'events') {
-    return <DataTable title="All Events" columns={EVENT_COLUMNS} rows={E.events || []} doctype="Event"
-      searchFields={['name', 'subject', 'event_category', 'status', 'owner']} emptyText="No events" />;
+  if (table === 'events' || table === 'mine_events') {
+    const u = currentUser();
+    const mine = table === 'mine_events';
+    const rows = mine ? (E.events || []).filter((r) => isMine(r, u, MINE_FIELDS.events)) : (E.events || []);
+    return <DataTable title={mine ? 'My Events' : 'All Events'} columns={EVENT_COLUMNS} rows={rows} doctype="Event"
+      searchFields={['name', 'subject', 'event_category', 'status', 'owner']}
+      emptyText={mine ? (u ? 'No events owned by or assigned to you' : 'Sign in to see your events') : 'No events'} />;
   }
-  if (table === 'todos') {
-    return <DataTable title="ToDos" columns={TODO_COLUMNS} rows={E.todos || []}
+  if (table === 'todos' || table === 'mine_todos') {
+    const u = currentUser();
+    const mine = table === 'mine_todos';
+    const rows = mine ? (E.todos || []).filter((r) => isMine(r, u, MINE_FIELDS.todos)) : (E.todos || []);
+    return <DataTable title={mine ? 'My ToDos' : 'ToDos'} columns={TODO_COLUMNS} rows={rows}
       doctype={(r) => (r.reference_type && r.reference_name ? r.reference_type : 'ToDo')}
       rowName={(r) => (r.reference_type && r.reference_name ? r.reference_name : r.name)}
-      searchFields={['name', 'description', 'priority', 'allocated_to', 'status', 'reference_type', 'reference_name']} emptyText="No tasks" />;
+      searchFields={['name', 'description', 'priority', 'allocated_to', 'status', 'reference_type', 'reference_name']}
+      emptyText={mine ? (u ? 'No tasks assigned to you' : 'Sign in to see your tasks') : 'No tasks'} />;
   }
   if (table === 'emails') return <EmailsTable refType={null} />;
 

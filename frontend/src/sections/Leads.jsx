@@ -6,7 +6,7 @@ import DataTable from '../components/DataTable';
 import EmailsTable from '../components/EmailsTable';
 import StatusBadge from '../components/StatusBadge';
 import { BarsChart, DoughnutChart, HBarsChart } from '../charts/Charts';
-import { shortUser } from '@/lib/crm';
+import { shortUser, isMine, MINE_FIELDS, currentUser } from '@/lib/crm';
 
 const COLUMNS = [
   { key: 'name', label: 'ID', cls: 'cell-id' },
@@ -24,9 +24,13 @@ export default function Leads() {
   const { data, table } = useStore();
   const L = data.leads;
   if (!L) return <div className="crm-empty">No leads data</div>;
-  if (table === 'rows') {
-    return <DataTable title="All Leads" columns={COLUMNS} rows={L.rows || []} doctype="Lead"
-      searchFields={['name', 'lead_name', 'company_name', 'territory', 'source', 'status']} emptyText="No leads" />;
+  if (table === 'rows' || table === 'mine') {
+    const u = currentUser();
+    const mine = table === 'mine';
+    const rows = mine ? (L.rows || []).filter((r) => isMine(r, u, MINE_FIELDS.leads)) : (L.rows || []);
+    return <DataTable title={mine ? 'My Leads' : 'All Leads'} columns={COLUMNS} rows={rows} doctype="Lead"
+      searchFields={['name', 'lead_name', 'company_name', 'territory', 'source', 'status']}
+      emptyText={mine ? (u ? 'No leads owned by or assigned to you' : 'Sign in to see your leads') : 'No leads'} />;
   }
   if (table === 'emails') return <EmailsTable refType="Lead" />;
 

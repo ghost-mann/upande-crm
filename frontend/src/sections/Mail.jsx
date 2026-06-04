@@ -1,7 +1,6 @@
 import { useStore } from '../store';
 import { Card, CardHeader, CardTitle, CardSub } from '@/components/ui/card';
 import MailList from '../components/MailList';
-import ThreadView from '../components/ThreadView';
 
 const LABELS = {
   unread: 'Unread', inbox: 'All inbox', sent: 'Sent', starred: 'Starred',
@@ -18,11 +17,10 @@ function headerCount(table, counts, fallback) {
 }
 
 export default function Mail() {
-  const { table, mailFolder, mailLoading, openMsg, starred } = useStore();
+  const { table, mailFolder, mailLoading, starred } = useStore();
   const openMessage = useStore((s) => s.openMessage);
   const t = table || 'unread';
 
-  if (openMsg) return <ThreadView />;
   if (mailLoading) return <div className="crm-empty">Loading mailbox…</div>;
 
   let rows = mailFolder?.rows || [];

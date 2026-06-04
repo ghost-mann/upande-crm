@@ -235,7 +235,7 @@ def crm_dashboard_leads(date_from=None, date_to=None, customer=None):
         "geography": _group("Lead", "territory", w),
         "rows": _rows("Lead", [
             "name", "lead_name", "company_name", "status", "qualification_status",
-            "territory", "source", "lead_owner", "creation",
+            "territory", "source", "lead_owner", "owner", "_assign", "creation",
         ], filters=d),
     }
 
@@ -265,7 +265,8 @@ def crm_dashboard_opportunities(date_from=None, date_to=None, customer=None):
         "territory_mix": _group("Opportunity", "territory", w),
         "rows": _rows("Opportunity", [
             "name", "customer_name", "party_name", "opportunity_from", "status",
-            "sales_stage", "probability", "territory", "source", "transaction_date", "creation",
+            "sales_stage", "probability", "territory", "source",
+            "opportunity_owner", "owner", "_assign", "transaction_date", "creation",
         ], filters=filters),
     }
 
@@ -295,7 +296,8 @@ def crm_dashboard_prospects(date_from=None, date_to=None, customer=None):
         "size_mix": _group("Prospect", "no_of_employees", w),
         "industry_mix": _group("Prospect", "industry", w),
         "rows": _rows("Prospect", [
-            "name", "company_name", "industry", "territory", "no_of_employees", "creation",
+            "name", "company_name", "industry", "territory", "no_of_employees",
+            "owner", "_assign", "creation",
         ], filters=d),
     }
 
@@ -356,7 +358,7 @@ def crm_dashboard_customers(date_from=None, date_to=None, customer=None):
         "top_revenue": _top_customers(frm, to),
         "rows": _rows("Customer", [
             "name", "customer_name", "customer_type", "customer_group",
-            "territory", "disabled", "creation",
+            "territory", "disabled", "account_manager", "owner", "_assign", "creation",
         ], filters=({**d, "name": customer} if customer else d)),
     }
 
@@ -409,9 +411,9 @@ def crm_dashboard_events_tasks(date_from=None, date_to=None, customer=None):
         "task_priorities": _group("ToDo", "priority", _dw("ToDo", "creation", frm, to, base="status='Open'")),
         "email_by_ref": _group("Communication", "reference_doctype",
                                _dw("Communication", "communication_date", frm, to, base="communication_type='Communication'")),
-        "events": _rows("Event", ["name", "subject", "event_category", "starts_on", "status", "owner"],
+        "events": _rows("Event", ["name", "subject", "event_category", "starts_on", "status", "owner", "_assign"],
                         filters=ev, order_by="starts_on desc", limit=300),
-        "todos": _rows("ToDo", ["name", "description", "priority", "allocated_to", "status",
+        "todos": _rows("ToDo", ["name", "description", "priority", "allocated_to", "owner", "_assign", "status",
                                 "reference_type", "reference_name"],
                        filters={**tdo, "status": "Open"}, order_by="creation desc", limit=300),
         "emails": emails,

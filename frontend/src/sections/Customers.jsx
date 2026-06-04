@@ -6,6 +6,7 @@ import ChartCard from '../components/ChartCard';
 import DataTable from '../components/DataTable';
 import EmailsTable from '../components/EmailsTable';
 import { DoughnutChart, HBarsChart, BarsChart } from '../charts/Charts';
+import { isMine, MINE_FIELDS, currentUser } from '@/lib/crm';
 
 const COLUMNS = [
   { key: 'customer_name', label: 'Name', render: (r) => r.customer_name || r.name },
@@ -27,9 +28,13 @@ export default function Customers() {
   const C = data.cust;
   if (!C) return <div className="crm-empty">No customers data</div>;
 
-  if (table === 'rows') {
-    return <DataTable title="All Customers" columns={COLUMNS} rows={C.rows || []} doctype="Customer"
-      searchFields={['name', 'customer_name', 'customer_type', 'customer_group', 'territory']} emptyText="No customers" />;
+  if (table === 'rows' || table === 'mine') {
+    const u = currentUser();
+    const mine = table === 'mine';
+    const rows = mine ? (C.rows || []).filter((r) => isMine(r, u, MINE_FIELDS.cust)) : (C.rows || []);
+    return <DataTable title={mine ? 'My Customers' : 'All Customers'} columns={COLUMNS} rows={rows} doctype="Customer"
+      searchFields={['name', 'customer_name', 'customer_type', 'customer_group', 'territory']}
+      emptyText={mine ? (u ? 'No customers owned by or assigned to you' : 'Sign in to see your customers') : 'No customers'} />;
   }
   if (table === 'top') {
     const rows = (C.top_revenue || []).map((r, i) => ({ ...r, _rank: String(i + 1).padStart(2, '0') }));

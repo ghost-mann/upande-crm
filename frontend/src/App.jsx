@@ -25,8 +25,8 @@ function fmtTime(d) {
 
 export default function App() {
   const { section, loadAll, lastUpdated, customerFilter } = useStore();
+  const openCompose = useStore((s) => s.openCompose);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [composeOpen, setComposeOpen] = useState(false);
 
   useEffect(() => {
     loadAll();
@@ -41,7 +41,7 @@ export default function App() {
     <div className="flex flex-col h-screen text-ink">
       <TopBar onSettings={() => setSettingsOpen(true)} />
       <div className="grid grid-cols-[230px_1fr] h-[calc(100vh-48px)]">
-        <Sidebar onCompose={() => setComposeOpen(true)} onSettings={() => setSettingsOpen(true)} />
+        <Sidebar onCompose={() => openCompose({})} onSettings={() => setSettingsOpen(true)} />
         <main className="bg-surface overflow-hidden flex flex-col">
           <div className="flex items-end justify-between gap-3 px-5 pt-3.5 pb-2.5 border-b border-line">
             <div>
@@ -58,7 +58,7 @@ export default function App() {
         </main>
       </div>
       <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <ComposeDialog open={composeOpen} onOpenChange={setComposeOpen} />
+      <ComposeDialog />
     </div>
   );
 }

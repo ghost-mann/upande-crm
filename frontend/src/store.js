@@ -75,6 +75,7 @@ export const useStore = create((set, get) => ({
   mailFolder: null,
   mailLoading: false,
   openMsg: null,
+  compose: null,   // null = closed; object = open with prefill {to, cc, subject, body, reference, inReplyTo}
   // search
   searchResults: null,
 
@@ -141,8 +142,23 @@ export const useStore = create((set, get) => ({
       const full = await api('frappe.client.get', { doctype: 'Communication', name: row.name });
       if (full) set({ openMsg: { ...row, ...full } });
     } catch {}
+    // Mark received-and-unread messages as read, and reflect it in the list/counts.
+    const unread = !!row.unread || (row.sent_or_received === 'Received' && row.status === 'Open' && !row.seen);
+    if (unread) {
+      try { await api(M + 'crm_mark_read', { name: row.name, seen: 1 }); } catch {}
+      const mf = get().mailFolder;
+      if (mf?.rows) {
+        const rows = mf.rows.map((r) => (r.name === row.name ? { ...r, seen: 1, unread: 0 } : r));
+        const counts = { ...(mf.counts || {}) };
+        if (typeof counts.inbox_unread === 'number') counts.inbox_unread = Math.max(0, counts.inbox_unread - 1);
+        set({ mailFolder: { ...mf, rows, counts } });
+      }
+    }
   },
   closeMessage() { set({ openMsg: null }); },
+
+  openCompose(ctx = {}) { set({ compose: ctx }); },
+  closeCompose() { set({ compose: null }); },
 
   async toggleStar(name, makeStarred) {
     const cur = new Set(get().starred);
@@ -165,7 +181,10 @@ export const useStore = create((set, get) => ({
   },
 
   async sendEmail(payload) {
-    return api(M + 'crm_send_email', payload);
+    const r = await api(M + 'crm_send_email', payload);
+    // Reflect the new message immediately: refresh the open mail folder.
+    if (get().section === 'mail') get().loadMail(get().table || 'unread');
+    return r;
   },
 
   async runSearch(q) {

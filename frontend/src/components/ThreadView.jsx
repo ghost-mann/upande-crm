@@ -4,11 +4,54 @@ import { Button } from '@/components/ui/button';
 import Icon from './Icon';
 import { fmtDateTime } from '@shared/utils';
 
+// HTML → readable plaintext, for quoting the original in a reply/forward.
+function toPlain(html) {
+  return String(html || '')
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|tr|h[1-6])>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function stripPrefix(subject, re) {
+  return String(subject || '').replace(re, '').trim();
+}
+
 export default function ThreadView() {
   const m = useStore((s) => s.openMsg);
   const close = useStore((s) => s.closeMessage);
+  const openCompose = useStore((s) => s.openCompose);
   const newTab = useStore((s) => s.settings.openInNewTab);
   if (!m) return null;
+
+  const received = (m.direction || m.sent_or_received) === 'Received';
+  const reference = m.reference_doctype && m.reference_name
+    ? { doctype: m.reference_doctype, name: m.reference_name }
+    : undefined;
+  const quote = `\n\n\n----- On ${fmtDateTime(m.communication_date)}, ${m.sender || ''} wrote: -----\n${toPlain(m.content)}`;
+
+  function reply() {
+    openCompose({
+      title: 'Reply',
+      to: received ? (m.sender || '') : (m.recipients || ''),
+      subject: `Re: ${stripPrefix(m.subject, /^\s*(re:\s*)+/i)}`,
+      body: quote,
+      reference,
+      inReplyTo: m.name,
+    });
+  }
+  function forward() {
+    openCompose({
+      title: 'Forward',
+      to: '',
+      subject: `Fwd: ${stripPrefix(m.subject, /^\s*(fwd?:\s*)+/i)}`,
+      body: quote,
+      reference,
+    });
+  }
 
   return (
     <Card>
@@ -20,7 +63,13 @@ export default function ThreadView() {
             {m.sender}{m.recipients ? ` → ${m.recipients}` : ''} · {fmtDateTime(m.communication_date)}
           </div>
         </div>
-        {m.reference_doctype && m.reference_name && (
+        <Button variant="default" size="sm" onClick={reply}>
+          <Icon name="reply" className="text-[14px]" />Reply
+        </Button>
+        <Button variant="outline" size="sm" onClick={forward}>
+          <Icon name="forward" className="text-[14px]" />Forward
+        </Button>
+        {reference && (
           <Button variant="outline" size="sm"
             onClick={() => window.open(`/app/${m.reference_doctype.toLowerCase().replace(/ /g, '-')}/${encodeURIComponent(m.reference_name)}`, newTab ? '_blank' : '_self')}>
             <Icon name="open_in_new" className="text-[14px]" />{m.reference_doctype}

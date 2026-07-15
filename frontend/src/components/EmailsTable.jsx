@@ -16,11 +16,16 @@ export default function EmailsTable({ refType }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div><CardTitle>Emails</CardTitle><CardSub>{rows.length} message{rows.length === 1 ? '' : 's'} · click to open</CardSub></div>
+    <Card className="mail-card">
+      <CardHeader className="px-5 py-4">
+        <div>
+          <CardTitle className="mail-display text-[19px] font-semibold">Emails</CardTitle>
+          <CardSub className="text-[11px] mt-1.5">{rows.length} message{rows.length === 1 ? '' : 's'} · click to open</CardSub>
+        </div>
       </CardHeader>
-      <MailList rows={rows.slice(0, 200)} onOpen={(e) => openMessage(e)} />
+      <div className="px-2 py-1.5">
+        <MailList rows={rows.slice(0, 200)} onOpen={(e) => openMessage(e)} />
+      </div>
     </Card>
   );
 }

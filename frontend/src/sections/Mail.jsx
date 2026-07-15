@@ -30,11 +30,16 @@ export default function Mail() {
   const count = headerCount(t, mailFolder?.counts, rows.length);
 
   return (
-    <Card>
-      <CardHeader>
-        <div><CardTitle>{LABELS[t] || t}</CardTitle><CardSub>Showing {rows.length} of {count} · click to open</CardSub></div>
+    <Card className="mail-card">
+      <CardHeader className="px-5 py-4">
+        <div>
+          <CardTitle className="mail-display text-[19px] font-semibold">{LABELS[t] || t}</CardTitle>
+          <CardSub className="text-[11px] mt-1.5">Showing {rows.length} of {count} · click to open</CardSub>
+        </div>
       </CardHeader>
-      {rows.length ? <MailList rows={rows} onOpen={openMessage} /> : <div className="crm-empty">No messages in this folder.</div>}
+      <div className="px-2 py-1.5">
+        {rows.length ? <MailList rows={rows} onOpen={openMessage} /> : <div className="crm-empty">No messages in this folder.</div>}
+      </div>
     </Card>
   );
 }

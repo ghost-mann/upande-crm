@@ -54,30 +54,30 @@ export default function ThreadView() {
   }
 
   return (
-    <Card>
-      <div className="flex items-center gap-2 px-3 h-12 border-b border-line">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={close}><Icon name="arrow_back" className="text-[18px]" /></Button>
+    <Card className="mail-card">
+      <div className="flex items-center gap-2 px-4 h-16 border-b border-hairline">
+        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full shrink-0" onClick={close}><Icon name="arrow_back" className="text-[18px]" /></Button>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold truncate">{m.subject || '(no subject)'}</div>
-          <div className="text-[11px] text-ink-3 truncate">
+          <div className="mail-display text-[17px] font-semibold truncate leading-tight">{m.subject || '(no subject)'}</div>
+          <div className="text-[11px] text-ink-3 truncate mt-0.5">
             {m.sender}{m.recipients ? ` → ${m.recipients}` : ''} · {fmtDateTime(m.communication_date)}
           </div>
         </div>
-        <Button variant="default" size="sm" onClick={reply}>
+        <Button variant="default" size="sm" className="rounded-full bg-navy hover:bg-navy-2 shadow-none" onClick={reply}>
           <Icon name="reply" className="text-[14px]" />Reply
         </Button>
-        <Button variant="outline" size="sm" onClick={forward}>
+        <Button variant="outline" size="sm" className="rounded-full" onClick={forward}>
           <Icon name="forward" className="text-[14px]" />Forward
         </Button>
         {reference && (
-          <Button variant="outline" size="sm"
+          <Button variant="outline" size="sm" className="rounded-full"
             onClick={() => window.open(`/app/${m.reference_doctype.toLowerCase().replace(/ /g, '-')}/${encodeURIComponent(m.reference_name)}`, newTab ? '_blank' : '_self')}>
             <Icon name="open_in_new" className="text-[14px]" />{m.reference_doctype}
           </Button>
         )}
       </div>
       <div
-        className="p-4 text-[13px] leading-relaxed [&_img]:max-w-full [&_a]:text-maroon [&_a]:underline"
+        className="p-5 text-[13px] leading-relaxed [&_img]:max-w-full [&_a]:text-navy [&_a]:underline"
         dangerouslySetInnerHTML={{ __html: m.content || '<p class="crm-empty">No content.</p>' }}
       />
     </Card>

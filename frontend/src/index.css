@@ -16,7 +16,8 @@
     --card-foreground: 0 0% 10%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 10%;
-    --primary: 352 60% 30%;
+    /* Brand shifted maroon → navy: primary now navy #1d3a5f */
+    --primary: 214 53% 24%;
     --primary-foreground: 0 0% 100%;
     --secondary: 40 11% 97%;
     --secondary-foreground: 45 5% 34%;
@@ -28,14 +29,21 @@
     --destructive-foreground: 0 0% 100%;
     --border: 42 19% 88%;
     --input: 42 19% 88%;
-    --ring: 352 60% 30%;
+    --ring: 214 53% 24%;
     --radius: 6px;
 
     /* CRM raw palette — exact hex from source */
-    --maroon: #7a1f2b;
-    --maroon-2: #5a141f;
-    --maroon-soft: #fbeef0;
-    --maroon-text: #5a141f;
+    /* Brand shifted to navy — the --maroon* names are kept (many call-sites)
+     * but now hold navy values so the whole shell + sections read navy. */
+    --maroon: #1d3a5f;
+    --maroon-2: #142b47;
+    --maroon-soft: #e9eef5;
+    --maroon-text: #1d3a5f;
+    /* Navy accent — the mail client's own accent (reference "UFD-modern" design language) */
+    --navy: #1d3a5f;
+    --navy-2: #142b47;
+    --navy-soft: #e9eef5;
+    --navy-text: #1d3a5f;
     --surface: #ffffff;
     --surface-2: #f8f7f5;
     --surface-3: #efede9;
@@ -56,6 +64,11 @@
     --info-soft: #e0eaff;
     --f: 'Poppins', system-ui, sans-serif;
     --mono: 'Poppins', system-ui, sans-serif;
+    --display: 'Fraunces', Georgia, serif;
+    /* Soft layered shadows + hairline border from the reference design */
+    --hairline: rgba(10, 10, 10, 0.06);
+    --shadow-card: 0 1px 0 rgba(10, 10, 10, 0.04), 0 8px 32px -16px rgba(10, 10, 10, 0.10);
+    --shadow-hover: 0 1px 0 rgba(10, 10, 10, 0.06), 0 24px 48px -24px rgba(10, 10, 10, 0.18);
   }
 
   * {
@@ -103,27 +116,37 @@
   .bdg-warn { background: var(--warn-soft); color: var(--warn); }
   .bdg-other { background: var(--surface-3); color: var(--text-2); }
 
-  .mail-row { display: grid; grid-template-columns: 32px 22px 180px 1fr 90px; align-items: center; padding: 0 12px; height: 38px; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 12px; position: relative; }
-  .mail-row.unread { font-weight: 600; }
+  /* Mail rows — reskinned to the UFD-modern reference: roomier, rounded hover,
+   * navy accent for unread, softer type. */
+  .mail-row { display: grid; grid-template-columns: 30px 24px 196px 1fr 84px; align-items: center; gap: 2px; padding: 0 10px; height: 52px; border-bottom: 1px solid var(--hairline); cursor: pointer; font-size: 13px; position: relative; border-radius: 12px; transition: background .18s, box-shadow .18s; }
   .mail-row:hover { background: var(--hover); }
-  .m-avatar { width: 20px; height: 20px; border-radius: 3px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 9px; font-family: var(--mono); flex-shrink: 0; }
-  .m-from { display: flex; align-items: center; gap: 7px; overflow: hidden; padding-right: 8px; }
-  .m-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .m-subj { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; }
-  .m-subj-cell { display: flex; align-items: center; gap: 8px; overflow: hidden; padding-right: 12px; }
-  .m-time { text-align: right; font-family: var(--mono); font-size: 10px; color: var(--text-2); }
-  .m-chip { display: inline-flex; align-items: center; height: 16px; padding: 0 6px; border-radius: 3px; font-size: 9px; font-weight: 600; font-family: var(--mono); text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0; background: var(--maroon-soft); color: var(--maroon-text); }
-  .m-snip { color: var(--text-3); font-weight: 400; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .m-star { display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-3); }
+  .mail-row.unread { font-weight: 600; }
+  .mail-row:last-child { border-bottom: 0; }
+  /* Navy unread rail on the left edge */
+  .mail-row.unread::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 999px; background: var(--navy); }
+  .m-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 11px; font-family: var(--f); flex-shrink: 0; box-shadow: 0 1px 3px rgba(10,10,10,.18); }
+  .m-from { display: flex; align-items: center; gap: 9px; overflow: hidden; padding-right: 10px; }
+  .m-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+  .m-subj { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; color: var(--text); }
+  .m-subj-cell { display: flex; align-items: center; gap: 9px; overflow: hidden; padding-right: 12px; }
+  .m-time { text-align: right; font-family: var(--mono); font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .m-chip { display: inline-flex; align-items: center; height: 18px; padding: 0 8px; border-radius: 999px; font-size: 9.5px; font-weight: 600; font-family: var(--f); text-transform: uppercase; letter-spacing: .05em; flex-shrink: 0; background: var(--navy-soft); color: var(--navy-text); }
+  .m-snip { color: var(--text-3); font-weight: 400; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-star { display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-3); transition: color .15s, transform .1s; }
+  .m-star:hover { transform: scale(1.15); }
   .m-star.on { color: #e3b341; }
-  .m-dir { font-family: var(--mono); font-size: 9px; color: var(--text-3); }
+  .m-dir { font-family: var(--f); font-size: 10px; color: var(--text-3); }
 
-  .crm-empty { padding: 40px; text-align: center; color: var(--text-3); font-family: var(--mono); font-size: 11px; }
+  /* Big rounded, soft-shadowed card used by the mail views */
+  .mail-card { border-radius: 20px !important; border-color: var(--hairline) !important; box-shadow: var(--shadow-card); }
+  .mail-display { font-family: var(--display); letter-spacing: -.01em; }
+
+  .crm-empty { padding: 40px; text-align: center; color: var(--text-3); font-family: var(--f); font-size: 12px; }
 }
 
 /* Thin, subtle scrollbars across the CRM (sidebar, main, tables). */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(122, 31, 43, 0.16); border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(122, 31, 43, 0.32); }
-* { scrollbar-width: thin; scrollbar-color: rgba(122, 31, 43, 0.16) transparent; }
+::-webkit-scrollbar-thumb { background: rgba(29, 58, 95, 0.16); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(29, 58, 95, 0.32); }
+* { scrollbar-width: thin; scrollbar-color: rgba(29, 58, 95, 0.16) transparent; }

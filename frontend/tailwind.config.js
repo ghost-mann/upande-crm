@@ -12,6 +12,12 @@ export default {
         // Poppins everywhere (consistent with the other customer_portal sections).
         sans: ['Poppins', 'system-ui', 'sans-serif'],
         mono: ['Poppins', 'system-ui', 'sans-serif'],
+        // Fraunces display serif for mail-client headings (UFD-modern reference).
+        display: ['Fraunces', 'Georgia', 'serif'],
+      },
+      boxShadow: {
+        card: 'var(--shadow-card)',
+        hover: 'var(--shadow-hover)',
       },
       colors: {
         // shadcn semantic tokens (HSL channels in CSS vars)
@@ -29,6 +35,8 @@ export default {
         card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
         // CRM raw palette (exact hex via CSS vars) — used to replicate the source
         maroon: { DEFAULT: 'var(--maroon)', 2: 'var(--maroon-2)', soft: 'var(--maroon-soft)', text: 'var(--maroon-text)' },
+        navy: { DEFAULT: 'var(--navy)', 2: 'var(--navy-2)', soft: 'var(--navy-soft)', text: 'var(--navy-text)' },
+        hairline: 'var(--hairline)',
         surface: { DEFAULT: 'var(--surface)', 2: 'var(--surface-2)', 3: 'var(--surface-3)' },
         ink: { DEFAULT: 'var(--text)', 2: 'var(--text-2)', 3: 'var(--text-3)' },
         line: { DEFAULT: 'var(--line)', 2: 'var(--line-2)' },

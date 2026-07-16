@@ -12,9 +12,14 @@ Access: gated to the same sales/CRM roles as the /crm page.
 import json
 
 import frappe
-from frappe.utils import add_days, add_months, getdate, nowdate, flt, get_quarter_start, now_datetime
+from frappe import _
+from frappe.utils import add_days, getdate, nowdate, flt, get_quarter_start, now_datetime
 
 CRM_ROLES = {"System Manager", "Sales Manager", "Sales User", "CRM Manager", "CRM User"}
+
+# Doctypes an outbound CRM email may be linked to via reference_doctype. Kept
+# tight so a caller can't attach a Communication to an arbitrary record.
+LINKABLE_REFS = {"Lead", "Opportunity", "Customer", "Quotation", "Prospect", "Contact"}
 
 
 # ---------------------------------------------------------------- session
@@ -22,7 +27,12 @@ CRM_ROLES = {"System Manager", "Sales Manager", "Sales User", "CRM Manager", "CR
 def get_csrf_token() -> dict:
     """Return a fresh CSRF token for the current session. GET-safe.
     Called by the React app to recover from stale tokens after the page has
-    been open long enough that the boot-injected token has rotated."""
+    been open long enough that the boot-injected token has rotated.
+
+    Gated to the same sales/CRM roles as every other endpoint (the session
+    cookie stays valid across a CSRF rotation, so `_guard` still resolves the
+    user); not reachable by Guest."""
+    _guard()
     return {"csrf_token": frappe.sessions.get_csrf_token()}
 
 
@@ -94,18 +104,27 @@ def _group(doctype, field, where_sql="", limit=8):
         return []
 
 
-def _month_trend(doctype, datefield, months=12):
+def _trend_in_range(doctype, datefield, frm, to):
+    """Bucketed counts of `datefield` within [frm, to] → [{label, count}].
+    Granularity adapts to the range: by day for spans up to ~3 months, by month
+    beyond that. Obeys the dashboard date picker (frm/to from _range)."""
     if not _has(doctype) or not _hascol(doctype, datefield):
         return []
-    start = str(add_months(getdate(nowdate()), -(months - 1)).replace(day=1))
+    try:
+        span = (getdate(to) - getdate(frm)).days
+    except Exception:
+        span = 999
+    by_day = span <= 92
+    dfmt = "%%Y-%%m-%%d" if by_day else "%%Y-%%m"
     try:
         rows = frappe.db.sql(
-            f"""select date_format(`{datefield}`, '%%Y-%%m') as month, count(*) as count
-                from `tab{doctype}` where `{datefield}` >= %s
-                group by month order by month""",
-            (start,), as_dict=True,
+            f"""select date_format(`{datefield}`, '{dfmt}') as bucket, count(*) as count
+                from `tab{doctype}` where `{datefield}` between %s and %s
+                group by bucket order by bucket""",
+            (str(frm), str(to) + " 23:59:59"), as_dict=True,
         )
-        return [{"month": r.month, "count": r.count} for r in rows]
+        # Day buckets → "MM-DD"; month buckets → "YY-MM".
+        return [{"label": (r.bucket[5:] if by_day else r.bucket[2:]), "count": r.count} for r in rows]
     except Exception:
         return []
 
@@ -162,7 +181,8 @@ def crm_dashboard_overview(date_from=None, date_to=None, customer=None):
             "opps": {"total": opps_total, "open": opps_open, "won": opps_won},
             "prosp": {"total": prosp_total, "territories": prosp_terr},
             "cust": {"active": cust_active, "companies": cust_companies},
-            "revenue_30d": {"usd": rev_usd, "orders": rev_orders},
+            # Scoped to the selected date range (like every other KPI here), not a fixed 30 days.
+            "revenue": {"usd": rev_usd, "orders": rev_orders},
             "tasks": {"open": tasks_open, "high": tasks_high},
         },
         "funnel": [
@@ -173,10 +193,9 @@ def crm_dashboard_overview(date_from=None, date_to=None, customer=None):
             {"label": "Converted", "count": opps_won},
         ],
         "lead_status": _group("Lead", "status", _dw("Lead", "creation", frm, to)),
-        # Labeled "Last 12 / 6 months" in the UI — intentionally rolling history,
-        # independent of the date-range picker.
-        "lead_trend": _month_trend("Lead", "creation", 12),
-        "so_trend": _month_trend("Sales Order", "transaction_date", 6),
+        # Trends obey the date picker (day/month buckets depending on span).
+        "lead_trend": _trend_in_range("Lead", "creation", frm, to),
+        "so_trend": _trend_in_range("Sales Order", "transaction_date", frm, to),
         "top_sources": _group("Lead", "source", _dw("Lead", "creation", frm, to)),
         "top_territories": _group("Lead", "territory", _dw("Lead", "creation", frm, to)),
         "sales_stages": _group("Opportunity", "sales_stage", _dw("Opportunity", "transaction_date", frm, to)),
@@ -352,8 +371,8 @@ def crm_dashboard_customers(date_from=None, date_to=None, customer=None):
         },
         "type_mix": _group("Customer", "customer_type", cust_filter),
         "territory_mix": _group("Customer", "territory", cust_filter),
-        # Labeled "Last 12 months" in the UI — rolling history, independent of the picker.
-        "acquisition_trend": _month_trend("Customer", "creation", 12),
+        # Acquisition trend obeys the date picker (day/month buckets by span).
+        "acquisition_trend": _trend_in_range("Customer", "creation", frm, to),
         "sales_order_trend": trend,
         "top_revenue": _top_customers(frm, to),
         "rows": _rows("Customer", [
@@ -396,8 +415,10 @@ def crm_dashboard_events_tasks(date_from=None, date_to=None, customer=None):
         "name", "subject", "sender", "recipients", "communication_date",
         "sent_or_received", "reference_doctype", "reference_name", "status", "_user_tags",
     ], filters={**cm, "communication_type": "Communication"}, order_by="communication_date desc", limit=300)
-    sent = sum(1 for e in emails if e.get("sent_or_received") == "Sent")
-    recv = sum(1 for e in emails if e.get("sent_or_received") == "Received")
+    # Count against the full table, not the capped `emails` list (which maxes at 300).
+    email_base = {**cm, "communication_type": "Communication"}
+    sent = _count("Communication", {**email_base, "sent_or_received": "Sent"})
+    recv = _count("Communication", {**email_base, "sent_or_received": "Received"})
     return {
         "kpis": {
             "events_total": _count("Event", ev),
@@ -432,7 +453,7 @@ def crm_dashboard_activity(date_from=None, date_to=None, customer=None):
         rows = _rows("Communication", ["name", "subject", "communication_type", "communication_date",
                                        "reference_doctype", "reference_name", "sender"],
                      filters=cm, order_by="communication_date desc", limit=200)
-        return {"kpis": {"total": len(rows), "today": 0, "sent": 0, "failed": 0, "skipped": 0},
+        return {"kpis": {"total": _count("Communication", cm), "today": 0, "sent": 0, "failed": 0, "skipped": 0},
                 "by_type": _group("Communication", "communication_type",
                                   _dw("Communication", "communication_date", frm, to)), "rows": rows}
 
@@ -462,9 +483,12 @@ _FOLDER_REF = {"crm_leads": "Lead", "crm_opps": "Opportunity",
 
 
 @frappe.whitelist()
-def crm_mail_data(folder="inbox", tab="all", search="", limit=100, offset=0):
+def crm_mail_data(folder="inbox", tab="all", search="", limit=100, offset=0,
+                  date_from=None, date_to=None):
     _guard()
-    limit, offset = int(limit), int(offset)
+    # Clamp paging so a caller can't pull the whole Communication table in one call.
+    limit = max(1, min(int(limit), 200))
+    offset = max(0, int(offset))
     base = "communication_type='Communication'"
 
     def _cnt(where):
@@ -496,13 +520,17 @@ def crm_mail_data(folder="inbox", tab="all", search="", limit=100, offset=0):
     if search:
         conds.append("(subject like %s or sender like %s or recipients like %s)")
         like = f"%{search}%"; params += [like, like, like]
+    # Date-range scope (parameterized). Applied only when both ends are given.
+    if date_from and date_to:
+        conds.append("communication_date between %s and %s")
+        params += [str(date_from), str(date_to) + " 23:59:59"]
 
     where = " and ".join(conds)
     rows = []
     try:
         rows = frappe.db.sql(
             f"""select name, subject, sender, recipients, cc, communication_date, sent_or_received,
-                       reference_doctype, reference_name, status, seen, _user_tags, content
+                       reference_doctype, reference_name, status, seen, _user_tags
                 from `tabCommunication` where {where}
                 order by communication_date desc limit {limit} offset {offset}""",
             params, as_dict=True,
@@ -517,8 +545,8 @@ def crm_mail_data(folder="inbox", tab="all", search="", limit=100, offset=0):
         r["counterparty"] = cp
         r["display_name"] = _name_from_addr(cp)
         r["unread"] = 1 if (direction == "Received" and r.get("status") == "Open" and not r.get("seen")) else 0
-        # trim heavy html for the list
-        r["content"] = (r.get("content") or "")
+        # Heavy email body (`content`) is intentionally omitted from the list; the
+        # thread view fetches the full Communication on open.
 
     return {"counts": counts, "rows": rows}
 
@@ -572,6 +600,18 @@ def crm_send_email(recipients, subject="", content="", cc=None, bcc=None,
     _guard()
     if not recipients:
         frappe.throw("Recipients required")
+    if not any("@" in x for x in str(recipients).split(",")):
+        frappe.throw("A valid recipient email address is required")
+
+    # Only allow linking the email to a CRM-owned record the caller can actually
+    # read — blocks attaching a Communication to an arbitrary doctype/record.
+    if reference_doctype or reference_name:
+        if reference_doctype not in LINKABLE_REFS:
+            frappe.throw(_("Cannot link email to {0}").format(reference_doctype or "—"), frappe.PermissionError)
+        if not (reference_name and frappe.db.exists(reference_doctype, reference_name)):
+            frappe.throw(_("Linked {0} not found").format(reference_doctype))
+        if not frappe.has_permission(reference_doctype, "read", reference_name):
+            frappe.throw(_("Not permitted to link this {0}").format(reference_doctype), frappe.PermissionError)
 
     sender = frappe.session.user if frappe.session.user != "Guest" else None
     comm = frappe.get_doc({
@@ -593,6 +633,9 @@ def crm_send_email(recipients, subject="", content="", cc=None, bcc=None,
         # Sent-from-app messages are already "read".
         "seen": 1,
     })
+    # ignore_permissions: the endpoint is role-gated and the reference target is
+    # validated above, so we create the Communication on the user's behalf even
+    # if their role lacks a direct Communication create permission.
     comm.insert(ignore_permissions=True)
 
     def _split(v):
@@ -607,18 +650,31 @@ def crm_send_email(recipients, subject="", content="", cc=None, bcc=None,
             message=content or "",
             communication=comm.name,
         )
-        status = "sent"
-    except Exception as e:
-        status = f"queued (mail not configured: {e})"
-    return {"name": comm.name, "status": status}
+    except Exception:
+        # The send failed (e.g. no outgoing mail account). Log the real cause
+        # server-side and fail loudly with a generic message: throwing rolls back
+        # the transaction so the optimistically-inserted "Sent" Communication is
+        # not left behind masquerading as delivered, and no exception internals
+        # leak to the client.
+        frappe.log_error(frappe.get_traceback(), "crm_send_email: sendmail failed")
+        frappe.throw("Email could not be sent. Please check the outgoing mail configuration.")
+    return {"name": comm.name, "status": "sent"}
 
 
 @frappe.whitelist()
 def crm_mark_read(name, seen=1):
     """Mark a Communication as read/unread (used when a thread is opened in the app)."""
     _guard()
+    # Only toggle the same email Communications the mail views expose — not
+    # arbitrary Communication rows (automated messages, notifications, etc.).
+    ctype = frappe.db.get_value("Communication", name, "communication_type")
+    if not ctype:
+        frappe.throw(_("Email not found"))
+    if ctype != "Communication":
+        frappe.throw(_("Not a CRM email"), frappe.PermissionError)
     try:
         frappe.db.set_value("Communication", name, "seen", 1 if int(seen) else 0, update_modified=False)
         return {"name": name, "seen": 1 if int(seen) else 0}
-    except Exception as e:
-        return {"name": name, "error": str(e)}
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "crm_mark_read failed")
+        return {"name": name, "error": _("Could not update the message")}

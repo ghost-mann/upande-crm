@@ -38,7 +38,7 @@ export default function Activity() {
         { lbl: 'Total', val: fmt(k.total) }, { lbl: 'Today', val: fmt(k.today) }, { lbl: 'Sent', val: fmt(k.sent) },
         { lbl: 'Failed', val: fmt(k.failed) }, { lbl: 'Skipped', val: fmt(k.skipped) }, { lbl: 'Types', val: fmt((A.by_type || []).length) },
       ]} />
-      <div className="grid grid-cols-2 gap-2.5 mb-2.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <ChartCard title="Activity by Type"><HBarsChart labels={(A.by_type || []).map((r) => r.label)} data={(A.by_type || []).map((r) => r.count)} /></ChartCard>
         <ChartCard title="Status Mix"><DoughnutChart items={statusMix} /></ChartCard>
       </div>

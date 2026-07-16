@@ -42,10 +42,10 @@ export default function Opportunities() {
         { lbl: 'Total', val: fmt(k.total) }, { lbl: 'Open', val: fmt(k.open) }, { lbl: 'Converted', val: fmt(k.converted) },
         { lbl: 'Lost', val: fmt(k.lost) }, { lbl: 'Win Rate', val: k.win_rate, suffix: '%' }, { lbl: 'From Prospect', val: fmt(k.from_prospect) },
       ]} />
-      <div className="mb-2.5"><Stages stages={O.pipeline || []} total={k.total} /></div>
-      <div className="grid grid-cols-2 gap-2.5 mb-2.5">
+      <div className="mb-4"><Stages stages={O.pipeline || []} total={k.total} /></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <ChartCard title="Status Mix"><DoughnutChart items={O.status_mix} /></ChartCard>
-        <ChartCard title="By Territory"><HBarsChart labels={O.territory_mix.map((r) => r.label)} data={O.territory_mix.map((r) => r.count)} /></ChartCard>
+        <ChartCard title="By Territory"><HBarsChart labels={(O.territory_mix || []).map((r) => r.label)} data={(O.territory_mix || []).map((r) => r.count)} /></ChartCard>
       </div>
     </>
   );

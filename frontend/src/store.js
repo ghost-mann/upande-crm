@@ -50,6 +50,9 @@ export const SECTION_META = {
   act:      { title: 'Activity Log',       sub: 'CRM triggers · audit trail' },
 };
 
+// Inbox page size (rows fetched per request).
+const MAIL_PAGE_SIZE = 50;
+
 // mail sub-table → [folder, tab, clientFilter]
 const MAIL_MAP = {
   unread: ['inbox', 'unread', null], inbox: ['inbox', 'all', null], sent: ['sent', 'all', null],
@@ -74,6 +77,7 @@ export const useStore = create((set, get) => ({
   starred: [],
   mailFolder: null,
   mailLoading: false,
+  mailOffset: 0,
   openMsg: null,
   compose: null,   // null = closed; object = open with prefill {to, cc, subject, body, reference, inReplyTo}
   // search
@@ -95,6 +99,7 @@ export const useStore = create((set, get) => ({
       : dateRangePreset(preset);
     set({ dateFrom: r.from, dateTo: r.to, datePreset: r.preset });
     get().loadAll();
+    if (get().section === 'mail') get().loadMail(get().table || 'unread');
   },
 
   setCustomerFilter(name) {
@@ -125,14 +130,17 @@ export const useStore = create((set, get) => ({
     set({ data, status: failed ? 'partial' : 'live', lastUpdated: new Date() });
   },
 
-  async loadMail(table) {
+  async loadMail(table, offset = 0) {
     const [folder, tab, clientFilter] = MAIL_MAP[table] || ['inbox', 'all', null];
     set({ mailLoading: true });
     try {
-      const data = await api(M + 'crm_mail_data', { folder, tab, search: get().search || '', limit: 100, offset: 0 });
-      set({ mailFolder: { ...data, clientFilter }, mailLoading: false });
+      const data = await api(M + 'crm_mail_data', {
+        folder, tab, search: get().search || '', limit: MAIL_PAGE_SIZE, offset,
+        date_from: get().dateFrom, date_to: get().dateTo,
+      });
+      set({ mailFolder: { ...data, clientFilter }, mailLoading: false, mailOffset: offset });
     } catch {
-      set({ mailFolder: { rows: [], counts: {}, clientFilter }, mailLoading: false });
+      set({ mailFolder: { rows: [], counts: {}, clientFilter }, mailLoading: false, mailOffset: offset });
     }
   },
 
@@ -156,6 +164,30 @@ export const useStore = create((set, get) => ({
     }
   },
   closeMessage() { set({ openMsg: null }); },
+
+  // Toggle read/unread from the list (Gmail-style), updating the row + count locally.
+  async markRead(name, seen) {
+    const mf = get().mailFolder;
+    if (mf?.rows) {
+      const rows = mf.rows.map((r) => (r.name === name ? { ...r, seen: seen ? 1 : 0, unread: seen ? 0 : 1 } : r));
+      const counts = { ...(mf.counts || {}) };
+      if (typeof counts.inbox_unread === 'number') counts.inbox_unread = Math.max(0, counts.inbox_unread + (seen ? -1 : 1));
+      set({ mailFolder: { ...mf, rows, counts } });
+    }
+    try { await api(M + 'crm_mark_read', { name, seen: seen ? 1 : 0 }); } catch {}
+  },
+
+  // Bulk-delete Communications (best-effort; skips rows the user can't delete).
+  async deleteMessages(names) {
+    const list = Array.isArray(names) ? names : [names];
+    let ok = 0, failed = 0;
+    for (const name of list) {
+      try { await api('frappe.client.delete', { doctype: 'Communication', name }); ok += 1; }
+      catch { failed += 1; }
+    }
+    if (get().section === 'mail') await get().loadMail(get().table || 'unread', get().mailOffset);
+    return { ok, failed };
+  },
 
   openCompose(ctx = {}) { set({ compose: ctx }); },
   closeCompose() { set({ compose: null }); },

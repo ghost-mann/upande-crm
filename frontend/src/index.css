@@ -2,70 +2,86 @@
 @tailwind components;
 @tailwind utilities;
 
-/* CRM design tokens.
+/* CRM design tokens — "UFD-modern" (Upande Farm Data modern) design language.
+ *  - Shell is ink-black on warm cream surfaces; gold (#d9a514) is the signal accent.
  *  - shadcn semantic vars (HSL channels) drive the shadcn/ui primitives.
- *  - the raw CRM vars (--maroon, --surface-2, --text-2, --line, …) are the exact
- *    hex values from the source page, exposed to Tailwind as bg-maroon,
- *    text-ink-2, border-line, etc. for a faithful replica. */
+ *  - the raw CRM vars (--surface, --text, --line, --gold, …) are exposed to
+ *    Tailwind as bg-surface, text-ink, border-line, bg-gold, etc. */
 @layer base {
   :root {
-    /* shadcn semantic (maroon brand) — HSL channels */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 10%;
+    /* shadcn semantic (ink brand) — HSL channels */
+    --background: 40 20% 96%;
+    --foreground: 0 0% 4%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
+    --card-foreground: 0 0% 4%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
-    /* Brand shifted maroon → navy: primary now navy #1d3a5f */
-    --primary: 214 53% 24%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 40 11% 97%;
-    --secondary-foreground: 45 5% 34%;
-    --muted: 40 11% 97%;
-    --muted-foreground: 47 6% 53%;
-    --accent: 40 16% 94%;
-    --accent-foreground: 0 0% 10%;
-    --destructive: 4 77% 40%;
+    --popover-foreground: 0 0% 4%;
+    /* Primary = ink black (#0a0a0a); structural/active surfaces */
+    --primary: 60 6% 4%;
+    --primary-foreground: 48 33% 97%;
+    --secondary: 40 11% 95%;
+    --secondary-foreground: 45 5% 22%;
+    --muted: 40 11% 95%;
+    --muted-foreground: 47 4% 52%;
+    --accent: 40 16% 92%;
+    --accent-foreground: 0 0% 4%;
+    --destructive: 2 64% 47%;
     --destructive-foreground: 0 0% 100%;
-    --border: 42 19% 88%;
-    --input: 42 19% 88%;
-    --ring: 214 53% 24%;
-    --radius: 6px;
+    --border: 42 16% 87%;
+    --input: 42 16% 87%;
+    --ring: 60 6% 10%;
+    --radius: 12px;
 
-    /* CRM raw palette — exact hex from source */
-    /* Brand shifted to navy — the --maroon* names are kept (many call-sites)
-     * but now hold navy values so the whole shell + sections read navy. */
-    --maroon: #1d3a5f;
-    --maroon-2: #142b47;
-    --maroon-soft: #e9eef5;
-    --maroon-text: #1d3a5f;
-    /* Navy accent — the mail client's own accent (reference "UFD-modern" design language) */
-    --navy: #1d3a5f;
-    --navy-2: #142b47;
-    --navy-soft: #e9eef5;
-    --navy-text: #1d3a5f;
+    /* CRM raw palette — UFD-modern. Shades of black from the Upande logo. */
+    --ink: #0a0a0a;
+    --ink-1: #1a1a18;
+    --ink-2: #2a2a26;
+    --ink-3: #3a3a34;
+    --ink-4: #5a5a52;
+    --ink-mute: #8a8780;
+    --ink-faint: #b8b6ae;
+
+    /* Gold — the CRM signal accent (from the reference sticky-trap gold). */
+    --gold: #d9a514;
+    --gold-2: #a87d0d;
+    --gold-soft: #f7edcd;
+    --gold-text: #8a6a10;
+
+    /* Text roles (mapped to the ink scale). */
+    --text: #0a0a0a;
+    --text-2: #3a3a34;
+    --text-3: #8a8780;
+
+    /* Surfaces — warm cream canvas, near-white cards. */
+    --bg: #f4f3ef;
     --surface: #ffffff;
-    --surface-2: #f8f7f5;
+    --surface-2: #faf9f5;
     --surface-3: #efede9;
-    --hover: #f2f0ec;
-    --selected: #fbeef0;
+    --hover: rgba(10, 10, 10, 0.04);
+    --selected: #f7edcd;
     --line: #e6e3dc;
     --line-2: #cdc9bf;
-    --text: #1a1a1a;
-    --text-2: #5a5852;
-    --text-3: #8e8b80;
-    --good: #2d6a4f;
-    --good-soft: #e6f0ea;
-    --warn: #9a6700;
-    --warn-soft: #faf0d0;
-    --bad: #b42318;
-    --bad-soft: #fbe5e7;
+
+    /* Severity / status scale — mirrors the reference scouting severity scale. */
+    --good: #3f8f4f;
+    --good-soft: #e7f1e9;
+    --warn: #96650f;
+    --warn-soft: #f7ecce;
+    --bad: #c4302b;
+    --bad-soft: #f8e4e2;
     --info: #175cd3;
     --info-soft: #e0eaff;
+    --bio: #228883;
+
     --f: 'Poppins', system-ui, sans-serif;
     --mono: 'Poppins', system-ui, sans-serif;
     --display: 'Fraunces', Georgia, serif;
-    /* Soft layered shadows + hairline border from the reference design */
+
+    /* Gradient layers (ink structural, gold accent). */
+    --grad-ink: linear-gradient(135deg, #0a0a0a 0%, #3a3a34 100%);
+    --grad-gold: linear-gradient(135deg, #a87d0d 0%, #edc23c 100%);
+
+    /* Soft layered shadows + hairline from the reference design. */
     --hairline: rgba(10, 10, 10, 0.06);
     --shadow-card: 0 1px 0 rgba(10, 10, 10, 0.04), 0 8px 32px -16px rgba(10, 10, 10, 0.10);
     --shadow-hover: 0 1px 0 rgba(10, 10, 10, 0.06), 0 24px 48px -24px rgba(10, 10, 10, 0.18);
@@ -75,8 +91,10 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans;
-    font-size: 13px;
+    @apply bg-canvas font-sans;
+    color: var(--ink-3);
+    font-size: 14px;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
   }
   .material-symbols-outlined {
@@ -87,66 +105,128 @@
   }
 }
 
-/* Data-dense primitives copied from the source CRM page (tables, pipeline
- * stages, status badges, mail rows). Scoped to the crm bundle. */
+/* Data-dense primitives (tables, pipeline stages, status badges, mail rows),
+ * reskinned to the UFD-modern reference: rounded, hairline-bordered, cream
+ * hovers, gold accent. Scoped to the crm bundle. */
 @layer components {
-  .tbl-wrap { max-height: calc(100vh - 240px); overflow-y: auto; }
-  .tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .tbl-wrap { max-height: calc(100vh - 260px); overflow-y: auto; border-radius: 14px; }
+  .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
   .tbl th {
-    text-align: left; padding: 8px 12px; font-family: var(--mono); font-size: 9px;
-    color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; font-weight: 600;
+    text-align: left; padding: 12px 16px; font-family: var(--f); font-size: 10.5px;
+    color: var(--ink-mute); text-transform: uppercase; letter-spacing: .12em; font-weight: 600;
     background: var(--surface-2); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 1;
   }
-  .tbl td { padding: 8px 12px; border-bottom: 1px solid var(--line); }
-  .tbl tbody tr.clickable { cursor: pointer; }
+  .tbl td { padding: 13px 16px; border-bottom: 1px solid var(--hairline); color: var(--text-2); }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl tbody tr.clickable { cursor: pointer; transition: background .18s; }
   .tbl tbody tr.clickable:hover { background: var(--hover); }
-  .cell-id { font-family: var(--mono); font-size: 10.5px; color: var(--text-2); }
-  .cell-num { font-family: var(--mono); text-align: right; font-size: 11px; }
+  .cell-id { font-family: var(--mono); font-size: 11px; color: var(--ink-mute); font-variant-numeric: tabular-nums; }
+  .cell-num { font-family: var(--mono); text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
 
-  .stages { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; }
-  .stage { flex: 1; min-width: 130px; background: var(--surface-2); border-radius: 5px; padding: 9px 11px; border-left: 2px solid var(--maroon); }
-  .stage-name { font-family: var(--mono); font-size: 9px; color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 3px; }
-  .stage-cnt { font-family: var(--mono); font-size: 16px; font-weight: 600; color: var(--text); }
-  .stage-pct { font-family: var(--mono); font-size: 9.5px; color: var(--text-3); margin-top: 1px; }
+  .stages { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; }
+  .stage { flex: 1; min-width: 138px; background: var(--surface-2); border-radius: 14px; padding: 14px 16px; border: 1px solid var(--hairline); }
+  .stage-name { font-family: var(--f); font-size: 10px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; margin-bottom: 6px; }
+  .stage-cnt { font-family: var(--f); font-size: 24px; font-weight: 600; color: var(--ink); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .stage-pct { font-family: var(--f); font-size: 10.5px; color: var(--ink-mute); margin-top: 2px; }
 
-  .bdg { font-family: var(--mono); font-size: 9px; padding: 2px 6px; border-radius: 3px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; display: inline-block; }
+  .bdg { font-family: var(--f); font-size: 10px; padding: 3px 9px; border-radius: 999px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; display: inline-block; }
   .bdg-open { background: var(--info-soft); color: var(--info); }
   .bdg-good { background: var(--good-soft); color: var(--good); }
   .bdg-bad { background: var(--bad-soft); color: var(--bad); }
   .bdg-warn { background: var(--warn-soft); color: var(--warn); }
-  .bdg-other { background: var(--surface-3); color: var(--text-2); }
+  .bdg-other { background: var(--surface-3); color: var(--ink-4); }
 
-  /* Mail rows — reskinned to the UFD-modern reference: roomier, rounded hover,
-   * navy accent for unread, softer type. */
-  .mail-row { display: grid; grid-template-columns: 30px 24px 196px 1fr 84px; align-items: center; gap: 2px; padding: 0 10px; height: 52px; border-bottom: 1px solid var(--hairline); cursor: pointer; font-size: 13px; position: relative; border-radius: 12px; transition: background .18s, box-shadow .18s; }
+  /* Mail rows — roomy, rounded hover, gold accent for unread. */
+  .mail-row { display: grid; grid-template-columns: 30px 24px 200px 1fr 88px; align-items: center; gap: 4px; padding: 0 12px; height: 56px; border-bottom: 1px solid var(--hairline); cursor: pointer; font-size: 13px; position: relative; border-radius: 14px; transition: background .18s, box-shadow .18s; }
   .mail-row:hover { background: var(--hover); }
   .mail-row.unread { font-weight: 600; }
   .mail-row:last-child { border-bottom: 0; }
-  /* Navy unread rail on the left edge */
-  .mail-row.unread::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 999px; background: var(--navy); }
+  /* Gold unread rail on the left edge */
+  .mail-row.unread::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 999px; background: var(--gold); }
   .m-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 11px; font-family: var(--f); flex-shrink: 0; box-shadow: 0 1px 3px rgba(10,10,10,.18); }
   .m-from { display: flex; align-items: center; gap: 9px; overflow: hidden; padding-right: 10px; }
   .m-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
   .m-subj { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; color: var(--text); }
   .m-subj-cell { display: flex; align-items: center; gap: 9px; overflow: hidden; padding-right: 12px; }
-  .m-time { text-align: right; font-family: var(--mono); font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
-  .m-chip { display: inline-flex; align-items: center; height: 18px; padding: 0 8px; border-radius: 999px; font-size: 9.5px; font-weight: 600; font-family: var(--f); text-transform: uppercase; letter-spacing: .05em; flex-shrink: 0; background: var(--navy-soft); color: var(--navy-text); }
-  .m-snip { color: var(--text-3); font-weight: 400; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .m-star { display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-3); transition: color .15s, transform .1s; }
+  .m-time { text-align: right; font-family: var(--mono); font-size: 11px; color: var(--ink-mute); font-variant-numeric: tabular-nums; }
+  .m-chip { display: inline-flex; align-items: center; height: 19px; padding: 0 9px; border-radius: 999px; font-size: 9.5px; font-weight: 600; font-family: var(--f); text-transform: uppercase; letter-spacing: .05em; flex-shrink: 0; background: var(--gold-soft); color: var(--gold-text); }
+  .m-snip { color: var(--ink-mute); font-weight: 400; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-star { display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--ink-faint); transition: color .15s, transform .1s; }
   .m-star:hover { transform: scale(1.15); }
-  .m-star.on { color: #e3b341; }
-  .m-dir { font-family: var(--f); font-size: 10px; color: var(--text-3); }
+  .m-star.on { color: var(--gold); }
+  .m-dir { font-family: var(--f); font-size: 10px; color: var(--ink-mute); }
+  /* Gmail-style per-row hover actions (right edge) */
+  .m-actions { position: absolute; right: 10px; top: 0; bottom: 0; display: flex; align-items: center; gap: 1px; opacity: 0; pointer-events: none; transition: opacity .12s; }
+  .mail-row:hover .m-actions { opacity: 1; pointer-events: auto; }
+  .mail-row:hover .m-time { opacity: 0; }
+  .m-actions button { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-4); transition: background .12s, color .12s; }
+  .m-actions button:hover { background: rgba(10,10,10,0.07); color: var(--ink); }
+
+  /* Mail toolbar (Gmail-style) */
+  .mailbar { display: flex; align-items: center; gap: 2px; padding: 6px 10px; border-bottom: 1px solid var(--hairline); }
+  .mailbar button { height: 36px; min-width: 36px; padding: 0 8px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--ink-4); font: 500 12px var(--f); transition: background .12s, color .12s; }
+  .mailbar button:hover { background: var(--hover); color: var(--ink); }
+  .mailbar button:disabled { opacity: .4; pointer-events: none; }
 
   /* Big rounded, soft-shadowed card used by the mail views */
-  .mail-card { border-radius: 20px !important; border-color: var(--hairline) !important; box-shadow: var(--shadow-card); }
-  .mail-display { font-family: var(--display); letter-spacing: -.01em; }
+  .mail-card { border-radius: 24px !important; border-color: var(--hairline) !important; box-shadow: var(--shadow-card); }
+  /* Mail titles use Poppins (not the display serif) to match the reference. */
+  .mail-display { font-family: var(--f); letter-spacing: -.02em; }
+  /* Selected mail row */
+  .mail-row.selected { background: var(--gold-soft); }
+  .mail-row.selected:hover { background: var(--gold-soft); }
 
-  .crm-empty { padding: 40px; text-align: center; color: var(--text-3); font-family: var(--f); font-size: 12px; }
+  .crm-empty { padding: 44px; text-align: center; color: var(--ink-mute); font-family: var(--f); font-size: 12.5px; }
+
+  /* --- UFD-modern overview primitives (from the avocado reference) --- */
+
+  /* Page header tools */
+  .datepill { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 999px; padding: 10px 16px; font: 500 12px var(--f); color: var(--ink); box-shadow: var(--shadow-card); cursor: pointer; white-space: nowrap; }
+  .iconbtn { width: 40px; height: 40px; border: 0; background: var(--surface); border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: var(--ink-4); box-shadow: var(--shadow-card); transition: all .2s; }
+  .iconbtn:hover { color: var(--ink); transform: translateY(-1px); }
+
+  /* KPI trend chip */
+  .k-trend { margin-top: 16px; display: inline-flex; align-items: center; gap: 6px; font: 500 12px var(--f); padding: 5px 12px; border-radius: 999px; background: rgba(10,10,10,0.03); color: var(--ink-4); }
+  .k-trend.up { color: var(--good); background: rgba(63,143,79,0.13); }
+  .k-trend.down { color: var(--bad); background: rgba(196,48,43,0.10); }
+  .k-trend.gold { color: var(--gold-text); background: var(--gold-soft); }
+  .k-trend small { color: inherit; opacity: .65; font-weight: 500; }
+
+  /* Ranked list */
+  .list { display: flex; flex-direction: column; }
+  .list__row { display: grid; grid-template-columns: 30px 1fr auto; gap: 14px; padding: 13px 8px; border-bottom: 1px solid var(--hairline); align-items: center; cursor: pointer; transition: background .2s; border-radius: 12px; }
+  .list__row:hover { background: var(--hover); }
+  .list__row:last-child { border-bottom: 0; }
+  .list__rank { font: 600 12px var(--f); color: var(--ink-mute); width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: rgba(10,10,10,0.05); font-variant-numeric: tabular-nums; }
+  .list__rank.lead { background: var(--gold); color: var(--ink); }
+  .list__name { font: 600 14px var(--f); color: var(--ink); }
+  .list__meta { font-size: 12px; color: var(--ink-mute); margin-top: 2px; }
+  .list__qty { font: 600 16px var(--f); color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; }
+  .list__qty small { display: block; font: 500 11px var(--f); color: var(--ink-mute); margin-top: 1px; }
+
+  /* Funnel — big descending gradient bars */
+  .funnel { padding: 8px 0 4px; display: flex; flex-direction: column; gap: 12px; }
+  .funnel__stage { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 18px; }
+  .funnel__bar { height: 54px; display: flex; align-items: center; padding: 0 22px; font: 600 15px var(--f); color: #fff; border-radius: 14px; letter-spacing: -.2px; min-width: 150px; }
+  .funnel__meta { font: 500 12px var(--f); color: var(--ink-mute); min-width: 120px; text-align: right; }
+  .funnel__meta b { display: block; font: 600 20px var(--f); color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* Donut center label + color legend */
+  .piewrap { position: relative; display: grid; place-items: center; }
+  .piewrap__center { position: absolute; text-align: center; pointer-events: none; }
+  .piewrap__center b { display: block; font: 600 30px var(--f); color: var(--ink); letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+  .piewrap__center small { font: 500 10px var(--f); text-transform: uppercase; letter-spacing: .16em; color: var(--ink-mute); }
+  .clegend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 14px; }
+  .clegend span { display: inline-flex; align-items: center; gap: 8px; font: 500 12px var(--f); color: var(--ink-3); }
+  .clegend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  /* Sidebar / main scroll regions — thin subtle scrollbar. */
+  .crm-scroll { scrollbar-width: thin; scrollbar-color: rgba(10, 10, 10, 0.16) transparent; }
 }
 
 /* Thin, subtle scrollbars across the CRM (sidebar, main, tables). */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 7px; height: 7px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(29, 58, 95, 0.16); border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(29, 58, 95, 0.32); }
-* { scrollbar-width: thin; scrollbar-color: rgba(29, 58, 95, 0.16) transparent; }
+::-webkit-scrollbar-thumb { background: rgba(10, 10, 10, 0.16); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(10, 10, 10, 0.30); }
+* { scrollbar-width: thin; scrollbar-color: rgba(10, 10, 10, 0.16) transparent; }

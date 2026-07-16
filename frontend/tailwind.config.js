@@ -4,7 +4,6 @@ import tailwindcssAnimate from 'tailwindcss-animate';
 // Scoped to this app's single CRM build.
 // so no utility classes or preflight leak into portal/site/webshop/customer-panel.
 export default {
-  darkMode: ['class'],
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
@@ -18,6 +17,10 @@ export default {
       boxShadow: {
         card: 'var(--shadow-card)',
         hover: 'var(--shadow-hover)',
+      },
+      backgroundImage: {
+        'grad-ink': 'var(--grad-ink)',
+        'grad-gold': 'var(--grad-gold)',
       },
       colors: {
         // shadcn semantic tokens (HSL channels in CSS vars)
@@ -33,12 +36,13 @@ export default {
         destructive: { DEFAULT: 'hsl(var(--destructive))', foreground: 'hsl(var(--destructive-foreground))' },
         popover: { DEFAULT: 'hsl(var(--popover))', foreground: 'hsl(var(--popover-foreground))' },
         card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
-        // CRM raw palette (exact hex via CSS vars) — used to replicate the source
-        maroon: { DEFAULT: 'var(--maroon)', 2: 'var(--maroon-2)', soft: 'var(--maroon-soft)', text: 'var(--maroon-text)' },
-        navy: { DEFAULT: 'var(--navy)', 2: 'var(--navy-2)', soft: 'var(--navy-soft)', text: 'var(--navy-text)' },
+        // CRM raw palette (exact hex via CSS vars) — UFD-modern ink + gold
+        gold: { DEFAULT: 'var(--gold)', 2: 'var(--gold-2)', soft: 'var(--gold-soft)', text: 'var(--gold-text)' },
         hairline: 'var(--hairline)',
+        canvas: 'var(--bg)',
         surface: { DEFAULT: 'var(--surface)', 2: 'var(--surface-2)', 3: 'var(--surface-3)' },
-        ink: { DEFAULT: 'var(--text)', 2: 'var(--text-2)', 3: 'var(--text-3)' },
+        ink: { DEFAULT: 'var(--text)', 2: 'var(--text-2)', 3: 'var(--text-3)', 4: 'var(--ink-4)', mute: 'var(--ink-mute)', faint: 'var(--ink-faint)' },
+        bio: 'var(--bio)',
         line: { DEFAULT: 'var(--line)', 2: 'var(--line-2)' },
         good: { DEFAULT: 'var(--good)', soft: 'var(--good-soft)' },
         warn: { DEFAULT: 'var(--warn)', soft: 'var(--warn-soft)' },

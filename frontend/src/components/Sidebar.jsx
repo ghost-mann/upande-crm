@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { NAV } from '../nav';
 import Icon from './Icon';
 import { useStore } from '../store';
@@ -20,50 +19,90 @@ function groupCount(section, data, mailCounts) {
   }
 }
 
-const MAIL_SUB_COUNT = {
-  unread: 'inbox_unread', inbox: 'inbox', sent: 'sent_ok',
-  crm_leads: 'crm_leads', crm_opps: 'crm_opps', crm_customers: 'crm_customers', crm_quotations: 'crm_quotations',
-};
+const ITEM_ON = 'bg-grad-ink text-white font-medium shadow-[0_4px_14px_rgba(10,10,10,0.18)]';
+const ITEM_OFF = 'text-ink-4 hover:bg-hover hover:text-ink';
 
-export default function Sidebar({ onCompose, onSettings }) {
+export default function Sidebar({ onCompose, onSettings, collapsed, onToggleCollapse }) {
   const section = useStore((s) => s.section);
-  const table = useStore((s) => s.table);
   const select = useStore((s) => s.select);
-  const [open, setOpen] = useState(() => ({ mail: true, [section]: true }));
-
-  const handleSelect = (sec, tbl = '') => {
-    select(sec, tbl);
-    setOpen((o) => ({ ...o, [sec]: true }));
-  };
-  const toggle = (sec) => setOpen((o) => ({ ...o, [sec]: !o[sec] }));
+  const data = useStore((s) => s.data);
+  const mailCounts = useStore((s) => s.mailFolder?.counts);
 
   return (
-    <aside className="bg-surface-2 border-r border-line flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto crm-scroll pt-2.5 pb-2">
-        <div className="px-2.5 pb-2">
-          <button onClick={onCompose} className="w-full h-9 bg-maroon text-white rounded-[5px] text-[13px] font-semibold flex items-center justify-center gap-2 hover:bg-maroon-2 transition-colors">
-            <Icon name="edit_square" className="text-[18px]" />Compose
+    <aside className="sticky top-[84px] max-[900px]:static max-h-[calc(100vh-104px)] max-[900px]:max-h-none bg-surface border border-hairline rounded-[24px] shadow-card flex flex-col overflow-hidden">
+      <div className="flex-1 overflow-y-auto crm-scroll pt-4 pb-2">
+        <div className={cn('pb-2', collapsed ? 'px-2' : 'px-3.5')}>
+          <button
+            onClick={onCompose}
+            title="Compose"
+            className={cn(
+              'bg-gold text-ink rounded-2xl text-[13px] font-semibold flex items-center justify-center gap-2 hover:bg-gold-2 hover:text-white transition-colors shadow-[0_4px_14px_rgba(217,165,20,0.28)] h-11',
+              collapsed ? 'w-11 mx-auto' : 'w-full',
+            )}
+          >
+            <Icon name="edit_square" className="text-[18px]" />{!collapsed && 'Compose'}
           </button>
         </div>
         {NAV.map((grp) => (
-          <div key={grp.label}>
-            <div className="font-mono text-[9px] font-semibold text-ink-3 uppercase tracking-[0.14em] px-3.5 pt-3 pb-1.5">{grp.label}</div>
-            {grp.items.map((it) =>
-              it.type === 'item' ? (
-                <NavItem key={it.section} it={it} active={section === it.section && !table} onClick={() => handleSelect(it.section)} />
-              ) : (
-                <NavGroup key={it.section} it={it} section={section} table={table} open={!!open[it.section]} onToggle={() => toggle(it.section)} onSelect={handleSelect} />
-              ),
-            )}
+          <div key={grp.label} className="px-2">
+            {!collapsed && <div className="text-[9.5px] font-semibold text-ink-mute uppercase tracking-[0.16em] px-2 pt-4 pb-2">{grp.label}</div>}
+            {collapsed && <div className="h-px bg-hairline mx-2 my-2 first:hidden" />}
+            {grp.items.map((it) => {
+              const active = section === it.section;
+              const cnt = groupCount(it.section, data, mailCounts);
+              return (
+                <button
+                  key={it.section}
+                  title={collapsed ? it.label : undefined}
+                  onClick={() => select(it.section, it.subs ? it.subs[0].table : '')}
+                  className={cn(
+                    'flex items-center gap-2.5 h-10 rounded-2xl text-[13px] cursor-pointer select-none w-full text-left transition-colors',
+                    collapsed ? 'justify-center px-0' : 'px-3.5',
+                    active ? ITEM_ON : ITEM_OFF,
+                  )}
+                >
+                  <Icon name={it.icon} className="text-[18px] shrink-0" />
+                  {!collapsed && <span className="flex-1 truncate">{it.label}</span>}
+                  {!collapsed && cnt != null && (
+                    <span className={cn('text-[10.5px] font-semibold tabular-nums rounded-full px-2 py-0.5', active ? 'bg-white/16 text-white' : 'bg-[rgba(10,10,10,0.06)] text-ink-4')}>
+                      {fmt(cnt)}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         ))}
       </div>
-      <UserFooter onSettings={onSettings} />
+
+      {/* Actions: back to desk + collapse toggle */}
+      <div className={cn('border-t border-hairline py-1.5', collapsed ? 'px-2' : 'px-2')}>
+        <SideAction icon="grid_view" label="Back to Desk" collapsed={collapsed} onClick={() => { window.location.href = '/app'; }} />
+        <SideAction icon={collapsed ? 'chevron_right' : 'chevron_left'} label="Collapse" collapsed={collapsed} onClick={onToggleCollapse} />
+      </div>
+
+      <UserFooter onSettings={onSettings} collapsed={collapsed} />
     </aside>
   );
 }
 
-function UserFooter({ onSettings }) {
+function SideAction({ icon, label, collapsed, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      className={cn(
+        'flex items-center gap-2.5 h-9 rounded-2xl text-[12.5px] text-ink-4 hover:bg-hover hover:text-ink w-full transition-colors',
+        collapsed ? 'justify-center px-0' : 'px-3.5',
+      )}
+    >
+      <Icon name={icon} className="text-[18px] shrink-0" />
+      {!collapsed && <span className="truncate">{label}</span>}
+    </button>
+  );
+}
+
+function UserFooter({ onSettings, collapsed }) {
   const boot = getBoot();
   const name = boot.fullName || boot.user || 'User';
   const email = boot.user || '';
@@ -72,83 +111,21 @@ function UserFooter({ onSettings }) {
     <button
       onClick={onSettings}
       title="Settings"
-      className="flex items-center gap-2.5 px-3 py-2.5 border-t border-line hover:bg-hover text-left w-full shrink-0"
+      className={cn('flex items-center gap-2.5 border-t border-hairline hover:bg-hover text-left w-full shrink-0', collapsed ? 'justify-center px-2 py-3' : 'px-4 py-3.5')}
     >
-      <Avatar className="h-8 w-8">
+      <Avatar className="h-9 w-9 shrink-0">
         {img ? <AvatarImage src={img} alt={name} /> : null}
         <AvatarFallback>{initials(name)}</AvatarFallback>
       </Avatar>
-      <div className="min-w-0 flex-1">
-        <div className="text-xs font-medium text-ink truncate">{name}</div>
-        <div className="text-[10px] text-ink-3 font-mono truncate">{email}</div>
-      </div>
-      <Icon name="settings" className="text-[16px] text-ink-3" />
+      {!collapsed && (
+        <>
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-medium text-ink truncate">{name}</div>
+            <div className="text-[10.5px] text-ink-mute truncate">{email}</div>
+          </div>
+          <Icon name="settings" className="text-[17px] text-ink-mute" />
+        </>
+      )}
     </button>
-  );
-}
-
-function NavItem({ it, active, onClick }) {
-  return (
-    <div
-      onClick={onClick}
-      className={cn(
-        'flex items-center gap-2.5 h-[30px] px-3 mx-1.5 rounded text-[12.5px] cursor-pointer select-none',
-        active ? 'bg-maroon text-white font-medium' : 'text-ink-2 hover:bg-hover hover:text-ink',
-      )}
-    >
-      <Icon name={it.icon} className="text-[17px] shrink-0" />
-      <span>{it.label}</span>
-    </div>
-  );
-}
-
-function NavGroup({ it, section, table, open, onToggle, onSelect }) {
-  const data = useStore((s) => s.data);
-  const mailCounts = useStore((s) => s.mailFolder?.counts);
-  const headActive = section === it.section && !table;
-  const cnt = groupCount(it.section, data, mailCounts);
-
-  return (
-    <div className="mx-1.5">
-      <div
-        onClick={() => onSelect(it.section, '')}
-        className={cn(
-          'flex items-center gap-2.5 h-[30px] px-3 rounded text-[12.5px] cursor-pointer select-none',
-          headActive ? 'bg-maroon text-white font-medium' : 'text-ink-2 hover:bg-hover hover:text-ink',
-        )}
-      >
-        <Icon name={it.icon} className="text-[17px] shrink-0" />
-        <span>{it.label}</span>
-        <span className={cn('ml-auto font-mono text-[10px] font-medium', headActive ? 'text-white/80' : 'text-ink-3')}>
-          {cnt != null ? fmt(cnt) : ''}
-        </span>
-        <Icon
-          name="chevron_right"
-          className={cn('text-[15px] transition-transform', headActive ? 'text-white/80' : 'text-ink-3', open && 'rotate-90')}
-          onClick={(e) => { e.stopPropagation(); onToggle(); }}
-        />
-      </div>
-      {open && (
-        <div className="pt-0.5 pb-1">
-          {it.subs.map((sub) => {
-            const subCnt = it.section === 'mail' ? mailCounts?.[MAIL_SUB_COUNT[sub.table]] : undefined;
-            const active = section === it.section && table === sub.table;
-            return (
-              <div
-                key={sub.table || 'dash'}
-                onClick={() => onSelect(it.section, sub.table)}
-                className={cn(
-                  'flex items-center gap-2 h-[26px] px-3 pl-8 mx-1 rounded text-xs cursor-pointer',
-                  active ? 'bg-maroon-soft text-maroon-text font-medium' : 'text-ink-2 hover:bg-hover hover:text-ink',
-                )}
-              >
-                <span>{sub.label}</span>
-                {subCnt != null && <span className="ml-auto font-mono text-[10px] text-ink-3">{fmt(subCnt)}</span>}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
   );
 }

@@ -83,7 +83,7 @@ export default function ComposeDialog() {
       <div className={panel}>
         {/* Header bar */}
         <div
-          className="h-11 shrink-0 bg-navy text-white flex items-center gap-1 pl-4 pr-1.5 cursor-pointer select-none"
+          className="h-11 shrink-0 bg-grad-ink text-white flex items-center gap-1 pl-4 pr-1.5 cursor-pointer select-none"
           onClick={() => minimized && setMinimized(false)}
         >
           <span className="mail-display text-[14px] font-semibold truncate flex-1">{title}</span>
@@ -109,7 +109,7 @@ export default function ComposeDialog() {
                 <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="email@example.com, …"
                   className="flex-1 bg-transparent outline-none text-sm" />
                 {!showCc && (
-                  <button className="text-[11px] text-ink-3 hover:text-navy px-1" onClick={() => setShowCc(true)}>Cc</button>
+                  <button className="text-[11px] text-ink-3 hover:text-gold-text px-1" onClick={() => setShowCc(true)}>Cc</button>
                 )}
               </div>
               {showCc && (
@@ -135,7 +135,7 @@ export default function ComposeDialog() {
             </div>
 
             <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-t border-line">
-              <Button size="sm" className="rounded-full bg-navy hover:bg-navy-2 shadow-none px-5" onClick={send} disabled={sending}>
+              <Button size="sm" className="rounded-full bg-gold text-ink hover:bg-gold-2 hover:text-white shadow-none px-5" onClick={send} disabled={sending}>
                 <Icon name="send" className="text-[15px]" />{sending ? 'Sending…' : 'Send'}
               </Button>
               <button onClick={() => closeCompose()} className="text-ink-3 hover:text-bad" title="Discard">

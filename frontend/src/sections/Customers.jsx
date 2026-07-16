@@ -5,7 +5,7 @@ import { KpiRow } from '../components/Kpi';
 import ChartCard from '../components/ChartCard';
 import DataTable from '../components/DataTable';
 import EmailsTable from '../components/EmailsTable';
-import { DoughnutChart, HBarsChart, BarsChart } from '../charts/Charts';
+import { DoughnutChart, HBarsChart, AreaTrendChart } from '../charts/Charts';
 import { isMine, MINE_FIELDS, currentUser } from '@/lib/crm';
 
 const COLUMNS = [
@@ -50,12 +50,12 @@ export default function Customers() {
         { lbl: 'Total', val: fmt(k.total) }, { lbl: 'Active', val: fmt(k.active) }, { lbl: 'Disabled', val: fmt(k.disabled) },
         { lbl: 'Companies', val: fmt(k.companies) }, { lbl: 'Individuals', val: fmt(k.individuals) }, { lbl: 'New 30d', val: fmt(k.new_30d) },
       ]} />
-      <div className="grid grid-cols-2 gap-2.5 mb-2.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <ChartCard title="Type Mix"><DoughnutChart items={C.type_mix} /></ChartCard>
-        <ChartCard title="By Territory"><HBarsChart labels={C.territory_mix.map((r) => r.label)} data={C.territory_mix.map((r) => r.count)} /></ChartCard>
+        <ChartCard title="By Territory"><HBarsChart labels={(C.territory_mix || []).map((r) => r.label)} data={(C.territory_mix || []).map((r) => r.count)} /></ChartCard>
       </div>
-      <ChartCard title="Acquisition Trend" sub="Last 12 months">
-        <BarsChart labels={(C.acquisition_trend || []).map((r) => r.month.slice(2))} data={(C.acquisition_trend || []).map((r) => r.count)} />
+      <ChartCard title="Acquisition Trend" sub="In selected range">
+        <AreaTrendChart labels={(C.acquisition_trend || []).map((r) => r.label)} data={(C.acquisition_trend || []).map((r) => r.count)} />
       </ChartCard>
     </>
   );

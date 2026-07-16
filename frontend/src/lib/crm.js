@@ -18,7 +18,7 @@ export function badgeClass(s) {
 
 // avatar background hash (ported from avatarBg()).
 export function avatarBg(s) {
-  const palette = ['#9c3848', '#c87a5a', '#c89e3a', '#7a9b6e', '#4a8a8a', '#5e7ba8', '#8a5a7a', '#888a4a'];
+  const palette = ['#a87d0d', '#3a3a34', '#228883', '#3f8f4f', '#96650f', '#5a5a52', '#c4302b', '#8a6a10'];
   let h = 0;
   for (const ch of String(s || '')) h = ((h << 5) - h + ch.charCodeAt(0)) | 0;
   return palette[Math.abs(h) % palette.length];

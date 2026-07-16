@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 function Toggle({ on, onClick }) {
   return (
-    <button onClick={onClick} className={cn('w-9 h-5 rounded-full relative transition-colors shrink-0', on ? 'bg-maroon' : 'bg-line-2')}>
+    <button onClick={onClick} className={cn('w-9 h-5 rounded-full relative transition-colors shrink-0', on ? 'bg-gold' : 'bg-line-2')}>
       <span className={cn('absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all', on ? 'left-[18px]' : 'left-0.5')} />
     </button>
   );
@@ -62,7 +62,7 @@ export default function SettingsSheet({ open, onOpenChange }) {
             <Row label="Signed in as"><span className="font-mono text-[11px] text-ink-2">{boot.user || '—'}</span></Row>
           </Group>
         </div>
-        <SheetFooter>CRM · Karen Roses · v1.0</SheetFooter>
+        <SheetFooter>CRM · {boot.brandName} · v1.0</SheetFooter>
       </SheetContent>
     </Sheet>
   );

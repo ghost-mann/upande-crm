@@ -42,13 +42,13 @@ export default function Leads() {
         { lbl: '→ Quotation', val: fmt(k.to_quot) }, { lbl: 'Converted', val: fmt(k.converted) },
         { lbl: 'Conv. Rate', val: k.conv_rate, suffix: '%' },
       ]} />
-      <div className="grid grid-cols-2 gap-2.5 mb-2.5">
-        <ChartCard title="Status"><BarsChart labels={L.status_mix.map((r) => r.label)} data={L.status_mix.map((r) => r.count)} /></ChartCard>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <ChartCard title="Status"><BarsChart labels={(L.status_mix || []).map((r) => r.label)} data={(L.status_mix || []).map((r) => r.count)} /></ChartCard>
         <ChartCard title="Qualification"><DoughnutChart items={L.qual_mix} /></ChartCard>
       </div>
-      <div className="grid grid-cols-2 gap-2.5 mb-2.5">
-        <ChartCard title="Owner Workload"><HBarsChart labels={L.owner_workload.map((r) => r.label)} data={L.owner_workload.map((r) => r.count)} /></ChartCard>
-        <ChartCard title="Geography"><HBarsChart labels={L.geography.map((r) => r.label)} data={L.geography.map((r) => r.count)} /></ChartCard>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <ChartCard title="Owner Workload"><HBarsChart labels={(L.owner_workload || []).map((r) => r.label)} data={(L.owner_workload || []).map((r) => r.count)} /></ChartCard>
+        <ChartCard title="Geography"><HBarsChart labels={(L.geography || []).map((r) => r.label)} data={(L.geography || []).map((r) => r.count)} /></ChartCard>
       </div>
     </>
   );

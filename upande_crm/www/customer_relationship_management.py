@@ -25,11 +25,21 @@ def get_context(context):
 		"User", frappe.session.user, ["full_name", "user_image"]
 	) or (None, None)
 
+	# Brand for the shell (logo mark + wordmark), sourced from the default
+	# Company rather than hardcoded, so the CRM reads correctly on any site.
+	company = frappe.defaults.get_global_default("company") or ""
+	abbr = (frappe.db.get_value("Company", company, "abbr") if company else "") or ""
+	brand_name = company or "CRM"
+	if not abbr:
+		abbr = "".join(w[0] for w in brand_name.split()[:2]) or brand_name[:2]
+
 	context.boot = {
 		"csrf_token":        frappe.sessions.get_csrf_token(),
 		"frappe_user":       frappe.session.user,
 		"frappe_user_full":  full_name or frappe.session.user,
 		"frappe_user_image": user_image or "",
+		"brand_name":        brand_name,
+		"brand_abbr":        abbr.upper()[:3],
 		# In CRM the user is always sales; expose flags so the shared shell can
 		# render the right tabs without an extra API round-trip.
 		"is_staff":           True,

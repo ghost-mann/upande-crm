@@ -134,5 +134,7 @@ export function getBoot() {
     csrfToken: window.csrf_token       ?? null,
     isGuest:   window.is_guest         ?? true,
     tiles:     window.tiles            ?? null,
+    brandName: window.brand_name       ?? 'CRM',
+    brandAbbr: window.brand_abbr       ?? 'CRM',
   };
 }

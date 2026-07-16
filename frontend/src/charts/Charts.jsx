@@ -1,11 +1,11 @@
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Area, ComposedChart,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Line, Area, AreaChart, ComposedChart,
 } from 'recharts';
-import { fmtMoney } from '@shared/utils';
-import { PAL, BAR_FILL, GRID, ORDER_COLOR, REVENUE_COLOR } from './palette';
+import { fmt, fmtMoney } from '@shared/utils';
+import { PAL, BAR_FILL, GRID, ORDER_COLOR, REVENUE_COLOR, AREA_INK } from './palette';
 
-const MONO = { fontSize: 9, fontFamily: 'JetBrains Mono', fill: '#8e8b80' };
+const MONO = { fontSize: 9.5, fontFamily: 'Poppins', fill: '#8a8780' };
 
 function Empty() {
   return <div className="flex items-center justify-center h-full text-ink-3 font-mono text-[11px]">No data</div>;
@@ -22,9 +22,29 @@ export function DoughnutChart({ items }) {
         </Pie>
         <Tooltip contentStyle={{ fontSize: 11 }} />
         <Legend layout="vertical" align="right" verticalAlign="middle" iconType="circle" iconSize={8}
-          wrapperStyle={{ fontSize: 10, fontFamily: 'JetBrains Mono' }} />
+          wrapperStyle={{ fontSize: 10, fontFamily: 'Poppins' }} />
       </PieChart>
     </ResponsiveContainer>
+  );
+}
+
+// Doughnut with a big center total (UFD-modern piewrap) — items: [{label, count}]
+export function DoughnutStat({ items, centerLabel = 'total' }) {
+  if (!items?.length) return <Empty />;
+  const total = items.reduce((s, r) => s + (r.count || 0), 0);
+  return (
+    <div className="piewrap w-full h-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie data={items} dataKey="count" nameKey="label" innerRadius="68%" outerRadius="92%"
+            stroke="#fff" strokeWidth={2} startAngle={90} endAngle={-270} paddingAngle={1}>
+            {items.map((_, i) => <Cell key={i} fill={PAL[i % PAL.length]} />)}
+          </Pie>
+          <Tooltip contentStyle={{ fontSize: 11 }} />
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="piewrap__center"><b>{fmt(total)}</b><small>{centerLabel}</small></div>
+    </div>
   );
 }
 
@@ -58,6 +78,29 @@ export function HBarsChart({ labels, data }) {
         <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} contentStyle={{ fontSize: 11 }} />
         <Bar dataKey="value" fill={BAR_FILL} radius={[0, 3, 3, 0]} maxBarSize={18} />
       </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+// Single-series trend as a gradient area line — labels: string[], data: number[]
+export function AreaTrendChart({ labels, data }) {
+  if (!labels?.length) return <Empty />;
+  const rows = labels.map((l, i) => ({ label: l, value: data[i] }));
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={rows} margin={{ top: 8, right: 8, left: -14, bottom: 0 }}>
+        <defs>
+          <linearGradient id="gTrend" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={AREA_INK} stopOpacity={0.18} />
+            <stop offset="100%" stopColor={AREA_INK} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid vertical={false} stroke={GRID} />
+        <XAxis dataKey="label" tickLine={false} axisLine={false} tick={MONO} interval="preserveStartEnd" />
+        <YAxis tickLine={false} axisLine={false} tick={MONO} allowDecimals={false} width={32} />
+        <Tooltip cursor={{ stroke: 'rgba(10,10,10,0.12)' }} contentStyle={{ fontSize: 11 }} />
+        <Area type="monotone" dataKey="value" stroke="#2a2a26" strokeWidth={2} fill="url(#gTrend)" dot={false} activeDot={{ r: 3 }} />
+      </AreaChart>
     </ResponsiveContainer>
   );
 }

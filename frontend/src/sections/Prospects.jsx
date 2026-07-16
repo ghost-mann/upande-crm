@@ -38,10 +38,10 @@ export default function Prospects() {
         { lbl: 'Total', val: fmt(k.total) }, { lbl: 'With Opps', val: fmt(k.with_opp) }, { lbl: '→ Customer', val: fmt(k.to_customer) },
         { lbl: 'Conv. Rate', val: k.conv_rate, suffix: '%' }, { lbl: 'Territories', val: fmt(k.territories) }, { lbl: 'This Quarter', val: fmt(k.this_quarter) },
       ]} />
-      <div className="grid grid-cols-3 gap-2.5 mb-2.5">
-        <ChartCard title="By Territory" height="h-[200px]"><HBarsChart labels={P.territory_mix.map((r) => r.label)} data={P.territory_mix.map((r) => r.count)} /></ChartCard>
-        <ChartCard title="Company Size" height="h-[200px]"><DoughnutChart items={P.size_mix} /></ChartCard>
-        <ChartCard title="Industries" height="h-[200px]"><HBarsChart labels={(P.industry_mix || []).map((r) => r.label)} data={(P.industry_mix || []).map((r) => r.count)} /></ChartCard>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <ChartCard title="By Territory" height="h-[260px]"><HBarsChart labels={(P.territory_mix || []).map((r) => r.label)} data={(P.territory_mix || []).map((r) => r.count)} /></ChartCard>
+        <ChartCard title="Company Size" height="h-[260px]"><DoughnutChart items={P.size_mix} /></ChartCard>
+        <ChartCard title="Industries" height="h-[260px]"><HBarsChart labels={(P.industry_mix || []).map((r) => r.label)} data={(P.industry_mix || []).map((r) => r.count)} /></ChartCard>
       </div>
     </>
   );

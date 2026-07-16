@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardTitle, CardSub, CardContent } from '@/components/ui/card';
 
-export default function ChartCard({ title, sub, height = 'h-[220px]', children }) {
+export default function ChartCard({ title, sub, height = 'h-[280px]', children }) {
   return (
     <Card>
       <CardHeader>

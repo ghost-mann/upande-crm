@@ -21,7 +21,7 @@ export function fmtMoneyCompact(n, ccy) {
   if (n == null || isNaN(n)) return '—';
   const v = Number(n);
   const sign = ccy === 'USD' ? '$' : (ccy ? ccy + ' ' : '');
-  if (Math.abs(v) >= 1e6) return sign + (v / 1e6).toFixed(2) + 'M';
+  if (Math.abs(v) >= 1e6) return sign + (v / 1e6).toFixed(1) + 'M';
   if (Math.abs(v) >= 1e3) return sign + (v / 1e3).toFixed(1) + 'k';
   return sign + v.toFixed(2);
 }

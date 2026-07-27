@@ -170,19 +170,23 @@ def crm_dashboard_overview(date_from=None, date_to=None, customer=None):
     cust_active = _count("Customer", {**cd, "disabled": 0})
     cust_companies = _count("Customer", {**cd, "customer_type": "Company", "disabled": 0})
 
-    rev_usd, rev_orders = _so_revenue(frm, to, customer)
+    rev_amount, rev_orders = _so_revenue(frm, to, customer)
 
     tasks_open = _count("ToDo", {**td, "status": "Open"})
     tasks_high = _count("ToDo", {**td, "status": "Open", "priority": "High"})
 
     return {
+        # `base_grand_total` is denominated in the Company's default currency (KES
+        # on this site), NOT USD. The frontend must format with this code — it
+        # previously hardcoded '$', overstating revenue by ~130x.
+        "currency": _company_currency(),
         "kpis": {
             "leads": {"total": leads_total, "open": leads_open, "conv_rate": conv_rate},
             "opps": {"total": opps_total, "open": opps_open, "won": opps_won},
             "prosp": {"total": prosp_total, "territories": prosp_terr},
             "cust": {"active": cust_active, "companies": cust_companies},
             # Scoped to the selected date range (like every other KPI here), not a fixed 30 days.
-            "revenue": {"usd": rev_usd, "orders": rev_orders},
+            "revenue": {"amount": rev_amount, "orders": rev_orders},
             "tasks": {"open": tasks_open, "high": tasks_high},
         },
         "funnel": [
@@ -361,6 +365,9 @@ def crm_dashboard_customers(date_from=None, date_to=None, customer=None):
             trend = []
 
     return {
+        # Same company-currency contract as the overview: `base_grand_total` is
+        # not USD.
+        "currency": _company_currency(),
         "kpis": {
             "total": _count("Customer", d),
             "active": _count("Customer", {**d, "disabled": 0}),
@@ -382,23 +389,43 @@ def crm_dashboard_customers(date_from=None, date_to=None, customer=None):
     }
 
 
+def _company_currency():
+    """Currency the `base_*` money columns are denominated in.
+
+    Lives here so both this reader and api/analytics.py agree; analytics.py
+    imports its own copy of the same logic to stay independently testable.
+    """
+    try:
+        company = frappe.defaults.get_global_default("company")
+        if company:
+            ccy = frappe.db.get_value("Company", company, "default_currency")
+            if ccy:
+                return ccy
+    except Exception:
+        pass
+    try:
+        return frappe.defaults.get_global_default("currency") or "KES"
+    except Exception:
+        return "KES"
+
+
 def _top_customers(frm, to, limit=20):
     src = "Sales Invoice" if _has("Sales Invoice") else ("Sales Order" if _has("Sales Order") else None)
     if not src:
         return []
     try:
         rows = frappe.db.sql(
-            f"""select customer, coalesce(sum(base_grand_total),0) as usd
+            f"""select customer, coalesce(sum(base_grand_total),0) as amount
                 from `tab{src}` where docstatus=1 and posting_date between %s and %s
                 group by customer order by usd desc limit {int(limit)}""",
             (frm, to), as_dict=True,
         ) if src == "Sales Invoice" else frappe.db.sql(
-            f"""select customer, coalesce(sum(base_grand_total),0) as usd
+            f"""select customer, coalesce(sum(base_grand_total),0) as amount
                 from `tab{src}` where docstatus=1 and transaction_date between %s and %s
                 group by customer order by usd desc limit {int(limit)}""",
             (frm, to), as_dict=True,
         )
-        return [{"customer": r.customer, "usd": flt(r.usd)} for r in rows]
+        return [{"customer": r.customer, "amount": flt(r.amount)} for r in rows]
     except Exception:
         return []
 

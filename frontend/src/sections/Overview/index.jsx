@@ -1,11 +1,12 @@
-import { useStore } from '../store';
+import { useStore } from '../../store';
 import { fmt, fmtMoney, fmtMoneyCompact } from '@shared/utils';
 import { openFrappe } from '@/lib/crm';
 import { Card, CardHeader, CardTitle, CardSub, CardContent } from '@/components/ui/card';
-import { KpiCard } from '../components/Kpi';
-import ChartCard from '../components/ChartCard';
-import { DoughnutStat, BarsChart, HBarsChart, SalesOrdersChart, AreaTrendChart } from '../charts/Charts';
-import { PAL } from '../charts/palette';
+import { KpiCard } from '../../components/Kpi';
+import ChartCard from '../../components/ChartCard';
+import { DoughnutStat, BarsChart, HBarsChart, SalesOrdersChart, AreaTrendChart } from '../../charts/Charts';
+import { PAL } from '../../charts/palette';
+import SalesBand from './SalesBand';
 
 // Funnel bar colours — ink → gold descending ramp.
 const FUNNEL_RAMP = ['#2a2a26', '#5a5a52', '#8a6a10', '#a87d0d', '#d9a514'];
@@ -32,6 +33,7 @@ function Funnel({ rows }) {
 export default function Overview() {
   const { data, status, settings } = useStore();
   const OV = data.overview;
+  const ccy = OV?.currency || 'KES';
   const C = data.cust;
 
   if (!OV?.kpis) {
@@ -48,7 +50,7 @@ export default function Overview() {
     { lbl: 'Opportunities', val: fmt(k.opps?.total), sub: `${fmt(k.opps?.open)} open`, chip: `${fmt(k.opps?.won)} won`, chipTone: 'up' },
     { lbl: 'Prospects', val: fmt(k.prosp?.total), sub: 'engaged accounts', chip: `${fmt(k.prosp?.territories)} territories` },
     { lbl: 'Customers', val: fmt(k.cust?.active), sub: 'active accounts', chip: `${fmt(k.cust?.companies)} companies` },
-    { lbl: 'Revenue', val: fmtMoneyCompact(k.revenue?.usd, 'USD'), sub: 'sales orders', chip: `${fmt(k.revenue?.orders)} orders`, chipTone: 'gold' },
+    { lbl: 'Revenue', val: fmtMoneyCompact(k.revenue?.amount, ccy), sub: 'sales orders', chip: `${fmt(k.revenue?.orders)} orders`, chipTone: 'gold' },
     { lbl: 'Open Tasks', val: fmt(k.tasks?.open), sub: 'to action', chip: `${fmt(k.tasks?.high)} high priority`, chipTone: k.tasks?.high ? 'down' : '' },
   ];
 
@@ -65,16 +67,19 @@ export default function Overview() {
         {kpis.map((x) => <KpiCard key={x.lbl} {...x} />)}
       </div>
 
+      {/* SALES ANALYTICS */}
+      <SalesBand />
+
       {/* TREND + TOP CUSTOMERS */}
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-[18px] mb-[18px]">
         <Card>
           <CardHeader>
             <div><CardTitle>Sales &amp; Orders Trend</CardTitle><CardSub>Daily orders and revenue in range</CardSub></div>
-            <div className="text-[12px] text-ink-mute font-medium">{fmt(totC)} orders · ${fmtMoney(totR)}</div>
+            <div className="text-[12px] text-ink-mute font-medium">{fmt(totC)} orders · {fmtMoney(totR, ccy)}</div>
           </CardHeader>
           <CardContent>
             <div className="h-[300px] relative">
-              {soTrend?.length ? <SalesOrdersChart rows={soTrend} />
+              {soTrend?.length ? <SalesOrdersChart rows={soTrend} ccy={ccy} />
                 : <AreaTrendChart labels={(OV.so_trend || []).map((r) => r.label)} data={(OV.so_trend || []).map((r) => r.count)} />}
             </div>
           </CardContent>
@@ -88,7 +93,7 @@ export default function Overview() {
                   <div key={r.customer} className="list__row" onClick={() => openFrappe('Customer', r.customer, settings.openInNewTab)}>
                     <div className={`list__rank${i === 0 ? ' lead' : ''}`}>{i + 1}</div>
                     <div><div className="list__name truncate">{r.customer}</div><div className="list__meta">Customer</div></div>
-                    <div className="list__qty">${fmtMoney(r.usd)}</div>
+                    <div className="list__qty">{fmtMoneyCompact(r.amount, ccy)}</div>
                   </div>
                 ))}
               </div>

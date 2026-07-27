@@ -32,7 +32,7 @@ export const NAV = [
       { type: 'group', section: 'prosp', icon: 'travel_explore', label: 'Prospects',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'mine', label: 'My prospects', mine: true }, { table: 'rows', label: 'All Prospects' }, { table: 'emails', label: 'Emails' }] },
       { type: 'group', section: 'cust', icon: 'storefront', label: 'Customers',
-        subs: [{ table: '', label: 'Dashboard' }, { table: 'mine', label: 'My customers', mine: true }, { table: 'rows', label: 'All Customers' }, { table: 'top', label: 'Top Revenue (30d)' }, { table: 'emails', label: 'Emails' }] },
+        subs: [{ table: '', label: 'Dashboard' }, { table: 'mine', label: 'My customers', mine: true }, { table: 'rows', label: 'All Customers' }, { table: 'top', label: 'Top Revenue' }, { table: 'emails', label: 'Emails' }] },
     ],
   },
   {

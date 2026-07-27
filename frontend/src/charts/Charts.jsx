@@ -2,7 +2,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Line, Area, AreaChart, ComposedChart,
 } from 'recharts';
-import { fmt, fmtMoney } from '@shared/utils';
+import { fmt, fmtMoney, fmtMoneyCompact } from '@shared/utils';
 import { PAL, BAR_FILL, GRID, ORDER_COLOR, REVENUE_COLOR, AREA_INK } from './palette';
 
 const MONO = { fontSize: 9.5, fontFamily: 'Poppins', fill: '#8a8780' };
@@ -65,17 +65,43 @@ export function BarsChart({ labels, data }) {
   );
 }
 
-// Horizontal bars
-export function HBarsChart({ labels, data }) {
+// Two money series side by side — e.g. booked (order value) vs billed (invoiced).
+// `ccy` is the company currency; never assume USD (base_* columns are in the
+// Company's default currency).
+export function GroupedBarsChart({ labels, a, b, aLabel = 'A', bLabel = 'B', ccy }) {
+  if (!labels?.length) return <Empty />;
+  const rows = labels.map((l, i) => ({ label: l, a: a[i] || 0, b: b[i] || 0 }));
+  const money = (v) => fmtMoneyCompact(v, ccy);
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={rows} margin={{ top: 6, right: 6, left: -6, bottom: 0 }}>
+        <CartesianGrid vertical={false} stroke={GRID} />
+        <XAxis dataKey="label" tickLine={false} axisLine={false} tick={MONO} interval="preserveStartEnd" />
+        <YAxis tickLine={false} axisLine={false} tick={MONO} width={52} tickFormatter={money} />
+        <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} contentStyle={{ fontSize: 11 }}
+          formatter={(v, n) => [fmtMoney(v, ccy), n === 'a' ? aLabel : bLabel]} />
+        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10, fontFamily: 'Poppins' }}
+          formatter={(n) => (n === 'a' ? aLabel : bLabel)} />
+        <Bar dataKey="a" fill={ORDER_COLOR} radius={[3, 3, 0, 0]} maxBarSize={22} />
+        <Bar dataKey="b" fill={REVENUE_COLOR} radius={[3, 3, 0, 0]} maxBarSize={22} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+// Horizontal bars. `money` formats the axis/tooltip as currency instead of counts.
+export function HBarsChart({ labels, data, money = false, ccy }) {
   if (!labels?.length) return <Empty />;
   const rows = labels.map((l, i) => ({ label: l, value: data[i] }));
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 10, left: 0, bottom: 0 }}>
         <CartesianGrid horizontal={false} stroke={GRID} />
-        <XAxis type="number" tickLine={false} axisLine={false} tick={MONO} allowDecimals={false} />
+        <XAxis type="number" tickLine={false} axisLine={false} tick={MONO} allowDecimals={false}
+          tickFormatter={money ? ((v) => fmtMoneyCompact(v, ccy)) : undefined} />
         <YAxis type="category" dataKey="label" tickLine={false} axisLine={false} tick={MONO} width={90} />
-        <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} contentStyle={{ fontSize: 11 }} />
+        <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} contentStyle={{ fontSize: 11 }}
+          formatter={money ? ((v) => fmtMoney(v, ccy)) : undefined} />
         <Bar dataKey="value" fill={BAR_FILL} radius={[0, 3, 3, 0]} maxBarSize={18} />
       </BarChart>
     </ResponsiveContainer>
@@ -106,7 +132,7 @@ export function AreaTrendChart({ labels, data }) {
 }
 
 // Dual-axis Orders (left) + Revenue (right) area/line — rows: [{date, count, revenue}]
-export function SalesOrdersChart({ rows }) {
+export function SalesOrdersChart({ rows, ccy }) {
   if (!rows?.length) return <Empty />;
   const data = rows.map((r) => {
     const d = new Date(String(r.date).replace(' ', 'T'));
@@ -130,9 +156,9 @@ export function SalesOrdersChart({ rows }) {
         <XAxis dataKey="label" tickLine={false} axisLine={false} tick={MONO} interval="preserveStartEnd" />
         <YAxis yAxisID="y" tickLine={false} axisLine={false} tick={{ ...MONO, fill: ORDER_COLOR }} allowDecimals={false} width={32} />
         <YAxis yAxisID="y1" orientation="right" tickLine={false} axisLine={false}
-          tick={{ ...MONO, fill: REVENUE_COLOR }} width={44} tickFormatter={(v) => '$' + fmtMoney(v)} />
+          tick={{ ...MONO, fill: REVENUE_COLOR }} width={52} tickFormatter={(v) => fmtMoneyCompact(v, ccy)} />
         <Tooltip contentStyle={{ fontSize: 11 }}
-          formatter={(v, n) => (n === 'revenue' ? [`$${fmtMoney(v)}`, 'Revenue'] : [v, 'Orders'])} />
+          formatter={(v, n) => (n === 'revenue' ? [fmtMoney(v, ccy), 'Revenue'] : [v, 'Orders'])} />
         <Area yAxisID="y" type="monotone" dataKey="orders" stroke={ORDER_COLOR} strokeWidth={2} fill="url(#gOrders)" dot={false} />
         <Line yAxisID="y1" type="monotone" dataKey="revenue" stroke={REVENUE_COLOR} strokeWidth={2} dot={false} />
       </ComposedChart>

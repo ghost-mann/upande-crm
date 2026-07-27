@@ -3,7 +3,7 @@ import TopBar from './components/TopBar';
 import Sidebar from './components/Sidebar';
 import SectionTabs from './components/SectionTabs';
 import PageTools from './components/PageTools';
-import Overview from './sections/Overview';
+import Overview from './sections/Overview/index.jsx';
 import { useStore, setupAutoRefresh, SECTION_META } from './store';
 import { getBoot } from '@shared/api';
 

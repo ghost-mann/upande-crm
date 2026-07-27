@@ -10,6 +10,7 @@ export const getProspects     = (args) => api(M + 'crm_dashboard_prospects', arg
 export const getCustomers     = (args) => api(M + 'crm_dashboard_customers', args);
 export const getEventsTasks   = (args) => api(M + 'crm_dashboard_events_tasks', args);
 export const getActivity      = (args) => api(M + 'crm_dashboard_activity', args);
+export const getSales         = (args) => api('upande_crm.api.analytics.crm_sales_analytics', args);
 
 // ---------------------------------------------------------------- activity (writes)
 // Event/Task mutations live in a separate backend module (api/activity.py) that
@@ -36,5 +37,6 @@ export const SECTION_LOADERS = {
   cust: getCustomers,
   evt: getEventsTasks,
   act: getActivity,
+  sales: getSales,
   overview: getOverview,
 };

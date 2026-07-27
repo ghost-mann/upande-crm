@@ -17,10 +17,12 @@ const COLUMNS = [
   { key: 'creation', label: 'Created', cls: 'cell-id', render: (r) => fmtDate(r.creation) },
 ];
 
-const TOP_COLUMNS = [
-  { key: 'rank', label: 'Rank', cls: 'cell-id', thStyle: { width: 60 }, render: (r, i) => r._rank },
+// Revenue comes from `base_grand_total`, which is in the Company's default
+// currency (KES here) — never assume USD.
+const topColumns = (ccy) => [
+  { key: 'rank', label: 'Rank', cls: 'cell-id', thStyle: { width: 60 }, render: (r) => r._rank },
   { key: 'customer', label: 'Customer' },
-  { key: 'usd', label: 'Revenue (USD)', cls: 'cell-num', render: (r) => `$${fmtMoney(r.usd)}` },
+  { key: 'amount', label: `Revenue (${ccy})`, cls: 'cell-num', render: (r) => fmtMoney(r.amount, ccy) },
 ];
 
 export default function Customers() {
@@ -37,9 +39,10 @@ export default function Customers() {
       emptyText={mine ? (u ? 'No customers owned by or assigned to you' : 'Sign in to see your customers') : 'No customers'} />;
   }
   if (table === 'top') {
+    const ccy = C.currency || 'KES';
     const rows = (C.top_revenue || []).map((r, i) => ({ ...r, _rank: String(i + 1).padStart(2, '0') }));
-    return <DataTable title="Top Customers by Revenue" subOverride="Last 30 days · USD eq." columns={TOP_COLUMNS}
-      rows={rows} doctype="Customer" rowName={(r) => r.customer} emptyText="No invoice data in last 30 days" />;
+    return <DataTable title="Top Customers by Revenue" subOverride={`In selected range · ${ccy}`} columns={topColumns(ccy)}
+      rows={rows} doctype="Customer" rowName={(r) => r.customer} emptyText="No invoice data in range" />;
   }
   if (table === 'emails') return <EmailsTable refType="Customer" />;
 

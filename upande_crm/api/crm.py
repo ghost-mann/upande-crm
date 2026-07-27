@@ -419,26 +419,128 @@ def crm_dashboard_events_tasks(date_from=None, date_to=None, customer=None):
     email_base = {**cm, "communication_type": "Communication"}
     sent = _count("Communication", {**email_base, "sent_or_received": "Sent"})
     recv = _count("Communication", {**email_base, "sent_or_received": "Received"})
+
+    events_rows = _rows("Event", [
+        "name", "subject", "event_category", "event_type", "starts_on", "ends_on",
+        "all_day", "status", "description", "location", "color",
+        "repeat_this_event", "repeat_on", "repeat_till",
+        "sync_with_google_calendar", "google_calendar",
+        "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+        "owner", "_assign",
+    ], filters=ev, order_by="starts_on desc", limit=300)
+    _attach_participants(events_rows)
+
+    todos = _crm_todos(tdo)
     return {
         "kpis": {
             "events_total": _count("Event", ev),
             "events_open": _count("Event", {**ev, "status": "Open"}),
-            "tasks_open": _count("ToDo", {**tdo, "status": "Open"}),
-            "tasks_high": _count("ToDo", {**tdo, "status": "Open", "priority": "High"}),
+            # Task KPIs use the same CRM scope as the list below, so the headline
+            # number matches what the user can actually see.
+            "tasks_open": _crm_todo_count(tdo),
+            "tasks_high": _crm_todo_count(tdo, priority="High"),
             "emails_sent": sent,
             "emails_recv": recv,
         },
         "event_categories": _group("Event", "event_category", _dw("Event", "starts_on", frm, to)),
-        "task_priorities": _group("ToDo", "priority", _dw("ToDo", "creation", frm, to, base="status='Open'")),
+        "task_priorities": _group("ToDo", "priority",
+                                  _dw("ToDo", "creation", frm, to, base=_crm_todo_sql_base())),
         "email_by_ref": _group("Communication", "reference_doctype",
                                _dw("Communication", "communication_date", frm, to, base="communication_type='Communication'")),
-        "events": _rows("Event", ["name", "subject", "event_category", "starts_on", "status", "owner", "_assign"],
-                        filters=ev, order_by="starts_on desc", limit=300),
-        "todos": _rows("ToDo", ["name", "description", "priority", "allocated_to", "owner", "_assign", "status",
-                                "reference_type", "reference_name"],
-                       filters={**tdo, "status": "Open"}, order_by="creation desc", limit=300),
+        "events": events_rows,
+        "todos": todos,
         "emails": emails,
     }
+
+
+def _crm_ref_doctypes():
+    """CRM task reference allowlist, imported lazily.
+
+    `api.activity` imports `_guard` from this module, so a module-level import
+    here would be circular.
+    """
+    from upande_crm.api.activity import TASK_REF_DOCTYPES
+
+    return sorted(TASK_REF_DOCTYPES)
+
+
+def _crm_todo_sql_base():
+    """WHERE fragment scoping ToDos to CRM work, for the _group/_dw helpers."""
+    refs = "', '".join(_crm_ref_doctypes())
+    return f"status='Open' and (`reference_type` in ('{refs}') or coalesce(`reference_type`, '')='')"
+
+
+def _crm_todo_count(date_filter, priority=None):
+    """Count open CRM-scoped ToDos (referenced or unlinked)."""
+    if not _has("ToDo"):
+        return 0
+    base = {**date_filter, "status": "Open"}
+    if priority:
+        base["priority"] = priority
+    linked = _count("ToDo", {**base, "reference_type": ["in", _crm_ref_doctypes()]})
+    bare = _count("ToDo", {**base, "reference_type": ["is", "not set"]})
+    return linked + bare
+
+
+def _crm_todos(date_filter, limit=300):
+    """Open ToDos that are CRM work: referencing a CRM doctype, or unlinked.
+
+    The site's ToDo table is dominated by other apps — of 2,420 open ToDos only
+    57 were CRM-related, the rest being Issue/Task/Animal Event assignments. An
+    unscoped list made this view ~96% noise. Personal (unlinked) tasks are kept
+    because they are how a sales user jots down their own work.
+    """
+    if not _has("ToDo"):
+        return []
+    cols = set(frappe.db.get_table_columns("ToDo"))
+    fields = [f for f in (
+        "name", "description", "priority", "allocated_to", "owner", "_assign",
+        "status", "reference_type", "reference_name", "date", "assigned_by", "color",
+    ) if f == "name" or f in cols]
+    base = {**{k: v for k, v in date_filter.items() if k in cols}, "status": "Open"}
+    try:
+        linked = frappe.get_all(
+            "ToDo", fields=fields,
+            filters={**base, "reference_type": ["in", _crm_ref_doctypes()]},
+            order_by="creation desc", limit=limit,
+        )
+        bare = frappe.get_all(
+            "ToDo", fields=fields,
+            filters={**base, "reference_type": ["is", "not set"]},
+            order_by="creation desc", limit=limit,
+        )
+        return linked + bare
+    except Exception:
+        return []
+
+
+def _attach_participants(events_rows):
+    """Attach `participants` to each event row in one query rather than N.
+
+    Event->CRM linkage on this site lives in the Event Participants child table,
+    not `reference_doctype` (which is empty on every event), so the forms need it.
+    """
+    names = [e["name"] for e in events_rows]
+    if not names or not _has("Event Participants"):
+        for e in events_rows:
+            e["participants"] = []
+        return
+    parts = {}
+    try:
+        for p in frappe.get_all(
+            "Event Participants",
+            filters={"parent": ["in", names]},
+            fields=["parent", "reference_doctype", "reference_docname"],
+            limit=0,
+        ):
+            parts.setdefault(p.parent, []).append({
+                "reference_doctype": p.reference_doctype,
+                "reference_docname": p.reference_docname,
+            })
+    except Exception:
+        parts = {}
+    for e in events_rows:
+        e["participants"] = parts.get(e["name"], [])
 
 
 # ---------------------------------------------------------------- activity log

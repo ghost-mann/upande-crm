@@ -14,11 +14,13 @@ const Leads = lazy(() => import('./sections/Leads'));
 const Opportunities = lazy(() => import('./sections/Opportunities'));
 const Prospects = lazy(() => import('./sections/Prospects'));
 const Customers = lazy(() => import('./sections/Customers'));
-const Events = lazy(() => import('./sections/Events'));
+const Events = lazy(() => import('./sections/Events/index.jsx'));
 const Activity = lazy(() => import('./sections/Activity'));
 const ThreadView = lazy(() => import('./components/ThreadView'));
 const ComposeDialog = lazy(() => import('./components/ComposeDialog'));
 const SettingsSheet = lazy(() => import('./components/SettingsSheet'));
+const EventDialog = lazy(() => import('./components/EventDialog'));
+const TaskDialog = lazy(() => import('./components/TaskDialog'));
 
 const SECTIONS = {
   overview: Overview, mail: Mail, leads: Leads, opps: Opportunities,
@@ -73,6 +75,8 @@ export default function App() {
       <Suspense fallback={null}>
         <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} />
         <ComposeDialog />
+        <EventDialog />
+        <TaskDialog />
       </Suspense>
     </div>
   );

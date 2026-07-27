@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { api } from '@shared/api';
-import { SECTION_LOADERS } from './api';
+import {
+  SECTION_LOADERS, saveEventApi, eventStatusApi, saveTaskApi, taskStatusApi,
+  assignApi, unassignApi, calendarApi,
+} from './api';
 
 const SETTINGS_KEY = 'crm_settings';
 const M = 'upande_crm.api.crm.';
@@ -82,6 +85,14 @@ export const useStore = create((set, get) => ({
   compose: null,   // null = closed; object = open with prefill {to, cc, subject, body, reference, inReplyTo}
   // search
   searchResults: null,
+  // activity dialogs — null = closed, object = open ({} means create mode)
+  eventDialog: null,
+  taskDialog: null,
+  // calendar owns its own month, independent of the header date-range pill: a
+  // pill reading "Last 30 days" must not constrain a calendar paged to March.
+  calMonth: null,
+  calRows: [],
+  calLoading: false,
 
   select(section, table = '') {
     set({ section, table, openMsg: null });
@@ -217,6 +228,113 @@ export const useStore = create((set, get) => ({
     // Reflect the new message immediately: refresh the open mail folder.
     if (get().section === 'mail') get().loadMail(get().table || 'unread');
     return r;
+  },
+
+  // ---------------------------------------------------------------- activity
+  openEventDialog(ev = {}) { set({ eventDialog: ev }); },
+  closeEventDialog() { set({ eventDialog: null }); },
+  openTaskDialog(t = {}) { set({ taskDialog: t }); },
+  closeTaskDialog() { set({ taskDialog: null }); },
+
+  // Refetch one section after a write instead of the whole dashboard.
+  async reloadSection(key) {
+    const loader = SECTION_LOADERS[key];
+    if (!loader) return;
+    const args = { date_from: get().dateFrom, date_to: get().dateTo };
+    if (get().customerFilter) args.customer = get().customerFilter;
+    try {
+      const v = await loader(args);
+      if (v && !v.error) set({ data: { ...get().data, [key]: v }, lastUpdated: new Date() });
+    } catch {}
+  },
+
+  async saveEvent(payload) {
+    const r = await saveEventApi(payload);
+    await get().reloadSection('evt');
+    if (get().calMonth) await get().loadCalendar(get().calMonth);
+    return r;
+  },
+
+  async saveTask(payload) {
+    const r = await saveTaskApi(payload);
+    await get().reloadSection('evt');
+    return r;
+  },
+
+  // Optimistic: flip the row locally, revert if the server refuses (e.g. the
+  // "only the assignee or a manager" rule). Mirrors markRead/toggleStar.
+  async setTaskStatus(name, status) {
+    const E = get().data.evt;
+    const prev = E?.todos?.find((t) => t.name === name)?.status;
+    if (E?.todos) {
+      set({ data: { ...get().data, evt: {
+        ...E, todos: E.todos.map((t) => (t.name === name ? { ...t, status } : t)),
+      } } });
+    }
+    try {
+      await taskStatusApi(name, status);
+      await get().reloadSection('evt');
+    } catch (e) {
+      const cur = get().data.evt;
+      if (cur?.todos && prev) {
+        set({ data: { ...get().data, evt: {
+          ...cur, todos: cur.todos.map((t) => (t.name === name ? { ...t, status: prev } : t)),
+        } } });
+      }
+      throw e;
+    }
+  },
+
+  async setEventStatus(name, status) {
+    const E = get().data.evt;
+    const prev = E?.events?.find((e) => e.name === name)?.status;
+    if (E?.events) {
+      set({ data: { ...get().data, evt: {
+        ...E, events: E.events.map((e) => (e.name === name ? { ...e, status } : e)),
+      } } });
+    }
+    try {
+      await eventStatusApi(name, status);
+      await get().reloadSection('evt');
+      if (get().calMonth) await get().loadCalendar(get().calMonth);
+    } catch (e) {
+      const cur = get().data.evt;
+      if (cur?.events && prev) {
+        set({ data: { ...get().data, evt: {
+          ...cur, events: cur.events.map((x) => (x.name === name ? { ...x, status: prev } : x)),
+        } } });
+      }
+      throw e;
+    }
+  },
+
+  async assign(doctype, name, users, opts) {
+    const r = await assignApi(doctype, name, users, opts);
+    await get().reloadSection('evt');
+    return r;
+  },
+
+  async unassign(doctype, name, user) {
+    const r = await unassignApi(doctype, name, user);
+    await get().reloadSection('evt');
+    return r;
+  },
+
+  // `monthStart` is any YYYY-MM-DD inside the month to show.
+  async loadCalendar(monthStart) {
+    const d = new Date(monthStart + 'T00:00:00');
+    if (isNaN(d)) return;
+    const first = new Date(d.getFullYear(), d.getMonth(), 1);
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    const p = (n) => String(n).padStart(2, '0');
+    const iso = (x) => `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}`;
+    set({ calLoading: true, calMonth: iso(first) });
+    try {
+      const rows = await calendarApi(iso(first), iso(last));
+      set({ calRows: rows || [], calLoading: false });
+    } catch {
+      set({ calRows: [], calLoading: false });
+    }
   },
 
   async runSearch(q) {

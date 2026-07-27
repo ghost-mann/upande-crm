@@ -38,8 +38,8 @@ export const NAV = [
   {
     label: 'Activity',
     items: [
-      { type: 'group', section: 'evt', icon: 'event', label: 'Events & Tasks',
-        subs: [{ table: '', label: 'Dashboard' }, { table: 'mine_events', label: 'My events', mine: true }, { table: 'mine_todos', label: 'My todos', mine: true }, { table: 'events', label: 'All Events' }, { table: 'todos', label: 'ToDos' }, { table: 'emails', label: 'All Emails' }] },
+      { type: 'group', section: 'evt', icon: 'event', label: 'Events & Tasks', newDoctype: 'Event',
+        subs: [{ table: '', label: 'Dashboard' }, { table: 'calendar', label: 'Calendar' }, { table: 'mine_events', label: 'My events', mine: true }, { table: 'mine_todos', label: 'My tasks', mine: true }, { table: 'events', label: 'All Events' }, { table: 'todos', label: 'CRM Tasks' }, { table: 'emails', label: 'All Emails' }] },
       { type: 'group', section: 'act', icon: 'bolt', label: 'Activity Log',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'rows', label: 'Recent (500)' }] },
     ],

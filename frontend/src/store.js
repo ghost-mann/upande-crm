@@ -3,6 +3,7 @@ import { api } from '@shared/api';
 import {
   SECTION_LOADERS, saveEventApi, eventStatusApi, saveTaskApi, taskStatusApi,
   assignApi, unassignApi, calendarApi,
+  waConversationsApi, waThreadApi, waSendApi, waSendTemplateApi, waMarkReadApi,
 } from './api';
 
 const SETTINGS_KEY = 'crm_settings';
@@ -45,6 +46,7 @@ const _initialRange = dateRangePreset(_settings.defaultDateRange === 'custom' ? 
 export const SECTION_META = {
   overview: { title: 'CRM Command Center', sub: 'Pipeline · activity · revenue' },
   mail:     { title: 'Inbox',              sub: 'Email · folders · threads' },
+  wa:       { title: 'WhatsApp',            sub: 'Conversations · templates · delivery' },
   leads:    { title: 'Leads',              sub: 'Inbound · qualification · conversion' },
   opps:     { title: 'Opportunities',      sub: 'Pipeline · stages · win rate' },
   prosp:    { title: 'Prospects',          sub: 'Engaged accounts · conversion' },
@@ -93,15 +95,22 @@ export const useStore = create((set, get) => ({
   calMonth: null,
   calRows: [],
   calLoading: false,
+  // whatsapp
+  waConvos: null,
+  waThread: null,
+  waParty: null,
+  waLoading: false,
 
   select(section, table = '') {
     set({ section, table, openMsg: null });
     if (section === 'mail') get().loadMail(table || 'unread');
+    if (section === 'wa' && table !== 'dash') get().loadWaConversations();
   },
 
   setSearch(search) {
     set({ search });
     if (get().section === 'mail') get().loadMail(get().table || 'unread');
+    if (get().section === 'wa') get().loadWaConversations();
   },
 
   setDateRange(preset, custom) {
@@ -335,6 +344,48 @@ export const useStore = create((set, get) => ({
     } catch {
       set({ calRows: [], calLoading: false });
     }
+  },
+
+  // ---------------------------------------------------------------- whatsapp
+  async loadWaConversations() {
+    set({ waLoading: true });
+    try {
+      const d = await waConversationsApi(get().search || '');
+      set({ waConvos: d, waLoading: false });
+    } catch {
+      set({ waConvos: { rows: [], unread_total: 0, available: false }, waLoading: false });
+    }
+  },
+
+  async openWaThread(party) {
+    set({ waParty: party, waThread: null, waLoading: true });
+    try {
+      const t = await waThreadApi(party);
+      set({ waThread: t, waLoading: false });
+      // Mirror the desk chat UI: opening a thread marks its inbound messages read.
+      if (t?.messages?.some((m) => m.type === 'Incoming' && m.status !== 'marked as read')) {
+        try { await waMarkReadApi(party); await get().loadWaConversations(); } catch {}
+      }
+    } catch {
+      set({ waThread: null, waLoading: false });
+    }
+  },
+
+  closeWaThread() { set({ waParty: null, waThread: null }); },
+
+  // Sends throw on purpose — the composer keeps the user's text and shows why.
+  async sendWhatsapp(payload) {
+    const r = await waSendApi(payload);
+    if (get().waParty) await get().openWaThread(get().waParty);
+    await get().loadWaConversations();
+    return r;
+  },
+
+  async sendWhatsappTemplate(payload) {
+    const r = await waSendTemplateApi(payload);
+    if (get().waParty) await get().openWaThread(get().waParty);
+    await get().loadWaConversations();
+    return r;
   },
 
   async runSearch(q) {

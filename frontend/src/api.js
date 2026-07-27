@@ -29,6 +29,17 @@ export const calendarApi        = (start, end) => api(A + 'crm_calendar', { star
 export const assignableUsersApi = () => api(A + 'crm_assignable_users', {});
 export const myCalendarsApi     = () => api(A + 'crm_my_calendars', {});
 
+// ---------------------------------------------------------------- whatsapp
+// Surface over the frappe_whatsapp app. Reads degrade; sends throw.
+const W = 'upande_crm.api.whatsapp.';
+export const waConversationsApi = (search = '', limit = 60) => api(W + 'crm_whatsapp_conversations', { search, limit });
+export const waThreadApi        = (party, limit = 200) => api(W + 'crm_whatsapp_thread', { party, limit });
+export const waSendApi          = (payload) => api(W + 'crm_whatsapp_send', payload);
+export const waSendTemplateApi  = (payload) => api(W + 'crm_whatsapp_send_template', payload);
+export const waTemplatesApi     = () => api(W + 'crm_whatsapp_templates', {});
+export const waMarkReadApi      = (party) => api(W + 'crm_whatsapp_mark_read', { party });
+export const getWhatsapp        = (args) => api(W + 'crm_whatsapp_analytics', args);
+
 // section key → loader, used by loadAll()
 export const SECTION_LOADERS = {
   leads: getLeads,
@@ -38,5 +49,6 @@ export const SECTION_LOADERS = {
   evt: getEventsTasks,
   act: getActivity,
   sales: getSales,
+  wa: getWhatsapp,
   overview: getOverview,
 };

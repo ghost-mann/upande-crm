@@ -6,7 +6,7 @@ import { getBoot } from '@shared/api';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
-function groupCount(section, data, mailCounts) {
+function groupCount(section, data, mailCounts, waUnread) {
   switch (section) {
     case 'leads': return data.leads?.kpis?.total;
     case 'opps': return data.opps?.kpis?.total;
@@ -15,6 +15,9 @@ function groupCount(section, data, mailCounts) {
     case 'evt': return (data.evt?.kpis?.events_open || 0) + (data.evt?.kpis?.tasks_open || 0);
     case 'act': return data.act?.kpis?.total;
     case 'mail': return mailCounts?.inbox_unread;
+    // Unread inbound WhatsApp, from the analytics loader so it is present before
+    // the section is ever opened.
+    case 'wa': return waUnread != null ? waUnread : data.wa?.kpis?.unread;
     default: return undefined;
   }
 }
@@ -27,6 +30,7 @@ export default function Sidebar({ onCompose, onSettings, collapsed, onToggleColl
   const select = useStore((s) => s.select);
   const data = useStore((s) => s.data);
   const mailCounts = useStore((s) => s.mailFolder?.counts);
+  const waUnread = useStore((s) => s.waConvos?.unread_total);
 
   return (
     <aside className="sticky top-[84px] max-[900px]:static max-h-[calc(100vh-104px)] max-[900px]:max-h-none bg-surface border border-hairline rounded-[24px] shadow-card flex flex-col overflow-hidden">
@@ -49,7 +53,7 @@ export default function Sidebar({ onCompose, onSettings, collapsed, onToggleColl
             {collapsed && <div className="h-px bg-hairline mx-2 my-2 first:hidden" />}
             {grp.items.map((it) => {
               const active = section === it.section;
-              const cnt = groupCount(it.section, data, mailCounts);
+              const cnt = groupCount(it.section, data, mailCounts, waUnread);
               return (
                 <button
                   key={it.section}

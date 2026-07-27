@@ -23,6 +23,18 @@ export const NAV = [
     ],
   },
   {
+    label: 'WhatsApp',
+    items: [
+      {
+        type: 'group', section: 'wa', icon: 'chat', label: 'WhatsApp', countKey: 'wa_unread',
+        subs: [
+          { table: '', label: 'Conversations' },
+          { table: 'dash', label: 'Dashboard' },
+        ],
+      },
+    ],
+  },
+  {
     label: 'Pipeline',
     items: [
       { type: 'group', section: 'leads', icon: 'person_add', label: 'Leads', newDoctype: 'Lead',

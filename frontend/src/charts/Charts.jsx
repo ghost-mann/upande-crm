@@ -68,18 +68,20 @@ export function BarsChart({ labels, data }) {
 // Two money series side by side — e.g. booked (order value) vs billed (invoiced).
 // `ccy` is the company currency; never assume USD (base_* columns are in the
 // Company's default currency).
-export function GroupedBarsChart({ labels, a, b, aLabel = 'A', bLabel = 'B', ccy }) {
+export function GroupedBarsChart({ labels, a, b, aLabel = 'A', bLabel = 'B', ccy, money = true }) {
   if (!labels?.length) return <Empty />;
   const rows = labels.map((l, i) => ({ label: l, a: a[i] || 0, b: b[i] || 0 }));
-  const money = (v) => fmtMoneyCompact(v, ccy);
+  const axisFmt = money ? ((v) => fmtMoneyCompact(v, ccy)) : ((v) => fmt(v));
+  const cellFmt = money ? ((v) => fmtMoney(v, ccy)) : ((v) => fmt(v));
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={rows} margin={{ top: 6, right: 6, left: -6, bottom: 0 }}>
         <CartesianGrid vertical={false} stroke={GRID} />
         <XAxis dataKey="label" tickLine={false} axisLine={false} tick={MONO} interval="preserveStartEnd" />
-        <YAxis tickLine={false} axisLine={false} tick={MONO} width={52} tickFormatter={money} />
+        <YAxis tickLine={false} axisLine={false} tick={MONO} width={money ? 52 : 34}
+          allowDecimals={false} tickFormatter={axisFmt} />
         <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} contentStyle={{ fontSize: 11 }}
-          formatter={(v, n) => [fmtMoney(v, ccy), n === 'a' ? aLabel : bLabel]} />
+          formatter={(v, n) => [cellFmt(v), n === 'a' ? aLabel : bLabel]} />
         <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10, fontFamily: 'Poppins' }}
           formatter={(n) => (n === 'a' ? aLabel : bLabel)} />
         <Bar dataKey="a" fill={ORDER_COLOR} radius={[3, 3, 0, 0]} maxBarSize={22} />

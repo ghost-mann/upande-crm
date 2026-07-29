@@ -6,6 +6,7 @@ import ChartCard from '../components/ChartCard';
 import DataTable from '../components/DataTable';
 import EmailsTable from '../components/EmailsTable';
 import { DoughnutChart, HBarsChart, AreaTrendChart } from '../charts/Charts';
+import { logCallColumn } from '../components/LogCallButton';
 import { isMine, MINE_FIELDS, currentUser } from '@/lib/crm';
 
 const COLUMNS = [
@@ -15,6 +16,7 @@ const COLUMNS = [
   { key: 'territory', label: 'Territory', render: (r) => r.territory || '—' },
   { key: 'disabled', label: 'Status', render: (r) => (r.disabled ? <span className="bdg bdg-bad">Disabled</span> : <span className="bdg bdg-good">Active</span>) },
   { key: 'creation', label: 'Created', cls: 'cell-id', render: (r) => fmtDate(r.creation) },
+  logCallColumn('Customer'),
 ];
 
 // Revenue comes from `base_grand_total`, which is in the Company's default

@@ -6,6 +6,7 @@ import DataTable from '../components/DataTable';
 import EmailsTable from '../components/EmailsTable';
 import StatusBadge from '../components/StatusBadge';
 import { BarsChart, DoughnutChart, HBarsChart } from '../charts/Charts';
+import { logCallColumn } from '../components/LogCallButton';
 import { shortUser, isMine, MINE_FIELDS, currentUser } from '@/lib/crm';
 
 const COLUMNS = [
@@ -18,6 +19,7 @@ const COLUMNS = [
   { key: 'source', label: 'Source', render: (r) => r.source || '—' },
   { key: 'lead_owner', label: 'Owner', cls: 'cell-id', render: (r) => shortUser(r.lead_owner) },
   { key: 'creation', label: 'Created', cls: 'cell-id', render: (r) => fmtDate(r.creation) },
+  logCallColumn('Lead'),
 ];
 
 export default function Leads() {

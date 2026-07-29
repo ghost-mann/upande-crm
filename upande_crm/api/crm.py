@@ -367,7 +367,9 @@ def crm_dashboard_leads(date_from=None, date_to=None, customer=None):
         "owner_workload": _group("Lead", "lead_owner", w),
         "geography": _group("Lead", "territory", w),
         "rows": _rows("Lead", [
+            # phone/mobile feed the "Log call" row action's prefill.
             "name", "lead_name", "company_name", "status", "qualification_status",
+            "mobile_no", "phone", "whatsapp_no",
             "territory", "source", "lead_owner", "owner", "_assign", "creation",
         ], filters=d),
     }
@@ -402,6 +404,7 @@ def crm_dashboard_opportunities(date_from=None, date_to=None, customer=None):
         "territory_mix": _group("Opportunity", "territory", w),
         "rows": _rows("Opportunity", [
             "name", "customer_name", "party_name", "opportunity_from", "status",
+            "contact_mobile", "contact_email",
             "sales_stage", "probability", "territory", "source",
             "opportunity_owner", "owner", "_assign", "transaction_date", "creation",
         ], filters=filters),
@@ -435,6 +438,7 @@ def crm_dashboard_prospects(date_from=None, date_to=None, customer=None):
         "industry_mix": _group("Prospect", "industry", w),
         "rows": _rows("Prospect", [
             "name", "company_name", "industry", "territory", "no_of_employees",
+            "mobile_no", "phone",
             "owner", "_assign", "creation",
         ], filters=d),
     }
@@ -499,6 +503,7 @@ def crm_dashboard_customers(date_from=None, date_to=None, customer=None):
         "top_revenue": _top_customers(frm, to),
         "rows": _rows("Customer", [
             "name", "customer_name", "customer_type", "customer_group",
+            "mobile_no",
             "territory", "disabled", "account_manager", "owner", "_assign", "creation",
         ], filters=({**d, "name": customer} if customer else d)),
     }

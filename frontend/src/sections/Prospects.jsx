@@ -5,6 +5,7 @@ import ChartCard from '../components/ChartCard';
 import DataTable from '../components/DataTable';
 import EmailsTable from '../components/EmailsTable';
 import { DoughnutChart, HBarsChart } from '../charts/Charts';
+import { logCallColumn } from '../components/LogCallButton';
 import { isMine, MINE_FIELDS, currentUser } from '@/lib/crm';
 
 const COLUMNS = [
@@ -15,6 +16,7 @@ const COLUMNS = [
   { key: 'opp_count', label: 'Opps', cls: 'cell-num', render: (r) => r.opp_count || 0 },
   { key: 'is_customer', label: '→ Cust', render: (r) => (r.is_customer ? <span className="bdg bdg-good">Yes</span> : <span className="bdg bdg-other">No</span>) },
   { key: 'creation', label: 'Created', cls: 'cell-id', render: (r) => fmtDate(r.creation) },
+  logCallColumn('Prospect'),
 ];
 
 export default function Prospects() {

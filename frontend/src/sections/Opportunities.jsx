@@ -7,6 +7,7 @@ import DataTable from '../components/DataTable';
 import EmailsTable from '../components/EmailsTable';
 import StatusBadge from '../components/StatusBadge';
 import { DoughnutChart, HBarsChart } from '../charts/Charts';
+import { logCallColumn } from '../components/LogCallButton';
 import { isMine, MINE_FIELDS, currentUser } from '@/lib/crm';
 
 const COLUMNS = [
@@ -19,6 +20,7 @@ const COLUMNS = [
   { key: 'territory', label: 'Territory', render: (r) => r.territory || '—' },
   { key: 'source', label: 'Source', render: (r) => r.source || '—' },
   { key: 'created', label: 'Created', cls: 'cell-id', render: (r) => fmtDate(r.transaction_date || r.creation) },
+  logCallColumn('Opportunity'),
 ];
 
 export default function Opportunities() {

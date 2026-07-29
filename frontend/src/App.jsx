@@ -19,15 +19,17 @@ const WhatsApp = lazy(() => import('./sections/WhatsApp/index.jsx'));
 const Activity = lazy(() => import('./sections/Activity'));
 const Settings = lazy(() => import('./sections/Settings/index.jsx'));
 const Reports = lazy(() => import('./sections/Reports/index.jsx'));
+const Calls = lazy(() => import('./sections/Calls/index.jsx'));
 const ThreadView = lazy(() => import('./components/ThreadView'));
 const ComposeDialog = lazy(() => import('./components/ComposeDialog'));
 const EventDialog = lazy(() => import('./components/EventDialog'));
 const TaskDialog = lazy(() => import('./components/TaskDialog'));
+const CallDialog = lazy(() => import('./components/CallDialog'));
 
 const SECTIONS = {
   overview: Overview, mail: Mail, wa: WhatsApp, leads: Leads, opps: Opportunities,
   prosp: Prospects, cust: Customers, evt: Events, act: Activity, set: Settings,
-  rep: Reports,
+  rep: Reports, calls: Calls,
 };
 
 function fmtTime(d) {
@@ -91,6 +93,7 @@ export default function App() {
         <ComposeDialog />
         <EventDialog />
         <TaskDialog />
+        <CallDialog />
       </Suspense>
     </div>
   );

@@ -1,0 +1,1 @@
+const e=["Incoming","Outgoing"],r=["Completed","No Answer","Busy","Failed","Cancelled"],a=new Set(["No Answer","Busy","Failed"]);function i(s){const t=Number(s);if(!Number.isFinite(t)||t<=0)return"—";const n=Math.floor(t/60),o=Math.round(t%60);return n>=60?`${Math.floor(n/60)}h ${n%60}m`:n?`${n}m ${o?`${o}s`:""}`.trim():`${o}s`}export{e as C,a as M,r as a,i as f};

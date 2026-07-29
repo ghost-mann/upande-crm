@@ -13,6 +13,7 @@ function groupCount(section, data, mailCounts, waUnread) {
     case 'prosp': return data.prosp?.kpis?.total;
     case 'cust': return data.cust?.kpis?.active;
     case 'evt': return (data.evt?.kpis?.events_open || 0) + (data.evt?.kpis?.tasks_open || 0);
+    case 'calls': return data.calls?.kpis?.total;
     case 'act': return data.act?.kpis?.total;
     case 'mail': return mailCounts?.inbox_unread;
     // Unread inbound WhatsApp, from the analytics loader so it is present before

@@ -56,6 +56,16 @@ export const themeSaveApi       = (seeds) => api(S + 'crm_theme_save', { seeds: 
 export const themePresetApi     = (name) => api(S + 'crm_theme_apply_preset', { name });
 export const themeResetApi      = () => api(S + 'crm_theme_reset', {});
 
+// ---------------------------------------------------------------- calls
+// Logged into Frappe's core Call Log (Telephony). Writes throw; the dashboard
+// read degrades — see api/calls.py.
+const CL = 'upande_crm.api.calls.';
+export const getCalls        = (args) => api(CL + 'crm_dashboard_calls', args);
+export const saveCallApi     = (payload) => api(CL + 'crm_call_save', { call: JSON.stringify(payload) });
+export const deleteCallApi   = (name) => api(CL + 'crm_call_delete', { name });
+export const callTypesApi    = () => api(CL + 'crm_call_types', {});
+export const callTypeAddApi  = (label) => api(CL + 'crm_call_type_add', { label });
+
 // ---------------------------------------------------------------- reports
 // ERPNext's own CRM/Selling reports, run through frappe's report runner and
 // rendered with CRM components. Runs with the user's own permissions, unlike the
@@ -78,5 +88,6 @@ export const SECTION_LOADERS = {
   act: getActivity,
   sales: getSales,
   wa: getWhatsapp,
+  calls: getCalls,
   overview: getOverview,
 };

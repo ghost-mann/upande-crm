@@ -52,6 +52,8 @@ export const NAV = [
     items: [
       { type: 'group', section: 'evt', icon: 'event', label: 'Events & Tasks', newDoctype: 'Event',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'calendar', label: 'Calendar' }, { table: 'mine_events', label: 'My events', mine: true }, { table: 'mine_todos', label: 'My tasks', mine: true }, { table: 'events', label: 'All Events' }, { table: 'todos', label: 'CRM Tasks' }, { table: 'emails', label: 'All Emails' }] },
+      { type: 'group', section: 'calls', icon: 'call', label: 'Calls', newDoctype: null,
+        subs: [{ table: '', label: 'Dashboard' }, { table: 'rows', label: 'Call log' }, { table: 'mine', label: 'My calls', mine: true }] },
       { type: 'group', section: 'act', icon: 'bolt', label: 'Activity Log',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'rows', label: 'Recent (500)' }] },
     ],

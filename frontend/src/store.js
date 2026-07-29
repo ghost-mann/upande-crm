@@ -7,6 +7,7 @@ import {
   orgSettingsApi, orgSettingsSaveApi, healthApi,
   themeApi, themeSaveApi, themePresetApi, themeResetApi,
   reportsApi, reportCatalogueApi,
+  saveCallApi, deleteCallApi,
 } from './api';
 
 const SETTINGS_KEY = 'crm_settings';
@@ -94,6 +95,7 @@ export const SECTION_META = {
   prosp:    { title: 'Prospects',          sub: 'Engaged accounts · conversion' },
   cust:     { title: 'Customers',          sub: 'Active accounts · revenue · segmentation' },
   evt:      { title: 'Events, Tasks & Emails', sub: 'Meetings · ToDos · communications' },
+  calls:    { title: 'Calls',              sub: 'Incoming · outgoing · outcomes' },
   act:      { title: 'Activity Log',       sub: 'CRM triggers · audit trail' },
   rep:      { title: 'Reports',            sub: "ERPNext's CRM and sales reports" },
   set:      { title: 'CRM Settings',       sub: 'Targets · defaults · integrations' },
@@ -155,6 +157,8 @@ export const useStore = create((set, get) => ({
   // reports registry + catalogue, both loaded lazily by the Reports section.
   reports: null,
   reportCatalogue: null,
+  // call dialog — null = closed, object = open ({} means log-a-new-call mode)
+  callDialog: null,
 
   select(section, table = '') {
     set({ section, table, openMsg: null });
@@ -239,6 +243,25 @@ export const useStore = create((set, get) => ({
     get().loadAll({ silent: true });
     if (get().health) get().loadHealth();
     return org;
+  },
+
+  // ---------------------------------------------------------------- calls
+  openCallDialog(call = {}) { set({ callDialog: call }); },
+  closeCallDialog() { set({ callDialog: null }); },
+
+  // Throws so the dialog keeps what was typed and shows why.
+  async saveCall(payload) {
+    const r = await saveCallApi(payload);
+    await get().reloadSection('calls');
+    // A follow-up task lands in Events & Tasks, so that section is now stale.
+    if (r?.follow_up) await get().reloadSection('evt');
+    return r;
+  },
+
+  async deleteCall(name) {
+    const r = await deleteCallApi(name);
+    await get().reloadSection('calls');
+    return r;
   },
 
   // ---------------------------------------------------------------- reports

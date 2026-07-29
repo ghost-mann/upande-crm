@@ -46,6 +46,19 @@ def _company_currency():
         return "KES"
 
 
+def _cust(customer, alias=""):
+    """SQL fragment restricting to one customer, or '' when unfiltered.
+
+    Every table this module reads carries a plain `customer` column, so the
+    header's customer filter needs no scope resolution here — unlike the pipeline
+    readers in api/crm.py, where "this customer's leads" has to be worked out.
+    """
+    if not customer:
+        return ""
+    col = f"{alias}.customer" if alias else "`customer`"
+    return f" and {col} = {frappe.db.escape(customer)}"
+
+
 def _sum(doctype, amount_col, date_col, frm, to, extra=""):
     """(sum, count) of `amount_col` over `[frm, to]`, or (0, 0) if unavailable."""
     if not _has(doctype) or not _hascol(doctype, amount_col) or not _hascol(doctype, date_col):
@@ -74,8 +87,11 @@ def crm_sales_analytics(date_from=None, date_to=None, customer=None):
     frm, to = _range(date_from, date_to)
     currency = _company_currency()
 
-    booked, booked_orders = _sum("Sales Order", "base_grand_total", "transaction_date", frm, to)
-    billed, billed_invoices = _sum("Sales Invoice", "base_grand_total", "posting_date", frm, to)
+    cust = _cust(customer)
+    booked, booked_orders = _sum("Sales Order", "base_grand_total", "transaction_date",
+                                 frm, to, extra=cust)
+    billed, billed_invoices = _sum("Sales Invoice", "base_grand_total", "posting_date",
+                                   frm, to, extra=cust)
 
     # Growth against the immediately preceding window of equal length.
     try:
@@ -83,13 +99,14 @@ def crm_sales_analytics(date_from=None, date_to=None, customer=None):
         prev_to = add_days(getdate(frm), -1)
         prev_frm = add_days(prev_to, -span)
         prev_billed, _ = _sum(
-            "Sales Invoice", "base_grand_total", "posting_date", str(prev_frm), str(prev_to)
+            "Sales Invoice", "base_grand_total", "posting_date", str(prev_frm), str(prev_to),
+            extra=cust,
         )
     except Exception:
         prev_billed = 0.0
     growth_pct = round((billed - prev_billed) / prev_billed * 100, 1) if prev_billed else 0.0
 
-    outstanding, outstanding_count = _outstanding()
+    outstanding, outstanding_count = _outstanding(customer)
 
     return {
         "currency": currency,
@@ -104,11 +121,13 @@ def crm_sales_analytics(date_from=None, date_to=None, customer=None):
             "outstanding_count": outstanding_count,
             "growth_pct": growth_pct,
         },
-        "revenue_trend": _revenue_trend(frm, to),
-        "rep_performance": _rep_performance(frm, to, limit),
-        "top_products": _top_products(frm, to, limit),
-        "territory_revenue": _territory_revenue(frm, to, limit),
-        "aging": _aging(),
+        "revenue_trend": _revenue_trend(frm, to, customer),
+        "rep_performance": _rep_performance(frm, to, limit, customer),
+        "top_products": _top_products(frm, to, limit, customer),
+        "territory_revenue": _territory_revenue(frm, to, limit, customer),
+        "aging": _aging(customer),
+        # Targets are company-wide by design, so they ignore the customer filter:
+        # measuring an org target against one account's revenue would be nonsense.
         "targets": _targets(settings),
     }
 
@@ -156,20 +175,21 @@ def _targets(settings):
     }
 
 
-def _outstanding():
+def _outstanding(customer=None):
     if not _has("Sales Invoice") or not _hascol("Sales Invoice", "outstanding_amount"):
         return 0.0, 0
     try:
         row = frappe.db.sql(
-            """select coalesce(sum(outstanding_amount), 0), count(*)
-               from `tabSales Invoice` where docstatus=1 and outstanding_amount > 0"""
+            f"""select coalesce(sum(outstanding_amount), 0), count(*)
+               from `tabSales Invoice`
+               where docstatus=1 and outstanding_amount > 0{_cust(customer)}"""
         )[0]
         return flt(row[0]), int(row[1])
     except Exception:
         return 0.0, 0
 
 
-def _revenue_trend(frm, to):
+def _revenue_trend(frm, to, customer=None):
     """Booked (Sales Order) against billed (Sales Invoice), bucketed by span.
 
     Daily up to ~3 months, monthly beyond — same convention as the existing
@@ -191,7 +211,7 @@ def _revenue_trend(frm, to):
                 f"""select date_format(`{date_col}`, '{fmt}') bucket,
                            coalesce(sum(base_grand_total), 0) amt
                     from `tab{doctype}`
-                    where docstatus=1 and `{date_col}` between %s and %s
+                    where docstatus=1 and `{date_col}` between %s and %s{_cust(customer)}
                     group by bucket order by bucket""",
                 (frm, to),
                 as_dict=True,
@@ -209,7 +229,7 @@ def _revenue_trend(frm, to):
     ]
 
 
-def _rep_performance(frm, to, limit=8):
+def _rep_performance(frm, to, limit=8, customer=None):
     """Revenue by Sales Order owner.
 
     `owner` is used rather than Sales Team/sales_person, which is unpopulated on
@@ -219,9 +239,9 @@ def _rep_performance(frm, to, limit=8):
         return []
     try:
         rows = frappe.db.sql(
-            """select owner label, coalesce(sum(base_grand_total), 0) amount, count(*) orders
+            f"""select owner label, coalesce(sum(base_grand_total), 0) amount, count(*) orders
                from `tabSales Order`
-               where docstatus=1 and transaction_date between %s and %s
+               where docstatus=1 and transaction_date between %s and %s{_cust(customer)}
                group by owner order by amount desc limit %s""",
             (frm, to, int(limit)),
             as_dict=True,
@@ -235,17 +255,18 @@ def _rep_performance(frm, to, limit=8):
         return []
 
 
-def _top_products(frm, to, limit=8):
+def _top_products(frm, to, limit=8, customer=None):
     if not _has("Sales Order Item"):
         return []
     try:
         rows = frappe.db.sql(
-            """select coalesce(nullif(soi.item_name, ''), soi.item_code) label,
+            f"""select coalesce(nullif(soi.item_name, ''), soi.item_code) label,
                       coalesce(sum(soi.base_amount), 0) amount,
                       coalesce(sum(soi.qty), 0) qty
                from `tabSales Order Item` soi
                join `tabSales Order` so on so.name = soi.parent
-               where so.docstatus=1 and so.transaction_date between %s and %s
+               where so.docstatus=1
+                 and so.transaction_date between %s and %s{_cust(customer, 'so')}
                group by label order by amount desc limit %s""",
             (frm, to, int(limit)),
             as_dict=True,
@@ -258,7 +279,7 @@ def _top_products(frm, to, limit=8):
         return []
 
 
-def _territory_revenue(frm, to, limit=8):
+def _territory_revenue(frm, to, limit=8, customer=None):
     src, date_col = (
         ("Sales Invoice", "posting_date") if _has("Sales Invoice")
         else ("Sales Order", "transaction_date")
@@ -270,7 +291,7 @@ def _territory_revenue(frm, to, limit=8):
             f"""select coalesce(nullif(territory, ''), 'Unknown') label,
                        coalesce(sum(base_grand_total), 0) amount
                 from `tab{src}`
-                where docstatus=1 and `{date_col}` between %s and %s
+                where docstatus=1 and `{date_col}` between %s and %s{_cust(customer)}
                 group by label order by amount desc limit %s""",
             (frm, to, int(limit)),
             as_dict=True,
@@ -280,7 +301,7 @@ def _territory_revenue(frm, to, limit=8):
         return []
 
 
-def _aging():
+def _aging(customer=None):
     """Outstanding receivables by days overdue.
 
     Not date-range scoped: what is owed is owed regardless of the dashboard's
@@ -290,7 +311,7 @@ def _aging():
         return [{"label": l, "amount": 0.0} for l in AGING_LABELS]
     has_due = _hascol("Sales Invoice", "due_date")
     if not has_due:
-        total, _ = _outstanding()
+        total, _ = _outstanding(customer)
         return [
             {"label": "Current", "amount": total},
             {"label": "1-30", "amount": 0.0},
@@ -305,7 +326,8 @@ def _aging():
                  sum(case when due_date < %(t)s and due_date >= date_sub(%(t)s, interval 30 day) then outstanding_amount else 0 end),
                  sum(case when due_date < date_sub(%(t)s, interval 30 day) and due_date >= date_sub(%(t)s, interval 60 day) then outstanding_amount else 0 end),
                  sum(case when due_date < date_sub(%(t)s, interval 60 day) then outstanding_amount else 0 end)
-               from `tabSales Invoice` where docstatus=1 and outstanding_amount > 0""",
+               from `tabSales Invoice`
+               where docstatus=1 and outstanding_amount > 0{cust}""".format(cust=_cust(customer)),
             {"t": today},
         )[0]
         return [

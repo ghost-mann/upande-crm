@@ -88,6 +88,41 @@ def _dw(doctype, field, frm, to, base=""):
     return ("where " + " and ".join(parts)) if parts else ""
 
 
+def _scope(customer):
+    """Per-doctype name lists for a customer filter, or None when unfiltered.
+
+    Imported inside the function: `api/scope.py` imports this module's helpers,
+    so a module-level import would be a cycle.
+    """
+    if not customer:
+        return None
+    from upande_crm.api.scope import customer_scope
+
+    return customer_scope(customer)
+
+
+def _sf(scope, doctype):
+    """filters-dict fragment narrowing `doctype` to the scope; {} when unfiltered.
+
+    An empty scope yields a filter that matches nothing rather than {} — "this
+    customer has no leads" must read as zero, not as every lead on the site.
+    """
+    if scope is None:
+        return {}
+    from upande_crm.api.scope import in_scope
+
+    return in_scope(scope, doctype)
+
+
+def _sw(scope, doctype, column="name"):
+    """The same restriction as a SQL fragment, for the raw-SQL readers."""
+    if scope is None:
+        return ""
+    from upande_crm.api.scope import scope_sql
+
+    return scope_sql(scope, doctype, column)
+
+
 def _open_statuses(key):
     """Configured open-status list for Lead/Opportunity.
 
@@ -127,10 +162,38 @@ def _group(doctype, field, where_sql="", limit=None):
         return []
 
 
-def _trend_in_range(doctype, datefield, frm, to):
+def _names_sql(in_filter, column="name"):
+    """['in', [names]] -> a SQL fragment, or '' when there is no restriction.
+
+    The scoped `_group` calls take SQL rather than filter dicts, so the same
+    restriction has to be expressible both ways.
+    """
+    if not in_filter or not isinstance(in_filter, (list, tuple)) or len(in_filter) != 2:
+        return ""
+    names = in_filter[1] or [""]
+    quoted = ", ".join(frappe.db.escape(n) for n in names)
+    return f"`{column}` in ({quoted})"
+
+
+def _and(*fragments):
+    """AND-merge non-empty SQL fragments."""
+    parts = [f"({f})" for f in fragments if f]
+    return " and ".join(parts)
+
+
+def _customer_sql(customer):
+    """SQL fragment restricting a doctype with a plain `customer` column."""
+    return f"`customer` = {frappe.db.escape(customer)}" if customer else ""
+
+
+def _trend_in_range(doctype, datefield, frm, to, where=""):
     """Bucketed counts of `datefield` within [frm, to] → [{label, count}].
     Granularity adapts to the range: by day for spans up to ~3 months, by month
-    beyond that. Obeys the dashboard date picker (frm/to from _range)."""
+    beyond that. Obeys the dashboard date picker (frm/to from _range).
+
+    `where` is an extra AND-merged SQL fragment, used to apply the customer
+    filter — a trend that stayed global while its KPI narrowed was part of the
+    filter looking broken."""
     if not _has(doctype) or not _hascol(doctype, datefield):
         return []
     try:
@@ -142,7 +205,8 @@ def _trend_in_range(doctype, datefield, frm, to):
     try:
         rows = frappe.db.sql(
             f"""select date_format(`{datefield}`, '{dfmt}') as bucket, count(*) as count
-                from `tab{doctype}` where `{datefield}` between %s and %s
+                from `tab{doctype}`
+                where `{datefield}` between %s and %s{(' and ' + where) if where else ''}
                 group by bucket order by bucket""",
             (str(frm), str(to) + " 23:59:59"), as_dict=True,
         )
@@ -170,13 +234,25 @@ def _rows(doctype, fields, filters=None, order_by="creation desc", limit=500):
 def crm_dashboard_overview(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)
+    # A customer filter narrows every KPI below, not just revenue. Resolved once
+    # and threaded through, so the funnel and the counts agree with each other.
+    scope = _scope(customer)
 
-    # Date-scoped filter fragments per doctype (their natural date field).
-    ld = _df("Lead", "creation", frm, to)
-    od = _df("Opportunity", "transaction_date", frm, to)
-    pd = _df("Prospect", "creation", frm, to)
-    cd = _df("Customer", "creation", frm, to)
+    # Date-scoped filter fragments per doctype (their natural date field), each
+    # merged with the customer scope when one is active.
+    ld = {**_df("Lead", "creation", frm, to), **_sf(scope, "Lead")}
+    od = {**_df("Opportunity", "transaction_date", frm, to), **_sf(scope, "Opportunity")}
+    pd = {**_df("Prospect", "creation", frm, to), **_sf(scope, "Prospect")}
+    # The Customer KPI drops the date window when a customer is explicitly
+    # selected: the user picked that account, so "0 active customers" because it
+    # was created before the window reads as a bug rather than as an answer.
+    cd = _sf(scope, "Customer") if scope is not None else _df("Customer", "creation", frm, to)
     td = _df("ToDo", "creation", frm, to)
+    if scope is not None:
+        from upande_crm.api.scope import todo_names
+
+        names = todo_names(scope)
+        td = {**td, "name": ["in", names or [""]]}
 
     leads_total = _count("Lead", ld)
     leads_conv = _count("Lead", {**ld, "status": "Converted"})
@@ -188,7 +264,9 @@ def crm_dashboard_overview(date_from=None, date_to=None, customer=None):
     opps_won = _count("Opportunity", {**od, "status": "Converted"})
 
     prosp_total = _count("Prospect", pd)
-    prosp_terr = _distinct_count("Prospect", "territory", _dw("Prospect", "creation", frm, to))
+    prosp_terr = _distinct_count(
+        "Prospect", "territory",
+        _dw("Prospect", "creation", frm, to, base=_sw(scope, "Prospect")))
 
     cust_active = _count("Customer", {**cd, "disabled": 0})
     cust_companies = _count("Customer", {**cd, "customer_type": "Company", "disabled": 0})
@@ -212,20 +290,28 @@ def crm_dashboard_overview(date_from=None, date_to=None, customer=None):
             "revenue": {"amount": rev_amount, "orders": rev_orders},
             "tasks": {"open": tasks_open, "high": tasks_high},
         },
+        # The funnel narrows with the customer filter too — a funnel that stayed
+        # global while the KPIs above narrowed was the most visible symptom of the
+        # filter not working.
         "funnel": [
             {"label": "Leads", "count": leads_total},
             {"label": "Opportunities", "count": opps_total},
-            {"label": "Quotations", "count": _count("Quotation", _df("Quotation", "transaction_date", frm, to)) if _has("Quotation") else 0},
-            {"label": "Sales Orders", "count": _count("Sales Order", {**_df("Sales Order", "transaction_date", frm, to), "docstatus": 1})},
+            {"label": "Quotations", "count": _count("Quotation", {**_df("Quotation", "transaction_date", frm, to), **_sf(scope, "Quotation")}) if _has("Quotation") else 0},
+            {"label": "Sales Orders", "count": _count("Sales Order", {
+                **_df("Sales Order", "transaction_date", frm, to), "docstatus": 1,
+                **({"customer": customer} if customer else {})})},
             {"label": "Converted", "count": opps_won},
         ],
-        "lead_status": _group("Lead", "status", _dw("Lead", "creation", frm, to)),
+        "lead_status": _group("Lead", "status", _dw("Lead", "creation", frm, to, base=_sw(scope, "Lead"))),
         # Trends obey the date picker (day/month buckets depending on span).
-        "lead_trend": _trend_in_range("Lead", "creation", frm, to),
-        "so_trend": _trend_in_range("Sales Order", "transaction_date", frm, to),
-        "top_sources": _group("Lead", "source", _dw("Lead", "creation", frm, to)),
-        "top_territories": _group("Lead", "territory", _dw("Lead", "creation", frm, to)),
-        "sales_stages": _group("Opportunity", "sales_stage", _dw("Opportunity", "transaction_date", frm, to)),
+        "lead_trend": _trend_in_range("Lead", "creation", frm, to, where=_sw(scope, "Lead")),
+        "so_trend": _trend_in_range("Sales Order", "transaction_date", frm, to,
+                                    where=_customer_sql(customer)),
+        "top_sources": _group("Lead", "source", _dw("Lead", "creation", frm, to, base=_sw(scope, "Lead"))),
+        "top_territories": _group("Lead", "territory", _dw("Lead", "creation", frm, to, base=_sw(scope, "Lead"))),
+        "sales_stages": _group("Opportunity", "sales_stage",
+                               _dw("Opportunity", "transaction_date", frm, to,
+                                   base=_sw(scope, "Opportunity"))),
     }
 
 
@@ -262,8 +348,9 @@ def _so_revenue(frm, to, customer=None):
 def crm_dashboard_leads(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)
-    d = _df("Lead", "creation", frm, to)
-    w = _dw("Lead", "creation", frm, to)
+    scope = _scope(customer)
+    d = {**_df("Lead", "creation", frm, to), **_sf(scope, "Lead")}
+    w = _dw("Lead", "creation", frm, to, base=_sw(scope, "Lead"))
     total = _count("Lead", d)
     converted = _count("Lead", {**d, "status": "Converted"})
     return {
@@ -291,12 +378,16 @@ def crm_dashboard_leads(date_from=None, date_to=None, customer=None):
 def crm_dashboard_opportunities(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)
-    d = _df("Opportunity", "transaction_date", frm, to)
-    w = _dw("Opportunity", "transaction_date", frm, to)
+    scope = _scope(customer)
+    # Previously this only matched `party_name = customer`, which found the 6
+    # opportunities raised directly against a Customer and missed every one that
+    # came in as a Lead or Prospect for the same account (45 and 8 on this site).
+    d = {**_df("Opportunity", "transaction_date", frm, to), **_sf(scope, "Opportunity")}
+    w = _dw("Opportunity", "transaction_date", frm, to, base=_sw(scope, "Opportunity"))
     total = _count("Opportunity", d)
     won = _count("Opportunity", {**d, "status": "Converted"})
     lost = _count("Opportunity", {**d, "status": "Lost"})
-    filters = {**d, "party_name": customer} if customer else d
+    filters = d
     return {
         "kpis": {
             "total": total,
@@ -322,13 +413,14 @@ def crm_dashboard_opportunities(date_from=None, date_to=None, customer=None):
 def crm_dashboard_prospects(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)
-    d = _df("Prospect", "creation", frm, to)
-    w = _dw("Prospect", "creation", frm, to)
+    scope = _scope(customer)
+    d = {**_df("Prospect", "creation", frm, to), **_sf(scope, "Prospect")}
+    w = _dw("Prospect", "creation", frm, to, base=_sw(scope, "Prospect"))
     total = _count("Prospect", d)
     qstart = str(get_quarter_start(nowdate())) if _has("Prospect") else None
     this_q = 0
     if qstart and _has("Prospect"):
-        this_q = _count("Prospect", {"creation": [">=", qstart]})
+        this_q = _count("Prospect", {"creation": [">=", qstart], **_sf(scope, "Prospect")})
     return {
         "kpis": {
             "total": total,
@@ -458,9 +550,22 @@ def _top_customers(frm, to, limit=20):
 def crm_dashboard_events_tasks(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)
+    scope = _scope(customer)
     ev = _df("Event", "starts_on", frm, to)
     tdo = _df("ToDo", "creation", frm, to)
     cm = _df("Communication", "communication_date", frm, to)
+    if scope is not None:
+        # Activity is reached through its reference, not a customer column: a ToDo
+        # or Event counts as this customer's when it points at any record in the
+        # resolved scope (the account, its leads, prospects, opportunities or
+        # quotations).
+        from upande_crm.api.scope import event_names, todo_names
+
+        ev = {**ev, "name": ["in", event_names(scope) or [""]]}
+        tdo = {**tdo, "name": ["in", todo_names(scope) or [""]]}
+        cm = {**cm, "reference_doctype": ["in", ["Customer", "Lead", "Prospect",
+                                                 "Opportunity", "Quotation"]],
+              "reference_name": ["in", [n for names in scope.values() for n in names] or [""]]}
     emails = _rows("Communication", [
         "name", "subject", "sender", "recipients", "communication_date",
         "sent_or_received", "reference_doctype", "reference_name", "status", "_user_tags",
@@ -492,11 +597,16 @@ def crm_dashboard_events_tasks(date_from=None, date_to=None, customer=None):
             "emails_sent": sent,
             "emails_recv": recv,
         },
-        "event_categories": _group("Event", "event_category", _dw("Event", "starts_on", frm, to)),
+        "event_categories": _group("Event", "event_category",
+                                   _dw("Event", "starts_on", frm, to,
+                                       base=_names_sql(ev.get("name")))),
         "task_priorities": _group("ToDo", "priority",
-                                  _dw("ToDo", "creation", frm, to, base=_crm_todo_sql_base())),
+                                  _dw("ToDo", "creation", frm, to,
+                                      base=_and(_crm_todo_sql_base(), _names_sql(tdo.get("name"))))),
         "email_by_ref": _group("Communication", "reference_doctype",
-                               _dw("Communication", "communication_date", frm, to, base="communication_type='Communication'")),
+                               _dw("Communication", "communication_date", frm, to,
+                                   base=_and("communication_type='Communication'",
+                                             _names_sql(cm.get("reference_name"), "reference_name")))),
         "events": events_rows,
         "todos": todos,
         "emails": emails,

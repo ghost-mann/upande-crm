@@ -56,6 +56,18 @@ export const themeSaveApi       = (seeds) => api(S + 'crm_theme_save', { seeds: 
 export const themePresetApi     = (name) => api(S + 'crm_theme_apply_preset', { name });
 export const themeResetApi      = () => api(S + 'crm_theme_reset', {});
 
+// ---------------------------------------------------------------- reports
+// ERPNext's own CRM/Selling reports, run through frappe's report runner and
+// rendered with CRM components. Runs with the user's own permissions, unlike the
+// dashboards — see api/reports.py.
+const RP = 'upande_crm.api.reports.';
+export const reportsApi      = (args) => api(RP + 'crm_reports', args);
+export const reportRunApi    = ({ key, report, filters, date_from, date_to, customer }) =>
+  api(RP + 'crm_report_run', {
+    key, report, filters: JSON.stringify(filters || {}), date_from, date_to, customer,
+  });
+export const reportCatalogueApi = () => api(RP + 'crm_report_catalogue', {});
+
 // section key → loader, used by loadAll()
 export const SECTION_LOADERS = {
   leads: getLeads,

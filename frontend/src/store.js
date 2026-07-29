@@ -6,6 +6,7 @@ import {
   waConversationsApi, waThreadApi, waSendApi, waSendTemplateApi, waMarkReadApi,
   orgSettingsApi, orgSettingsSaveApi, healthApi,
   themeApi, themeSaveApi, themePresetApi, themeResetApi,
+  reportsApi, reportCatalogueApi,
 } from './api';
 
 const SETTINGS_KEY = 'crm_settings';
@@ -94,6 +95,7 @@ export const SECTION_META = {
   cust:     { title: 'Customers',          sub: 'Active accounts · revenue · segmentation' },
   evt:      { title: 'Events, Tasks & Emails', sub: 'Meetings · ToDos · communications' },
   act:      { title: 'Activity Log',       sub: 'CRM triggers · audit trail' },
+  rep:      { title: 'Reports',            sub: "ERPNext's CRM and sales reports" },
   set:      { title: 'CRM Settings',       sub: 'Targets · defaults · integrations' },
 };
 
@@ -150,6 +152,9 @@ export const useStore = create((set, get) => ({
   healthLoading: false,
   // theme: {seeds, tokens, presets, applied, can_edit} — loaded by the Theme tab.
   theme: null,
+  // reports registry + catalogue, both loaded lazily by the Reports section.
+  reports: null,
+  reportCatalogue: null,
 
   select(section, table = '') {
     set({ section, table, openMsg: null });
@@ -234,6 +239,24 @@ export const useStore = create((set, get) => ({
     get().loadAll({ silent: true });
     if (get().health) get().loadHealth();
     return org;
+  },
+
+  // ---------------------------------------------------------------- reports
+  async loadReports() {
+    try {
+      const d = await reportsApi({ date_from: get().dateFrom, date_to: get().dateTo });
+      set({ reports: d });
+    } catch {
+      set({ reports: { groups: [], reports: [], error: true } });
+    }
+  },
+
+  async loadReportCatalogue() {
+    try {
+      set({ reportCatalogue: await reportCatalogueApi() });
+    } catch {
+      set({ reportCatalogue: { reports: [], error: true } });
+    }
   },
 
   // ---------------------------------------------------------------- theme

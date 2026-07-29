@@ -57,6 +57,19 @@ export const NAV = [
     ],
   },
   {
+    label: 'Reports',
+    items: [
+      { type: 'group', section: 'rep', icon: 'lab_profile', label: 'Reports',
+        subs: [
+          { table: '', label: 'Pipeline' },
+          { table: 'leads', label: 'Leads' },
+          { table: 'customers', label: 'Customers' },
+          { table: 'sales', label: 'Sales' },
+          { table: 'all', label: 'All reports' },
+        ] },
+    ],
+  },
+  {
     label: 'Workspace',
     items: [
       { type: 'group', section: 'set', icon: 'settings', label: 'Settings',

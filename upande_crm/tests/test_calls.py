@@ -144,6 +144,33 @@ class TestLinking(CallTestCase):
     def test_link_rank_puts_unknown_doctypes_last(self):
         self.assertGreater(C._link_rank("Something Else"), C._link_rank("Lead"))
 
+    def test_a_customer_reference_fills_the_customer_column(self):
+        # Not just the Dynamic Link table: the column makes the link queryable
+        # directly, so the customer filter matches without a join and desk reports
+        # over Call Log see it too.
+        customer = _a_customer()
+        if not customer:
+            self.skipTest("no customers on this site")
+        r = _save(reference_doctype="Customer", reference_name=customer)
+        self.assertEqual(frappe.db.get_value("Call Log", r["name"], "customer"), customer)
+
+    def test_a_lead_reference_does_not_assert_a_customer(self):
+        # Inferring a customer from a lead would claim a relationship the record
+        # does not have yet.
+        lead = frappe.get_all("Lead", pluck="name", limit=1)
+        if not lead:
+            self.skipTest("no leads on this site")
+        r = _save(reference_doctype="Lead", reference_name=lead[0])
+        self.assertFalse(frappe.db.get_value("Call Log", r["name"], "customer"))
+
+    def test_a_customer_linked_call_is_found_by_the_customer_filter(self):
+        customer = _a_customer()
+        if not customer:
+            self.skipTest("no customers on this site")
+        r = _save(reference_doctype="Customer", reference_name=customer)
+        rows = C.crm_dashboard_calls(**WIDE, customer=customer)["rows"]
+        self.assertIn(r["name"], [x["name"] for x in rows])
+
 
 class TestFollowUp(CallTestCase):
     def test_a_follow_up_creates_a_linked_task(self):

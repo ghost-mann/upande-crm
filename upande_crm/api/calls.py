@@ -149,6 +149,14 @@ def crm_call_save(call):
         if not frappe.db.exists(ref_doctype, ref_name):
             frappe.throw(_("Linked {0} not found").format(ref_doctype))
 
+    # A call linked to a Customer also fills Call Log's own `customer` column, not
+    # just the Dynamic Link table. That makes the link first-class: the customer
+    # filter can match on a column instead of a join, and desk reports over Call
+    # Log see it too. Only set from an actual Customer reference — inferring it
+    # from a Lead would assert a relationship the record does not yet have.
+    if ref_doctype == "Customer" and ref_name:
+        fields["customer"] = ref_name
+
     # `id` is required by the doctype and normally comes from the telephony
     # provider. A manual entry has no provider id, so one is minted from the row.
     if not name and not fields.get("id"):

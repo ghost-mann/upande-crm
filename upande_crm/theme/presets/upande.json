@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "label": "Upande gold",
+  "seeds": {
+    "theme_accent": "#d9a514",
+    "theme_ink": "#0a0a0a",
+    "theme_ink_muted": "#8a8780",
+    "theme_canvas": "#f4f3ef",
+    "theme_success": "#3f8f4f",
+    "theme_warning": "#96650f",
+    "theme_danger": "#c4302b",
+    "theme_info": "#175cd3"
+  }
+}

@@ -48,6 +48,14 @@ export const orgSettingsApi     = () => api(S + 'crm_settings', {});
 export const orgSettingsSaveApi = (patch) => api(S + 'crm_settings_save', { settings: JSON.stringify(patch) });
 export const healthApi          = () => api(S + 'crm_integration_status', {});
 
+// Theme: seeds in, derived tokens out. The tokens are applied to :root straight
+// away so the running app reskins without a reload; later page loads get the same
+// values from the server-rendered <style> block.
+export const themeApi           = () => api(S + 'crm_theme', {});
+export const themeSaveApi       = (seeds) => api(S + 'crm_theme_save', { seeds: JSON.stringify(seeds) });
+export const themePresetApi     = (name) => api(S + 'crm_theme_apply_preset', { name });
+export const themeResetApi      = () => api(S + 'crm_theme_reset', {});
+
 // section key → loader, used by loadAll()
 export const SECTION_LOADERS = {
   leads: getLeads,

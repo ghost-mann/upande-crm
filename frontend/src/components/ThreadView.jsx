@@ -95,7 +95,7 @@ export default function ThreadView() {
       <div className="flex items-center gap-1.5 px-4 h-14 border-b border-hairline">
         <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full shrink-0" onClick={close} aria-label="Back"><Icon name="arrow_back" className="text-[19px]" /></Button>
         <div className="ml-auto flex items-center gap-1.5">
-          <Button variant="default" size="sm" className="rounded-full bg-gold text-ink hover:bg-gold-2 hover:text-white shadow-none" onClick={() => reply(false)}>
+          <Button variant="default" size="sm" className="rounded-full bg-gold text-[var(--on-accent)] hover:bg-gold-2 hover:text-white shadow-none" onClick={() => reply(false)}>
             <Icon name="reply" className="text-[15px]" />Reply
           </Button>
           <Button variant="outline" size="sm" className="rounded-full" onClick={() => reply(true)}><Icon name="reply_all" className="text-[15px]" />Reply all</Button>

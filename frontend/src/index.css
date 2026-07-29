@@ -41,11 +41,18 @@
     --ink-mute: #8a8780;
     --ink-faint: #b8b6ae;
 
-    /* Gold — the CRM signal accent (from the reference sticky-trap gold). */
+    /* Gold — the CRM signal accent (from the reference sticky-trap gold).
+     * On a themed site --gold holds that theme's accent, which may be nothing
+     * like gold; the token names are kept so components need not change. */
     --gold: #d9a514;
     --gold-2: #a87d0d;
     --gold-soft: #f7edcd;
     --gold-text: #8a6a10;
+    /* Text over an accent fill. Black because white on bright gold reads badly;
+     * the theme layer recomputes it per accent (white on dark maroon). Pure
+     * black rather than ink #0a0a0a so this fallback is exactly what the
+     * derivation produces for the gold seed — the theme test asserts they agree. */
+    --on-accent: #000000;
 
     /* Text roles (mapped to the ink scale). */
     --text: #0a0a0a;

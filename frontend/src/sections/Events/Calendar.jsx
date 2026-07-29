@@ -93,7 +93,7 @@ export default function Calendar() {
             <Icon name="chevron_right" className="text-[18px]" />
           </button>
           <Button size="sm" onClick={() => openEventDialog({ prefillStart: `${today} 09:00:00` })}
-            className="rounded-full bg-gold text-ink hover:bg-gold-2 hover:text-white shadow-none px-4 ml-1">
+            className="rounded-full bg-gold text-[var(--on-accent)] hover:bg-gold-2 hover:text-white shadow-none px-4 ml-1">
             <Icon name="add" className="text-[16px]" />New
           </Button>
         </div>

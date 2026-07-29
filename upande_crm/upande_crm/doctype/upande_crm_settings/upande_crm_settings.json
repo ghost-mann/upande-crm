@@ -29,7 +29,18 @@
   "whatsapp_enabled",
   "default_whatsapp_template",
   "cb_whatsapp",
-  "whatsapp_fail_rate_alert"
+  "whatsapp_fail_rate_alert",
+  "sb_theme",
+  "theme_preset",
+  "theme_accent",
+  "theme_ink",
+  "theme_ink_muted",
+  "theme_canvas",
+  "cb_theme",
+  "theme_success",
+  "theme_warning",
+  "theme_danger",
+  "theme_info"
  ],
  "fields": [
   {
@@ -184,6 +195,67 @@
    "fieldname": "whatsapp_fail_rate_alert",
    "fieldtype": "Percent",
    "label": "WhatsApp Failure Rate Alert (%)"
+  },
+  {
+   "description": "Seed colours for the CRM's appearance. Blank means \"not themed\" — the compiled palette is used. Everything else (the ink scale, surfaces, hairlines, shadows, gradients, button and input colours) is derived from these.",
+   "fieldname": "sb_theme",
+   "fieldtype": "Section Break",
+   "label": "Theme"
+  },
+  {
+   "description": "Which shipped preset was applied last. Cleared when a colour is edited by hand.",
+   "fieldname": "theme_preset",
+   "fieldtype": "Data",
+   "label": "Applied Preset",
+   "read_only": 1
+  },
+  {
+   "description": "The single signal colour — buttons, active states, primary chart series.",
+   "fieldname": "theme_accent",
+   "fieldtype": "Color",
+   "label": "Accent"
+  },
+  {
+   "description": "Darkest structural colour. Drives the text scale, hairlines and shadows.",
+   "fieldname": "theme_ink",
+   "fieldtype": "Color",
+   "label": "Ink"
+  },
+  {
+   "description": "The most-visible grey. Seeded directly so its temperature is chosen, not averaged.",
+   "fieldname": "theme_ink_muted",
+   "fieldtype": "Color",
+   "label": "Ink Muted"
+  },
+  {
+   "description": "Page background. Card surfaces and hairlines are derived from it.",
+   "fieldname": "theme_canvas",
+   "fieldtype": "Color",
+   "label": "Canvas"
+  },
+  {
+   "fieldname": "cb_theme",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "theme_success",
+   "fieldtype": "Color",
+   "label": "Success"
+  },
+  {
+   "fieldname": "theme_warning",
+   "fieldtype": "Color",
+   "label": "Warning"
+  },
+  {
+   "fieldname": "theme_danger",
+   "fieldtype": "Color",
+   "label": "Danger"
+  },
+  {
+   "fieldname": "theme_info",
+   "fieldtype": "Color",
+   "label": "Info"
   }
  ],
  "index_web_pages_for_search": 0,

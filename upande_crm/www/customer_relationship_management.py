@@ -46,4 +46,18 @@ def get_context(context):
 		"is_crm":             True,
 		"is_account_manager": frappe.db.exists("Customer", {"account_manager": frappe.session.user}) and True or False,
 	}
+
+	# Theme overrides, emitted as a <style> block after the inlined bundle CSS.
+	# Rendered server-side so the palette is correct on first paint rather than
+	# flashing the compiled one while the SPA boots. Empty when nothing is
+	# configured, and the template then emits no block at all.
+	try:
+		from upande_crm.theme import get_theme_css
+
+		context.theme_css = get_theme_css()
+	except Exception:
+		# A broken theme must never take the CRM down; fall back to the bundle.
+		frappe.log_error(frappe.get_traceback(), "CRM theme render failed")
+		context.theme_css = ""
+
 	return context

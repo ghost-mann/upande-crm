@@ -78,7 +78,7 @@ export default function Mail() {
           <div className="mail-display text-[22px] font-semibold text-ink leading-tight">{LABELS[t] || t}</div>
           <div className="text-[12px] text-ink-mute mt-1">{mailLoading ? 'Loading…' : `Showing ${rows.length} of ${count}`}</div>
         </div>
-        <button onClick={() => openCompose({})} className="h-10 px-4 bg-gold text-ink rounded-full text-[13px] font-semibold inline-flex items-center gap-2 hover:bg-gold-2 hover:text-white transition-colors shadow-[0_4px_14px_rgba(217,165,20,0.28)]">
+        <button onClick={() => openCompose({})} className="h-10 px-4 bg-gold text-[var(--on-accent)] rounded-full text-[13px] font-semibold inline-flex items-center gap-2 hover:bg-gold-2 hover:text-white transition-colors shadow-[0_4px_14px_rgba(217,165,20,0.28)]">
           <Icon name="edit_square" className="text-[18px]" />Compose
         </button>
       </div>

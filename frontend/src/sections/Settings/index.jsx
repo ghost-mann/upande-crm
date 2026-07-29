@@ -4,6 +4,7 @@ import Targets from './Targets';
 import Pipeline from './Pipeline';
 import Activity from './Activity';
 import WhatsAppSettings from './WhatsApp';
+import Theme from './Theme';
 import Integrations from './Integrations';
 
 // Tab router for the Settings section, driven by the same `table` key the rest of
@@ -14,6 +15,7 @@ const TABS = {
   pipeline: Pipeline,
   activity: Activity,
   wa: WhatsAppSettings,
+  theme: Theme,
   health: Integrations,
 };
 

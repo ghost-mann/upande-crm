@@ -42,7 +42,7 @@ export default function Sidebar({ onCompose, onSettings, collapsed, onToggleColl
             onClick={onCompose}
             title="Compose"
             className={cn(
-              'bg-gold text-ink rounded-2xl text-[13px] font-semibold flex items-center justify-center gap-2 hover:bg-gold-2 hover:text-white transition-colors shadow-[0_4px_14px_rgba(217,165,20,0.28)] h-11',
+              'bg-gold text-[var(--on-accent)] rounded-2xl text-[13px] font-semibold flex items-center justify-center gap-2 hover:bg-gold-2 hover:text-white transition-colors shadow-[0_4px_14px_rgba(217,165,20,0.28)] h-11',
               collapsed ? 'w-11 mx-auto' : 'w-full',
             )}
           >

@@ -49,6 +49,7 @@ class UpandeCRMSettings(Document):
         self._validate_targets()
         self._validate_statuses()
         self._validate_whatsapp_template()
+        self._validate_theme_seeds()
 
     def _validate_bounds(self):
         for field, label, low, high in BOUNDS:
@@ -91,3 +92,22 @@ class UpandeCRMSettings(Document):
             frappe.throw(_("WhatsApp template {0} does not exist.").format(template))
         if frappe.db.get_value("WhatsApp Templates", template, "status") != "APPROVED":
             frappe.throw(_("WhatsApp template {0} is not APPROVED, so it cannot be sent.").format(template))
+
+    def _validate_theme_seeds(self):
+        """Each theme colour must be blank or a full '#rrggbb'.
+
+        The token derivation skips an unparseable seed rather than raising, so a
+        typo would otherwise silently drop half the palette. Caught here instead,
+        where the user can see which field is wrong.
+        """
+        from upande_crm.theme.color import parse
+        from upande_crm.theme.tokens import SEED_FIELDS
+
+        for field in SEED_FIELDS:
+            value = (self.get(field) or "").strip()
+            self.set(field, value)
+            if value and parse(value) is None:
+                label = self.meta.get_label(field) if self.meta else field
+                frappe.throw(
+                    _("{0} must be a colour like #d9a514, not {1!r}.").format(label, value)
+                )

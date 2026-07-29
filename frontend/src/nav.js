@@ -66,6 +66,7 @@ export const NAV = [
           { table: 'pipeline', label: 'Pipeline' },
           { table: 'activity', label: 'Events & Tasks' },
           { table: 'wa', label: 'WhatsApp' },
+          { table: 'theme', label: 'Theme' },
           { table: 'health', label: 'Integrations' },
         ] },
     ],

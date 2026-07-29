@@ -155,7 +155,7 @@ export default function TaskDialog() {
 
         <div className="shrink-0 flex items-center gap-3 px-5 py-3 border-t border-line">
           <Button size="sm" onClick={submit} disabled={saving}
-            className="rounded-full bg-gold text-ink hover:bg-gold-2 hover:text-white shadow-none px-5">
+            className="rounded-full bg-gold text-[var(--on-accent)] hover:bg-gold-2 hover:text-white shadow-none px-5">
             <Icon name="check" className="text-[16px]" />{saving ? 'Saving…' : (form.name ? 'Save changes' : 'Create task')}
           </Button>
           <button onClick={closeTaskDialog} className="text-[13px] text-ink-3 hover:text-ink">Cancel</button>

@@ -146,7 +146,7 @@ export default function WaComposer({ party, windowOpen, link, lastInboundAt }) {
 
       <div className="flex items-center gap-3 mt-2.5">
         <Button size="sm" onClick={send} disabled={busy}
-          className="rounded-full bg-gold text-ink hover:bg-gold-2 hover:text-white shadow-none px-5">
+          className="rounded-full bg-gold text-[var(--on-accent)] hover:bg-gold-2 hover:text-white shadow-none px-5">
           <Icon name="send" className="text-[15px]" />
           {busy ? 'Sending…' : (mode === 'template' ? 'Send template' : 'Send')}
         </Button>

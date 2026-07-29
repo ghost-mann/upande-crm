@@ -17,7 +17,7 @@ export default function Dashboard() {
     <>
       <div className="flex items-center gap-2.5 mb-5">
         <Button size="sm" onClick={() => openEventDialog({ prefillStart: `${todayISO()} 09:00:00` })}
-          className="rounded-full bg-gold text-ink hover:bg-gold-2 hover:text-white shadow-none px-4">
+          className="rounded-full bg-gold text-[var(--on-accent)] hover:bg-gold-2 hover:text-white shadow-none px-4">
           <Icon name="event" className="text-[16px]" />New event
         </Button>
         <Button size="sm" variant="outline" onClick={() => openTaskDialog({})} className="rounded-full px-4">

@@ -50,6 +50,17 @@ DEFAULTS = {
     "whatsapp_enabled": 1,
     "default_whatsapp_template": "",
     "whatsapp_fail_rate_alert": 20.0,
+    # Theme seeds. Blank means "not themed" — the compiled palette is used and no
+    # <style> block is emitted at all. See upande_crm/theme/.
+    "theme_preset": "",
+    "theme_accent": "",
+    "theme_ink": "",
+    "theme_ink_muted": "",
+    "theme_canvas": "",
+    "theme_success": "",
+    "theme_warning": "",
+    "theme_danger": "",
+    "theme_info": "",
 }
 
 # Select vocabularies, so the UI does not have to hardcode them and still works
@@ -177,6 +188,90 @@ def crm_settings_save(settings=None):
     # Validation still runs — it lives in the controller, not in the DocPerm.
     doc.save(ignore_permissions=True)
     return {"settings": get_settings()}
+
+
+# ---------------------------------------------------------------- theme
+def _theme_payload(settings=None):
+    from upande_crm.theme import tokens as theme_tokens
+    from upande_crm.theme import transfer
+
+    s = settings if settings is not None else get_settings()
+    return {
+        "seeds": {f: s.get(f) or "" for f in theme_tokens.SEED_FIELDS},
+        "tokens": theme_tokens.get_tokens(s),
+        "presets": transfer.list_presets(),
+        "applied": s.get("theme_preset") or "",
+        "can_edit": _can_edit(),
+        "installed": _installed(),
+    }
+
+
+@frappe.whitelist()
+def crm_theme():
+    _guard()
+    return _theme_payload()
+
+
+def _write_seeds(seeds, preset=""):
+    """Persist seed colours. Returns the payload with freshly derived tokens.
+
+    The doctype controller validates each colour, so a malformed hex throws here
+    rather than silently dropping half the palette at render time.
+    """
+    from upande_crm.theme.tokens import SEED_FIELDS
+
+    if not _can_edit():
+        frappe.throw(
+            _("Only a Sales Manager or System Manager can change the CRM theme."),
+            frappe.PermissionError,
+        )
+    if not _installed():
+        frappe.throw(
+            _("Upande CRM Settings is not installed on this site — run `bench migrate` first.")
+        )
+
+    doc = frappe.get_single(SETTINGS_DOCTYPE)
+    for field in SEED_FIELDS:
+        if field in seeds:
+            doc.set(field, (seeds[field] or "").strip())
+    doc.theme_preset = preset
+    # ignore_permissions: the role gate above is the authority, as in crm_settings_save.
+    doc.save(ignore_permissions=True)
+    return _theme_payload()
+
+
+@frappe.whitelist()
+def crm_theme_save(seeds=None):
+    """Save hand-edited seeds. Clears the applied-preset marker."""
+    _guard()
+    payload = _load(seeds)
+    if not isinstance(payload, dict):
+        frappe.throw(_("Malformed theme payload"))
+    from upande_crm.theme.tokens import SEED_FIELDS
+
+    known = {k: v for k, v in payload.items() if k in SEED_FIELDS}
+    if not known:
+        frappe.throw(_("No recognised theme colours in this request"))
+    return _write_seeds(known)
+
+
+@frappe.whitelist()
+def crm_theme_apply_preset(name=None):
+    _guard()
+    from upande_crm.theme import transfer
+
+    seeds = transfer.preset_seeds(name)
+    return _write_seeds(seeds, preset=name)
+
+
+@frappe.whitelist()
+def crm_theme_reset():
+    """Back to the shipped Upande gold look."""
+    _guard()
+    from upande_crm.theme import transfer
+
+    return _write_seeds(transfer.preset_seeds(transfer.DEFAULT_PRESET),
+                        preset=transfer.DEFAULT_PRESET)
 
 
 # ---------------------------------------------------------------- health

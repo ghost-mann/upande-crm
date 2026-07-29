@@ -135,7 +135,7 @@ export default function ComposeDialog() {
             </div>
 
             <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-t border-line">
-              <Button size="sm" className="rounded-full bg-gold text-ink hover:bg-gold-2 hover:text-white shadow-none px-5" onClick={send} disabled={sending}>
+              <Button size="sm" className="rounded-full bg-gold text-[var(--on-accent)] hover:bg-gold-2 hover:text-white shadow-none px-5" onClick={send} disabled={sending}>
                 <Icon name="send" className="text-[15px]" />{sending ? 'Sending…' : 'Send'}
               </Button>
               <button onClick={() => closeCompose()} className="text-ink-3 hover:text-bad" title="Discard">

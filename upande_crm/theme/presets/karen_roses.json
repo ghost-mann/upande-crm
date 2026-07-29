@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "label": "Karen Roses maroon",
+  "seeds": {
+    "theme_accent": "#8c1d2e",
+    "theme_ink": "#14100f",
+    "theme_ink_muted": "#8a807e",
+    "theme_canvas": "#f6f2f0",
+    "theme_success": "#3f8f4f",
+    "theme_warning": "#96650f",
+    "theme_danger": "#c4302b",
+    "theme_info": "#175cd3"
+  }
+}

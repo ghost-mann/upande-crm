@@ -107,7 +107,7 @@ export default function Conversations() {
                   <div className="text-[11px] text-ink-mute">{fmtRelative(r.last_at)}</div>
                   {r.unread ? (
                     <div className="mt-1 inline-grid place-items-center min-w-[20px] h-5 px-1.5 rounded-full
-                                    bg-gold text-ink text-[11px] font-semibold">
+                                    bg-gold text-[var(--on-accent)] text-[11px] font-semibold">
                       {r.unread}
                     </div>
                   ) : (

@@ -135,7 +135,7 @@ export function SaveBar({ form }) {
     <div className="mt-4 flex items-center gap-3">
       <Button
         size="sm" onClick={save} disabled={saving || !dirty}
-        className="rounded-full bg-gold text-ink hover:bg-gold-2 hover:text-white shadow-none px-5 disabled:opacity-40"
+        className="rounded-full bg-gold text-[var(--on-accent)] hover:bg-gold-2 hover:text-white shadow-none px-5 disabled:opacity-40"
       >
         <Icon name="check" className="text-[16px]" />{saving ? 'Saving…' : 'Save changes'}
       </Button>

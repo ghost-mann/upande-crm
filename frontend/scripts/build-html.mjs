@@ -22,6 +22,15 @@ const JINJA_BOOT = `
     </script>
 `;
 
+// Theme overrides. Injected immediately before </head> — i.e. AFTER the inlined
+// bundle CSS — so its :root wins on document order at equal specificity. Every
+// Tailwind colour in this app resolves a CSS variable at runtime, so this is all
+// a theme change needs: no rebuild. `theme_css` is empty on an unthemed site and
+// the block then disappears entirely.
+const JINJA_THEME = `
+    {% if theme_css %}<style id="crm-theme">{{ theme_css }}</style>{% endif %}
+`;
+
 // Inline the emitted stylesheet into the HTML so styles are parsed with the
 // document (no separate render-blocking request that can paint late).
 async function inlineCss(html) {
@@ -46,7 +55,12 @@ if (!html.includes('</body>')) {
   console.error(`No </body> in ${SRC} — aborting.`);
   process.exit(1);
 }
+if (!html.includes('</head>')) {
+  console.error(`No </head> in ${SRC} — cannot inject the theme block; aborting.`);
+  process.exit(1);
+}
 html = await inlineCss(html);
+html = html.replace('</head>', JINJA_THEME + '  </head>');
 const out = html.replace('</body>', JINJA_BOOT + '\n  </body>');
 await writeFile(DEST, out, 'utf8');
 console.log(`✓ crm → www/customer-relationship-management.html`);

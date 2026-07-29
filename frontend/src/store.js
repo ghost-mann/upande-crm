@@ -5,6 +5,7 @@ import {
   assignApi, unassignApi, calendarApi,
   waConversationsApi, waThreadApi, waSendApi, waSendTemplateApi, waMarkReadApi,
   orgSettingsApi, orgSettingsSaveApi, healthApi,
+  themeApi, themeSaveApi, themePresetApi, themeResetApi,
 } from './api';
 
 const SETTINGS_KEY = 'crm_settings';
@@ -147,6 +148,8 @@ export const useStore = create((set, get) => ({
   orgLoaded: false,
   health: null,
   healthLoading: false,
+  // theme: {seeds, tokens, presets, applied, can_edit} — loaded by the Theme tab.
+  theme: null,
 
   select(section, table = '') {
     set({ section, table, openMsg: null });
@@ -231,6 +234,50 @@ export const useStore = create((set, get) => ({
     get().loadAll({ silent: true });
     if (get().health) get().loadHealth();
     return org;
+  },
+
+  // ---------------------------------------------------------------- theme
+  // Tokens are written onto the document element, which is enough to reskin the
+  // whole app: every Tailwind colour here resolves a CSS variable at runtime.
+  applyTokens(tokens) {
+    if (!tokens || typeof document === 'undefined') return;
+    const root = document.documentElement;
+    Object.entries(tokens).forEach(([name, value]) => {
+      root.style.setProperty(`--${name}`, String(value));
+    });
+  },
+
+  async loadTheme() {
+    try {
+      const t = await themeApi();
+      set({ theme: t });
+      return t;
+    } catch {
+      set({ theme: { seeds: {}, tokens: {}, presets: [], applied: '', error: true } });
+      return null;
+    }
+  },
+
+  // Throws so the Theme tab can show which colour the server refused.
+  async saveTheme(seeds) {
+    const t = await themeSaveApi(seeds);
+    set({ theme: t });
+    get().applyTokens(t?.tokens);
+    return t;
+  },
+
+  async applyThemePreset(name) {
+    const t = await themePresetApi(name);
+    set({ theme: t });
+    get().applyTokens(t?.tokens);
+    return t;
+  },
+
+  async resetTheme() {
+    const t = await themeResetApi();
+    set({ theme: t });
+    get().applyTokens(t?.tokens);
+    return t;
   },
 
   async loadHealth() {

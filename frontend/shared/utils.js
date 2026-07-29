@@ -16,11 +16,14 @@ export function fmtMoney(n, ccy) {
   return sign + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Compact money: "$1.2k" / "$3.4M"
+// Compact money: "$1.2k" / "$3.4M" / "$1.1B"
+// The billions tier matters in KES: annual revenue here runs past 1e9, and
+// "1100.0M" is harder to read at a glance than "1.1B".
 export function fmtMoneyCompact(n, ccy) {
   if (n == null || isNaN(n)) return '—';
   const v = Number(n);
   const sign = ccy === 'USD' ? '$' : (ccy ? ccy + ' ' : '');
+  if (Math.abs(v) >= 1e9) return sign + (v / 1e9).toFixed(1) + 'B';
   if (Math.abs(v) >= 1e6) return sign + (v / 1e6).toFixed(1) + 'M';
   if (Math.abs(v) >= 1e3) return sign + (v / 1e3).toFixed(1) + 'k';
   return sign + v.toFixed(2);

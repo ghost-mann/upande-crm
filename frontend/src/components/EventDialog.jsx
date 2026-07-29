@@ -20,10 +20,22 @@ const WEEKDAYS = [
 const L = 'text-[10px] uppercase tracking-[0.14em] text-ink-mute font-medium mb-1.5 block';
 const SEL = 'h-9 w-full rounded-md border border-input bg-transparent px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring';
 
+// start + duration, in the "YYYY-MM-DDTHH:mm" a datetime-local input speaks.
+function plusMinutes(localInput, minutes) {
+  const n = Number(minutes);
+  if (!localInput || !Number.isFinite(n) || n <= 0) return '';
+  const d = new Date(localInput);
+  if (isNaN(d)) return '';
+  d.setMinutes(d.getMinutes() + n);
+  const p = (x) => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 export default function EventDialog() {
   const ev = useStore((s) => s.eventDialog);
   const closeEventDialog = useStore((s) => s.closeEventDialog);
   const saveEvent = useStore((s) => s.saveEvent);
+  const org = useStore((s) => s.org);
 
   const [form, setForm] = useState(null);
   const [parts, setParts] = useState([]);
@@ -34,13 +46,18 @@ export default function EventDialog() {
 
   useEffect(() => {
     if (!ev) { setForm(null); return; }
+    const isNew = !ev.name;
+    const starts = toLocalInput(ev.starts_on) || toLocalInput(ev.prefillStart);
     setForm({
       name: ev.name,
       subject: ev.subject || '',
-      event_category: ev.event_category || 'Meeting',
+      event_category: ev.event_category || (isNew ? org.default_event_category : '') || 'Meeting',
       event_type: ev.event_type || 'Private',
-      starts_on: toLocalInput(ev.starts_on) || toLocalInput(ev.prefillStart),
-      ends_on: toLocalInput(ev.ends_on),
+      starts_on: starts,
+      // A prefilled start (calendar click) gets the configured duration applied
+      // straight away; an existing event keeps whatever it was saved with.
+      ends_on: toLocalInput(ev.ends_on)
+        || (isNew && starts ? plusMinutes(starts, org.default_event_duration_mins) : ''),
       all_day: ev.all_day ? 1 : 0,
       status: ev.status || 'Open',
       location: ev.location || '',
@@ -62,11 +79,23 @@ export default function EventDialog() {
     // Sync is only offered when the signed-in user has an authorized calendar —
     // otherwise the toggle would create an Event doomed to fail on push.
     myCalendarsApi().then((c) => setCals(c || [])).catch(() => setCals([]));
+    // `org` is deliberately not a dependency — see TaskDialog.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ev]);
 
   if (!ev || !form) return null;
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  // Picking a start fills a blank end from the configured duration. It never
+  // overwrites an end the user has already set.
+  function setStart(value) {
+    setForm((f) => ({
+      ...f,
+      starts_on: value,
+      ends_on: f.ends_on || plusMinutes(value, org.default_event_duration_mins),
+    }));
+  }
 
   function addParticipant() {
     if (!newPart.reference_docname) { setErr('Pick a record to add as a participant.'); return; }
@@ -156,7 +185,7 @@ export default function EventDialog() {
           <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
             <div>
               <label className={L}>Starts</label>
-              <Input type="datetime-local" value={form.starts_on} onChange={(e) => set({ starts_on: e.target.value })} />
+              <Input type="datetime-local" value={form.starts_on} onChange={(e) => setStart(e.target.value)} />
             </div>
             <div>
               <label className={L}>Ends</label>

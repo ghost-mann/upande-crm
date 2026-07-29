@@ -56,4 +56,29 @@ export const NAV = [
         subs: [{ table: '', label: 'Dashboard' }, { table: 'rows', label: 'Recent (500)' }] },
     ],
   },
+  {
+    label: 'Workspace',
+    items: [
+      { type: 'group', section: 'set', icon: 'settings', label: 'Settings',
+        subs: [
+          { table: '', label: 'General' },
+          { table: 'targets', label: 'Targets' },
+          { table: 'pipeline', label: 'Pipeline' },
+          { table: 'activity', label: 'Events & Tasks' },
+          { table: 'wa', label: 'WhatsApp' },
+          { table: 'health', label: 'Integrations' },
+        ] },
+    ],
+  },
 ];
+
+// The nav an organisation's settings actually allow. Today only WhatsApp is
+// switchable; keep new toggles here rather than in the components, so the sidebar
+// and the tab strip cannot disagree about what exists.
+export function visibleNav(org) {
+  const waOff = org && !org.whatsapp_enabled;
+  if (!waOff) return NAV;
+  return NAV
+    .map((grp) => ({ ...grp, items: grp.items.filter((it) => it.section !== 'wa') }))
+    .filter((grp) => grp.items.length);
+}

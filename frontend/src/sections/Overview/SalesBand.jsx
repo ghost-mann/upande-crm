@@ -31,6 +31,80 @@ function Bar({ label, value, max, total, color, ccy }) {
   );
 }
 
+// Target attainment. Deliberately measured over the calendar month/year rather
+// than the header date range — 39% of a monthly target means something different
+// on the 10th than on the 28th, which is why elapsed time is drawn as a marker.
+function TargetRow({ label, actual, target, pct, elapsed, ccy }) {
+  const behind = pct < elapsed - 5;
+  const ahead = pct > elapsed + 5;
+  const fill = behind ? 'var(--bad)' : ahead ? 'var(--good)' : 'var(--gold)';
+  return (
+    <div className="py-2.5">
+      <div className="flex items-baseline justify-between gap-3 mb-1.5">
+        <div className="text-[12px] text-ink-3">{label}</div>
+        <div className="text-[12px] text-ink font-semibold tabular-nums">
+          {fmtMoneyCompact(actual, ccy)}
+          <span className="text-ink-mute font-medium"> / {fmtMoneyCompact(target, ccy)}</span>
+        </div>
+      </div>
+      <div className="h-[10px] rounded-full bg-[rgba(10,10,10,0.05)] relative overflow-hidden">
+        <div className="h-full rounded-full transition-all"
+          style={{ width: `${Math.max(0, Math.min(100, pct))}%`, background: fill }} />
+        <span className="absolute top-0 bottom-0 w-px bg-ink-3" title="Time elapsed"
+          style={{ left: `${Math.max(0, Math.min(100, elapsed))}%` }} />
+      </div>
+      <div className="flex items-center justify-between gap-3 mt-1">
+        <span className="text-[11px] text-ink-mute">{elapsed}% elapsed</span>
+        <span className={`text-[11px] font-medium ${behind ? 'text-bad' : ahead ? 'text-good' : 'text-ink-2'}`}>
+          {pct}% · {behind ? 'behind pace' : ahead ? 'ahead' : 'on pace'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function Targets({ t, ccy }) {
+  const select = useStore((s) => s.select);
+  const hasTarget = t && (t.monthly > 0 || t.annual > 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div>
+          <CardTitle>Target attainment</CardTitle>
+          <CardSub>{t?.basis || 'Billed'} · calendar month and year, not the selected range</CardSub>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {hasTarget ? (
+          <>
+            {t.monthly > 0 && (
+              <TargetRow label="This month" actual={t.mtd} target={t.monthly}
+                pct={t.mtd_pct} elapsed={t.month_elapsed_pct} ccy={ccy} />
+            )}
+            {t.annual > 0 && (
+              <TargetRow label={`${t.year} to date`} actual={t.ytd} target={t.annual}
+                pct={t.ytd_pct} elapsed={t.year_elapsed_pct} ccy={ccy} />
+            )}
+          </>
+        ) : (
+          <div className="py-3">
+            <div className="text-[13px] text-ink-3 mb-3">
+              No revenue target is set, so there is nothing to measure attainment against.
+            </div>
+            <button
+              onClick={() => select('set', 'targets')}
+              className="text-[12.5px] font-medium text-gold-text hover:underline"
+            >
+              Set a target in Settings →
+            </button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SalesBand() {
   const S = useStore((s) => s.data.sales);
   const status = useStore((s) => s.status);
@@ -99,7 +173,7 @@ export default function SalesBand() {
         {tiles.map((t) => <KpiCard key={t.lbl} {...t} />)}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-[18px] mb-[18px]">
+      <div className="mb-[18px]">
         <Card>
           <CardHeader>
             <div>
@@ -120,6 +194,12 @@ export default function SalesBand() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Attainment sits beside the receivables book: what was aimed at, and
+          what is still owed on what was achieved. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] mb-[18px]">
+        <Targets t={S.targets} ccy={ccy} />
 
         <Card>
           <CardHeader>

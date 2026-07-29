@@ -88,8 +88,31 @@ def _dw(doctype, field, frm, to, base=""):
     return ("where " + " and ".join(parts)) if parts else ""
 
 
-def _group(doctype, field, where_sql="", limit=8):
-    """Top-N value counts for a field → [{label, count}]."""
+def _open_statuses(key):
+    """Configured open-status list for Lead/Opportunity.
+
+    Imported inside the function on purpose: `api/settings.py` imports this
+    module, so a module-level import here would be a cycle.
+    """
+    from upande_crm.api.settings import open_statuses
+
+    return open_statuses(key)
+
+
+def _top_n():
+    from upande_crm.api.settings import top_n
+
+    return top_n()
+
+
+def _group(doctype, field, where_sql="", limit=None):
+    """Top-N value counts for a field → [{label, count}].
+
+    `limit` defaults to the configured Top-N (Upande CRM Settings) so every
+    top-N chart in the CRM widens or narrows together.
+    """
+    if limit is None:
+        limit = _top_n()
     if not _has(doctype) or not _hascol(doctype, field):
         return []
     try:
@@ -157,11 +180,11 @@ def crm_dashboard_overview(date_from=None, date_to=None, customer=None):
 
     leads_total = _count("Lead", ld)
     leads_conv = _count("Lead", {**ld, "status": "Converted"})
-    leads_open = _count("Lead", {**ld, "status": ["in", ["Lead", "Open", "Replied", "Interested"]]})
+    leads_open = _count("Lead", {**ld, "status": ["in", _open_statuses("lead_open_statuses")]})
     conv_rate = round((leads_conv / leads_total * 100), 1) if leads_total else 0
 
     opps_total = _count("Opportunity", od)
-    opps_open = _count("Opportunity", {**od, "status": ["in", ["Open", "Quotation", "Replied"]]})
+    opps_open = _count("Opportunity", {**od, "status": ["in", _open_statuses("opportunity_open_statuses")]})
     opps_won = _count("Opportunity", {**od, "status": "Converted"})
 
     prosp_total = _count("Prospect", pd)
@@ -246,7 +269,7 @@ def crm_dashboard_leads(date_from=None, date_to=None, customer=None):
     return {
         "kpis": {
             "total": total,
-            "open": _count("Lead", {**d, "status": ["in", ["Lead", "Open", "Replied", "Interested"]]}),
+            "open": _count("Lead", {**d, "status": ["in", _open_statuses("lead_open_statuses")]}),
             "to_opp": _count("Lead", {**d, "status": "Opportunity"}),
             "to_quot": _count("Lead", {**d, "status": "Quotation"}),
             "converted": converted,
@@ -277,7 +300,7 @@ def crm_dashboard_opportunities(date_from=None, date_to=None, customer=None):
     return {
         "kpis": {
             "total": total,
-            "open": _count("Opportunity", {**d, "status": ["in", ["Open", "Quotation", "Replied"]]}),
+            "open": _count("Opportunity", {**d, "status": ["in", _open_statuses("opportunity_open_statuses")]}),
             "converted": won,
             "lost": lost,
             "win_rate": round(won / (won + lost) * 100, 1) if (won + lost) else 0,

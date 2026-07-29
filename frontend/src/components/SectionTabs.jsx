@@ -2,6 +2,9 @@ import { NAV } from '../nav';
 import { useStore } from '../store';
 import { cn } from '@/lib/utils';
 
+// Section lookup uses the full NAV rather than the settings-filtered one: tabs
+// are already scoped to the open section, and a hidden section is unreachable.
+
 // Sub-view tabs for the active section, styled to the UFD-modern reference
 // `.tabs`/`.tab` (pill group, ink-gradient active). Driven by the same nav model
 // the sidebar uses, so tabs and store stay in sync.

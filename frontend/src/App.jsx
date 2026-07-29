@@ -17,15 +17,15 @@ const Customers = lazy(() => import('./sections/Customers'));
 const Events = lazy(() => import('./sections/Events/index.jsx'));
 const WhatsApp = lazy(() => import('./sections/WhatsApp/index.jsx'));
 const Activity = lazy(() => import('./sections/Activity'));
+const Settings = lazy(() => import('./sections/Settings/index.jsx'));
 const ThreadView = lazy(() => import('./components/ThreadView'));
 const ComposeDialog = lazy(() => import('./components/ComposeDialog'));
-const SettingsSheet = lazy(() => import('./components/SettingsSheet'));
 const EventDialog = lazy(() => import('./components/EventDialog'));
 const TaskDialog = lazy(() => import('./components/TaskDialog'));
 
 const SECTIONS = {
   overview: Overview, mail: Mail, wa: WhatsApp, leads: Leads, opps: Opportunities,
-  prosp: Prospects, cust: Customers, evt: Events, act: Activity,
+  prosp: Prospects, cust: Customers, evt: Events, act: Activity, set: Settings,
 };
 
 function fmtTime(d) {
@@ -37,13 +37,25 @@ export default function App() {
   const { section, loadAll, lastUpdated, customerFilter } = useStore();
   const openCompose = useStore((s) => s.openCompose);
   const openMsg = useStore((s) => s.openMsg);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const loadOrg = useStore((s) => s.loadOrg);
+  const select = useStore((s) => s.select);
+  const waEnabled = useStore((s) => !!s.org?.whatsapp_enabled);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    loadAll();
-    setupAutoRefresh();
-  }, [loadAll]);
+    // Organisation settings first: they decide the opening date range and which
+    // sections exist, so resolving them after the fetch would load twice.
+    (async () => {
+      await loadOrg();
+      loadAll();
+      setupAutoRefresh();
+    })();
+  }, [loadOrg, loadAll]);
+
+  // A section that settings have just switched off must not stay on screen.
+  useEffect(() => {
+    if (section === 'wa' && !waEnabled) select('overview');
+  }, [section, waEnabled, select]);
 
   const meta = SECTION_META[section] || SECTION_META.overview;
   const updated = lastUpdated ? fmtTime(lastUpdated) : '—';
@@ -51,9 +63,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-canvas text-ink">
-      <TopBar onSettings={() => setSettingsOpen(true)} />
+      <TopBar />
       <div className={`w-full px-5 md:px-8 pt-6 pb-20 grid ${collapsed ? 'grid-cols-[72px_minmax(0,1fr)]' : 'grid-cols-[240px_minmax(0,1fr)]'} max-[900px]:grid-cols-1 gap-6 items-start`}>
-        <Sidebar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} onCompose={() => openCompose({})} onSettings={() => setSettingsOpen(true)} />
+        <Sidebar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} onCompose={() => openCompose({})} onSettings={() => select('set', '')} />
         <main className="min-w-0">
           <div className="flex items-end justify-between gap-8 pb-9">
             <div className="min-w-0">
@@ -74,7 +86,6 @@ export default function App() {
         </main>
       </div>
       <Suspense fallback={null}>
-        <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} />
         <ComposeDialog />
         <EventDialog />
         <TaskDialog />

@@ -40,6 +40,14 @@ export const waTemplatesApi     = () => api(W + 'crm_whatsapp_templates', {});
 export const waMarkReadApi      = (party) => api(W + 'crm_whatsapp_mark_read', { party });
 export const getWhatsapp        = (args) => api(W + 'crm_whatsapp_analytics', args);
 
+// ---------------------------------------------------------------- settings
+// Organisation-wide settings + the integration health panel. Reads degrade on
+// the server; the save throws so the form can show why.
+const S = 'upande_crm.api.settings.';
+export const orgSettingsApi     = () => api(S + 'crm_settings', {});
+export const orgSettingsSaveApi = (patch) => api(S + 'crm_settings_save', { settings: JSON.stringify(patch) });
+export const healthApi          = () => api(S + 'crm_integration_status', {});
+
 // section key → loader, used by loadAll()
 export const SECTION_LOADERS = {
   leads: getLeads,

@@ -1,0 +1,225 @@
+{
+ "actions": [],
+ "creation": "2026-07-29 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sb_targets",
+  "revenue_target_monthly",
+  "revenue_target_annual",
+  "cb_targets",
+  "target_basis",
+  "sb_dashboard",
+  "default_date_range",
+  "top_n",
+  "cb_dashboard",
+  "auto_refresh",
+  "refresh_interval_sec",
+  "sb_pipeline",
+  "lead_open_statuses",
+  "cb_pipeline",
+  "opportunity_open_statuses",
+  "sb_activity",
+  "default_task_priority",
+  "default_task_due_days",
+  "cb_activity",
+  "default_event_category",
+  "default_event_duration_mins",
+  "sb_whatsapp",
+  "whatsapp_enabled",
+  "default_whatsapp_template",
+  "cb_whatsapp",
+  "whatsapp_fail_rate_alert"
+ ],
+ "fields": [
+  {
+   "fieldname": "sb_targets",
+   "fieldtype": "Section Break",
+   "label": "Sales Targets"
+  },
+  {
+   "description": "In the company's default currency. Zero means no target is set.",
+   "fieldname": "revenue_target_monthly",
+   "fieldtype": "Currency",
+   "label": "Monthly Revenue Target"
+  },
+  {
+   "fieldname": "revenue_target_annual",
+   "fieldtype": "Currency",
+   "label": "Annual Revenue Target"
+  },
+  {
+   "fieldname": "cb_targets",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Billed",
+   "description": "Billed measures submitted Sales Invoices; Booked measures submitted Sales Orders.",
+   "fieldname": "target_basis",
+   "fieldtype": "Select",
+   "label": "Measure Attainment On",
+   "options": "Billed\nBooked"
+  },
+  {
+   "fieldname": "sb_dashboard",
+   "fieldtype": "Section Break",
+   "label": "Dashboard Defaults"
+  },
+  {
+   "default": "30d",
+   "description": "Seeds the header date range for users who have not chosen one.",
+   "fieldname": "default_date_range",
+   "fieldtype": "Select",
+   "label": "Default Date Range",
+   "options": "7d\n30d\n90d\nytd"
+  },
+  {
+   "default": "8",
+   "description": "Rows shown in every top-N chart (reps, products, territories, sources).",
+   "fieldname": "top_n",
+   "fieldtype": "Int",
+   "label": "Top-N Chart Rows"
+  },
+  {
+   "fieldname": "cb_dashboard",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_refresh",
+   "fieldtype": "Check",
+   "label": "Auto-refresh By Default"
+  },
+  {
+   "default": "60",
+   "fieldname": "refresh_interval_sec",
+   "fieldtype": "Int",
+   "label": "Refresh Interval (seconds)"
+  },
+  {
+   "fieldname": "sb_pipeline",
+   "fieldtype": "Section Break",
+   "label": "Pipeline"
+  },
+  {
+   "default": "Lead, Open, Replied, Interested",
+   "description": "Comma-separated Lead statuses counted as open.",
+   "fieldname": "lead_open_statuses",
+   "fieldtype": "Small Text",
+   "label": "Open Lead Statuses"
+  },
+  {
+   "fieldname": "cb_pipeline",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Open, Quotation, Replied",
+   "description": "Comma-separated Opportunity statuses counted as open.",
+   "fieldname": "opportunity_open_statuses",
+   "fieldtype": "Small Text",
+   "label": "Open Opportunity Statuses"
+  },
+  {
+   "fieldname": "sb_activity",
+   "fieldtype": "Section Break",
+   "label": "Events & Tasks"
+  },
+  {
+   "default": "Medium",
+   "fieldname": "default_task_priority",
+   "fieldtype": "Select",
+   "label": "Default Task Priority",
+   "options": "High\nMedium\nLow"
+  },
+  {
+   "default": "3",
+   "description": "A new task is due this many days from today.",
+   "fieldname": "default_task_due_days",
+   "fieldtype": "Int",
+   "label": "Default Task Due In (days)"
+  },
+  {
+   "fieldname": "cb_activity",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Meeting",
+   "fieldname": "default_event_category",
+   "fieldtype": "Select",
+   "label": "Default Event Category",
+   "options": "Event\nMeeting\nCall\nSent/Received Email\nOther"
+  },
+  {
+   "default": "60",
+   "description": "Auto-fills a new event's end time from its start.",
+   "fieldname": "default_event_duration_mins",
+   "fieldtype": "Int",
+   "label": "Default Event Duration (minutes)"
+  },
+  {
+   "fieldname": "sb_whatsapp",
+   "fieldtype": "Section Break",
+   "label": "WhatsApp"
+  },
+  {
+   "default": "1",
+   "description": "Off hides the WhatsApp section from the CRM entirely.",
+   "fieldname": "whatsapp_enabled",
+   "fieldtype": "Check",
+   "label": "Show WhatsApp In The CRM"
+  },
+  {
+   "description": "Name of an APPROVED WhatsApp Template, preselected in the composer.",
+   "fieldname": "default_whatsapp_template",
+   "fieldtype": "Data",
+   "label": "Default WhatsApp Template"
+  },
+  {
+   "fieldname": "cb_whatsapp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "20",
+   "description": "Outgoing failure rate above this flags a warning on the Integrations tab.",
+   "fieldname": "whatsapp_fail_rate_alert",
+   "fieldtype": "Percent",
+   "label": "WhatsApp Failure Rate Alert (%)"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-07-29 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Upande CRM",
+ "name": "Upande CRM Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "role": "Sales User"
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -4,11 +4,16 @@ import {
   SECTION_LOADERS, saveEventApi, eventStatusApi, saveTaskApi, taskStatusApi,
   assignApi, unassignApi, calendarApi,
   waConversationsApi, waThreadApi, waSendApi, waSendTemplateApi, waMarkReadApi,
+  orgSettingsApi, orgSettingsSaveApi, healthApi,
 } from './api';
 
 const SETTINGS_KEY = 'crm_settings';
 const M = 'upande_crm.api.crm.';
 
+// Per-device view preferences. These are the last layer of a three-deep merge:
+// DEFAULT_SETTINGS <- the organisation's defaults <- what this user chose.
+// So an org changing its default range moves everyone who never overrode it, and
+// leaves everyone who did alone.
 export const DEFAULT_SETTINGS = {
   autoRefresh: true,
   refreshIntervalSec: 60,
@@ -16,12 +21,47 @@ export const DEFAULT_SETTINGS = {
   openInNewTab: true,
 };
 
-function loadSettings() {
+// Mirrors upande_crm.api.settings.DEFAULTS — used until the server answers, and
+// permanently if it never does.
+export const DEFAULT_ORG = {
+  revenue_target_monthly: 0,
+  revenue_target_annual: 0,
+  target_basis: 'Billed',
+  default_date_range: '30d',
+  top_n: 8,
+  auto_refresh: 1,
+  refresh_interval_sec: 60,
+  lead_open_statuses: 'Lead, Open, Replied, Interested',
+  opportunity_open_statuses: 'Open, Quotation, Replied',
+  default_task_priority: 'Medium',
+  default_task_due_days: 3,
+  default_event_category: 'Meeting',
+  default_event_duration_mins: 60,
+  whatsapp_enabled: 1,
+  default_whatsapp_template: '',
+  whatsapp_fail_rate_alert: 20,
+};
+
+// Only these org fields have a per-device counterpart.
+function orgPrefLayer(org) {
+  if (!org) return {};
+  return {
+    autoRefresh: !!org.auto_refresh,
+    refreshIntervalSec: Number(org.refresh_interval_sec) || DEFAULT_SETTINGS.refreshIntervalSec,
+    defaultDateRange: org.default_date_range || DEFAULT_SETTINGS.defaultDateRange,
+  };
+}
+
+function storedSettings() {
   try {
-    return { ...DEFAULT_SETTINGS, ...(JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}) };
+    return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
   } catch {
-    return { ...DEFAULT_SETTINGS };
+    return {};
   }
+}
+
+function loadSettings(org) {
+  return { ...DEFAULT_SETTINGS, ...orgPrefLayer(org), ...storedSettings() };
 }
 
 export function dateRangePreset(preset) {
@@ -40,7 +80,7 @@ export function dateRangePreset(preset) {
   return { from, to, preset };
 }
 
-const _settings = loadSettings();
+const _settings = loadSettings(null);
 const _initialRange = dateRangePreset(_settings.defaultDateRange === 'custom' ? '30d' : _settings.defaultDateRange);
 
 export const SECTION_META = {
@@ -53,6 +93,7 @@ export const SECTION_META = {
   cust:     { title: 'Customers',          sub: 'Active accounts · revenue · segmentation' },
   evt:      { title: 'Events, Tasks & Emails', sub: 'Meetings · ToDos · communications' },
   act:      { title: 'Activity Log',       sub: 'CRM triggers · audit trail' },
+  set:      { title: 'CRM Settings',       sub: 'Targets · defaults · integrations' },
 };
 
 // Inbox page size (rows fetched per request).
@@ -100,11 +141,19 @@ export const useStore = create((set, get) => ({
   waThread: null,
   waParty: null,
   waLoading: false,
+  // org settings (server) + integration health
+  org: { ...DEFAULT_ORG },
+  orgMeta: { can_edit: false, installed: false, currency: 'KES', options: {} },
+  orgLoaded: false,
+  health: null,
+  healthLoading: false,
 
   select(section, table = '') {
     set({ section, table, openMsg: null });
     if (section === 'mail') get().loadMail(table || 'unread');
     if (section === 'wa' && table !== 'dash') get().loadWaConversations();
+    // The Integrations tab fetches its own health on mount — doing it here too
+    // would fire two requests for one navigation.
   },
 
   setSearch(search) {
@@ -127,10 +176,72 @@ export const useStore = create((set, get) => ({
     get().loadAll();
   },
 
+  // Per-device preferences. Only the keys the user actually touched are stored,
+  // so the org layer keeps applying to everything else.
   saveSettings(patch) {
-    const settings = { ...get().settings, ...patch };
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch {}
-    set({ settings });
+    const stored = { ...storedSettings(), ...patch };
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(stored)); } catch {}
+    set({ settings: { ...DEFAULT_SETTINGS, ...orgPrefLayer(get().org), ...stored } });
+  },
+
+  // Drop a per-device override and fall back to the organisation's value.
+  resetSetting(key) {
+    const stored = storedSettings();
+    delete stored[key];
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(stored)); } catch {}
+    set({ settings: { ...DEFAULT_SETTINGS, ...orgPrefLayer(get().org), ...stored } });
+  },
+
+  // ---------------------------------------------------------------- org settings
+  // Awaited before the first loadAll(): org defaults decide the opening date
+  // range, and resolving them afterwards would mean loading every section twice.
+  async loadOrg() {
+    let payload = null;
+    try { payload = await orgSettingsApi(); } catch {}
+    const org = { ...DEFAULT_ORG, ...(payload?.settings || {}) };
+    const stored = storedSettings();
+    const settings = { ...DEFAULT_SETTINGS, ...orgPrefLayer(org), ...stored };
+    const patch = {
+      org,
+      orgLoaded: true,
+      settings,
+      orgMeta: {
+        can_edit: !!payload?.can_edit,
+        installed: !!payload?.installed,
+        currency: payload?.currency || 'KES',
+        options: payload?.options || {},
+      },
+    };
+    // Re-resolve the header range against the org default, unless the user has
+    // pinned one on this device or already moved the picker.
+    if (!stored.defaultDateRange && settings.defaultDateRange !== get().datePreset) {
+      const r = dateRangePreset(settings.defaultDateRange);
+      Object.assign(patch, { dateFrom: r.from, dateTo: r.to, datePreset: r.preset });
+    }
+    set(patch);
+    return org;
+  },
+
+  // Throws: the settings form keeps the user's input and shows why.
+  async saveOrg(patch) {
+    const r = await orgSettingsSaveApi(patch);
+    const org = { ...DEFAULT_ORG, ...(r?.settings || {}) };
+    set({ org, settings: { ...DEFAULT_SETTINGS, ...orgPrefLayer(org), ...storedSettings() } });
+    // Several settings change what the dashboards count, so re-read them.
+    get().loadAll({ silent: true });
+    if (get().health) get().loadHealth();
+    return org;
+  },
+
+  async loadHealth() {
+    if (get().healthLoading) return;
+    set({ healthLoading: true });
+    try {
+      const h = await healthApi();
+      set({ health: h, healthLoading: false });
+    } catch {
+      set({ health: { checks: [], error: true }, healthLoading: false });
+    }
   },
 
   async loadAll(opts = {}) {
@@ -138,7 +249,9 @@ export const useStore = create((set, get) => ({
     if (!silent) set({ status: 'loading' });
     const args = { date_from: get().dateFrom, date_to: get().dateTo };
     if (get().customerFilter) args.customer = get().customerFilter;
-    const keys = Object.keys(SECTION_LOADERS);
+    // A disabled WhatsApp section should not cost a query on every refresh.
+    const keys = Object.keys(SECTION_LOADERS)
+      .filter((k) => k !== 'wa' || !!get().org?.whatsapp_enabled);
     const results = await Promise.allSettled(keys.map((k) => SECTION_LOADERS[k](args)));
     const data = { ...get().data };
     let failed = 0;

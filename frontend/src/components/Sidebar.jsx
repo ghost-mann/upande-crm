@@ -1,4 +1,4 @@
-import { NAV } from '../nav';
+import { visibleNav } from '../nav';
 import Icon from './Icon';
 import { useStore } from '../store';
 import { fmt, initials } from '@shared/utils';
@@ -31,6 +31,8 @@ export default function Sidebar({ onCompose, onSettings, collapsed, onToggleColl
   const data = useStore((s) => s.data);
   const mailCounts = useStore((s) => s.mailFolder?.counts);
   const waUnread = useStore((s) => s.waConvos?.unread_total);
+  const org = useStore((s) => s.org);
+  const NAV = visibleNav(org);
 
   return (
     <aside className="sticky top-[84px] max-[900px]:static max-h-[calc(100vh-104px)] max-[900px]:max-h-none bg-surface border border-hairline rounded-[24px] shadow-card flex flex-col overflow-hidden">

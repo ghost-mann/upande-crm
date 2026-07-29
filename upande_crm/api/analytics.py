@@ -11,12 +11,18 @@ Company's default currency — are the only summable ones. See `_company_currenc
 """
 
 import frappe
-from frappe.utils import add_days, flt, getdate, nowdate
+from frappe.utils import add_days, flt, get_last_day, getdate, nowdate
 
 from upande_crm.api.crm import _guard, _has, _hascol, _range
 
 # Receivables aging buckets, in days overdue.
 AGING_LABELS = ("Current", "1-30", "31-60", "60+")
+
+# Which doctype/date column each target basis measures.
+TARGET_SOURCES = {
+    "Billed": ("Sales Invoice", "posting_date"),
+    "Booked": ("Sales Order", "transaction_date"),
+}
 
 
 def _company_currency():
@@ -59,6 +65,12 @@ def _sum(doctype, amount_col, date_col, frm, to, extra=""):
 @frappe.whitelist()
 def crm_sales_analytics(date_from=None, date_to=None, customer=None):
     _guard()
+    # Imported here, not at module level: api/settings.py imports this module's
+    # siblings, so a top-level import would be a cycle.
+    from upande_crm.api.settings import get_settings, top_n
+
+    settings = get_settings()
+    limit = top_n(settings)
     frm, to = _range(date_from, date_to)
     currency = _company_currency()
 
@@ -93,10 +105,54 @@ def crm_sales_analytics(date_from=None, date_to=None, customer=None):
             "growth_pct": growth_pct,
         },
         "revenue_trend": _revenue_trend(frm, to),
-        "rep_performance": _rep_performance(frm, to),
-        "top_products": _top_products(frm, to),
-        "territory_revenue": _territory_revenue(frm, to),
+        "rep_performance": _rep_performance(frm, to, limit),
+        "top_products": _top_products(frm, to, limit),
+        "territory_revenue": _territory_revenue(frm, to, limit),
         "aging": _aging(),
+        "targets": _targets(settings),
+    }
+
+
+def _targets(settings):
+    """Target attainment, month-to-date and year-to-date.
+
+    Deliberately **not** scoped to the dashboard's date range: a monthly target
+    belongs to the calendar month, so measuring it inside "last 7 days" would
+    produce a percentage that means nothing. Same reasoning as `_aging`.
+
+    The year is the calendar year — every Fiscal Year on this site starts on
+    1 January, so the two agree and the calendar needs no extra query.
+
+    `*_elapsed_pct` lets the UI say "62% of target, 74% of the month gone"
+    instead of leaving the reader to work out whether that is good.
+    """
+    monthly = flt(settings.get("revenue_target_monthly"))
+    annual = flt(settings.get("revenue_target_annual"))
+    basis = settings.get("target_basis") if settings.get("target_basis") in TARGET_SOURCES else "Billed"
+    doctype, date_col = TARGET_SOURCES[basis]
+
+    today = getdate(nowdate())
+    month_start = today.replace(day=1)
+    year_start = today.replace(month=1, day=1)
+    mtd, _mtd_n = _sum(doctype, "base_grand_total", date_col, str(month_start), str(today))
+    ytd, _ytd_n = _sum(doctype, "base_grand_total", date_col, str(year_start), str(today))
+
+    days_in_month = getdate(get_last_day(today)).day
+    year_days = (getdate(f"{today.year}-12-31") - year_start).days + 1
+
+    return {
+        "monthly": monthly,
+        "annual": annual,
+        "basis": basis,
+        "source": doctype,
+        "mtd": mtd,
+        "ytd": ytd,
+        "mtd_pct": round(mtd / monthly * 100, 1) if monthly else 0.0,
+        "ytd_pct": round(ytd / annual * 100, 1) if annual else 0.0,
+        "month_elapsed_pct": round(today.day / days_in_month * 100, 1),
+        "year_elapsed_pct": round(((today - year_start).days + 1) / year_days * 100, 1),
+        "month_start": str(month_start),
+        "year": today.year,
     }
 
 

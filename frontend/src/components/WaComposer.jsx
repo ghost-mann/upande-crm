@@ -14,6 +14,7 @@ import { waTemplatesApi } from '../api';
 export default function WaComposer({ party, windowOpen, link, lastInboundAt }) {
   const sendWhatsapp = useStore((s) => s.sendWhatsapp);
   const sendWhatsappTemplate = useStore((s) => s.sendWhatsappTemplate);
+  const defaultTemplate = useStore((s) => s.org?.default_whatsapp_template);
 
   const [text, setText] = useState('');
   const [templates, setTemplates] = useState([]);
@@ -31,10 +32,19 @@ export default function WaComposer({ party, windowOpen, link, lastInboundAt }) {
   useEffect(() => {
     let dead = false;
     waTemplatesApi()
-      .then((t) => { if (!dead) setTemplates(t || []); })
+      .then((t) => {
+        if (dead) return;
+        const rows = t || [];
+        setTemplates(rows);
+        // Preselect the configured default, but only if it is still approved —
+        // a stale name in settings must not silently arm an undeliverable send.
+        if (defaultTemplate && rows.some((r) => r.name === defaultTemplate)) {
+          setTemplate((cur) => cur || defaultTemplate);
+        }
+      })
       .catch(() => { if (!dead) setTemplates([]); });
     return () => { dead = true; };
-  }, []);
+  }, [defaultTemplate]);
 
   const ref = {
     reference_doctype: link?.doctype || undefined,

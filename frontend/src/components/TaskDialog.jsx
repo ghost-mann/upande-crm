@@ -13,10 +13,21 @@ import {
 const L = 'text-[10px] uppercase tracking-[0.14em] text-ink-mute font-medium mb-1.5 block';
 const SEL = 'h-9 w-full rounded-md border border-input bg-transparent px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring';
 
+// today + n days, as the YYYY-MM-DD a date input expects.
+function dueDate(days) {
+  const n = Number(days);
+  if (!Number.isFinite(n) || n < 0) return '';
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  const p = (x) => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 export default function TaskDialog() {
   const t = useStore((s) => s.taskDialog);
   const closeTaskDialog = useStore((s) => s.closeTaskDialog);
   const saveTask = useStore((s) => s.saveTask);
+  const org = useStore((s) => s.org);
 
   const [form, setForm] = useState(null);
   const [users, setUsers] = useState([]);
@@ -25,11 +36,14 @@ export default function TaskDialog() {
 
   useEffect(() => {
     if (!t) { setForm(null); return; }
+    // New tasks open on the organisation's configured defaults; an existing task
+    // and an explicitly prefilled one keep their own values.
+    const isNew = !t.name;
     setForm({
       name: t.name,
       description: stripHtml(t.description),
-      date: t.date || '',
-      priority: t.priority || 'Medium',
+      date: t.date || (isNew ? dueDate(org.default_task_due_days) : ''),
+      priority: t.priority || (isNew ? org.default_task_priority : '') || 'Medium',
       status: t.status || 'Open',
       reference_type: t.reference_type || '',
       reference_name: t.reference_name || '',
@@ -38,6 +52,9 @@ export default function TaskDialog() {
     setErr('');
     setSaving(false);
     assignableUsersApi().then((u) => setUsers(u || [])).catch(() => setUsers([]));
+    // `org` is intentionally not a dependency: re-seeding an open dialog because
+    // a manager changed a default in another tab would discard what was typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t]);
 
   if (!t || !form) return null;

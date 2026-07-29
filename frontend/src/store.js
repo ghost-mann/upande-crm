@@ -8,6 +8,7 @@ import {
   themeApi, themeSaveApi, themePresetApi, themeResetApi,
   reportsApi, reportCatalogueApi,
   saveCallApi, deleteCallApi,
+  ANALYTICS_LOADERS,
 } from './api';
 
 const SETTINGS_KEY = 'crm_settings';
@@ -67,18 +68,43 @@ function loadSettings(org) {
   return { ...DEFAULT_SETTINGS, ...orgPrefLayer(org), ...storedSettings() };
 }
 
+// The shared range vocabulary. Analytics needs wider windows than the dashboards
+// — a funnel over 30 days on a pipeline this size is single digits — so the longer
+// presets live here rather than only in that section.
+export const RANGE_PRESETS = [
+  ['7d', 'Last 7 days'],
+  ['30d', 'Last 30 days'],
+  ['60d', 'Last 60 days'],
+  ['90d', 'Last 90 days'],
+  ['6m', 'Last 6 months'],
+  ['ytd', 'Year to date'],
+  ['1y', 'Last 12 months'],
+  ['all', 'All time'],
+];
+
+// The earliest date 'All time' reaches back to. A fixed floor rather than a query
+// for the oldest record: one less round-trip, and no section behaves differently
+// because its own oldest row happens to be later.
+const EPOCH = '2000-01-01';
+
 export function dateRangePreset(preset) {
   const now = new Date();
   const p = (n) => String(n).padStart(2, '0');
   const ymd = (d) => `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
   const to = ymd(now);
+  const back = (days) => { const d = new Date(now); d.setDate(d.getDate() - days); return ymd(d); };
+  const backMonths = (m) => { const d = new Date(now); d.setMonth(d.getMonth() - m); return ymd(d); };
   let from;
   switch (preset) {
-    case '7d':  { const d = new Date(now); d.setDate(d.getDate() - 7);  from = ymd(d); break; }
-    case '90d': { const d = new Date(now); d.setDate(d.getDate() - 90); from = ymd(d); break; }
-    case 'ytd': { from = `${now.getFullYear()}-01-01`; break; }
+    case '7d':  from = back(7); break;
+    case '60d': from = back(60); break;
+    case '90d': from = back(90); break;
+    case '6m':  from = backMonths(6); break;
+    case 'ytd': from = `${now.getFullYear()}-01-01`; break;
+    case '1y':  from = backMonths(12); break;
+    case 'all': from = EPOCH; break;
     case '30d':
-    default:    { const d = new Date(now); d.setDate(d.getDate() - 30); from = ymd(d); break; }
+    default:    from = back(30); break;
   }
   return { from, to, preset };
 }
@@ -96,6 +122,7 @@ export const SECTION_META = {
   cust:     { title: 'Customers',          sub: 'Active accounts · revenue · segmentation' },
   evt:      { title: 'Events, Tasks & Emails', sub: 'Meetings · ToDos · communications' },
   calls:    { title: 'Calls',              sub: 'Incoming · outgoing · outcomes' },
+  anl:      { title: 'Sales Analytics',    sub: 'Funnel · leads · opportunities · revenue' },
   act:      { title: 'Activity Log',       sub: 'CRM triggers · audit trail' },
   rep:      { title: 'Reports',            sub: "ERPNext's CRM and sales reports" },
   set:      { title: 'CRM Settings',       sub: 'Targets · defaults · integrations' },
@@ -159,6 +186,9 @@ export const useStore = create((set, get) => ({
   reportCatalogue: null,
   // call dialog — null = closed, object = open ({} means log-a-new-call mode)
   callDialog: null,
+  // analytics, one payload per tab, loaded on demand
+  analytics: {},
+  analyticsLoading: {},
 
   select(section, table = '') {
     set({ section, table, openMsg: null });
@@ -243,6 +273,23 @@ export const useStore = create((set, get) => ({
     get().loadAll({ silent: true });
     if (get().health) get().loadHealth();
     return org;
+  },
+
+  // ---------------------------------------------------------------- analytics
+  async loadAnalytics(key) {
+    const loader = ANALYTICS_LOADERS[key];
+    if (!loader) return;
+    set({ analyticsLoading: { ...get().analyticsLoading, [key]: true } });
+    const args = { date_from: get().dateFrom, date_to: get().dateTo };
+    if (get().customerFilter) args.customer = get().customerFilter;
+    try {
+      const d = await loader(args);
+      set({ analytics: { ...get().analytics, [key]: d } });
+    } catch {
+      set({ analytics: { ...get().analytics, [key]: { error: true } } });
+    } finally {
+      set({ analyticsLoading: { ...get().analyticsLoading, [key]: false } });
+    }
   },
 
   // ---------------------------------------------------------------- calls

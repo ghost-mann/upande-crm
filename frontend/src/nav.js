@@ -59,6 +59,18 @@ export const NAV = [
     ],
   },
   {
+    label: 'Analytics',
+    items: [
+      { type: 'group', section: 'anl', icon: 'insights', label: 'Sales Analytics',
+        subs: [
+          { table: '', label: 'Funnel' },
+          { table: 'leads', label: 'Leads' },
+          { table: 'opps', label: 'Opportunities' },
+          { table: 'revenue', label: 'Quotes & revenue' },
+        ] },
+    ],
+  },
+  {
     label: 'Reports',
     items: [
       { type: 'group', section: 'rep', icon: 'lab_profile', label: 'Reports',

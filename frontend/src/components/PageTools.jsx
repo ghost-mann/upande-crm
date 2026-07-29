@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import Icon from './Icon';
-import { useStore } from '../store';
+import { useStore, RANGE_PRESETS } from '../store';
 import { cn } from '@/lib/utils';
 import FilterPopover from './FilterPopover';
 import { Input } from '@/components/ui/input';
 
-const PRESETS = [['7d', 'Last 7 days'], ['30d', 'Last 30 days'], ['90d', 'Last 90 days'], ['ytd', 'Year to date']];
+const PRESETS = RANGE_PRESETS;
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const short = (s) => { if (!s) return '—'; const [y, m, d] = String(s).split('-'); return `${+d} ${MON[+m - 1]} ${String(y).slice(2)}`; };
 

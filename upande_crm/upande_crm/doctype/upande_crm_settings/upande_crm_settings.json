@@ -82,7 +82,7 @@
    "fieldname": "default_date_range",
    "fieldtype": "Select",
    "label": "Default Date Range",
-   "options": "7d\n30d\n90d\nytd"
+   "options": "7d\n30d\n60d\n90d\n6m\nytd\n1y\nall"
   },
   {
    "default": "8",
@@ -197,7 +197,7 @@
    "label": "WhatsApp Failure Rate Alert (%)"
   },
   {
-   "description": "Seed colours for the CRM's appearance. Blank means \"not themed\" — the compiled palette is used. Everything else (the ink scale, surfaces, hairlines, shadows, gradients, button and input colours) is derived from these.",
+   "description": "Seed colours for the CRM's appearance. Blank means \"not themed\" \u2014 the compiled palette is used. Everything else (the ink scale, surfaces, hairlines, shadows, gradients, button and input colours) is derived from these.",
    "fieldname": "sb_theme",
    "fieldtype": "Section Break",
    "label": "Theme"
@@ -210,7 +210,7 @@
    "read_only": 1
   },
   {
-   "description": "The single signal colour — buttons, active states, primary chart series.",
+   "description": "The single signal colour \u2014 buttons, active states, primary chart series.",
    "fieldname": "theme_accent",
    "fieldtype": "Color",
    "label": "Accent"

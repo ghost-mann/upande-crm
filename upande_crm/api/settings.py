@@ -67,7 +67,7 @@ DEFAULTS = {
 # when the doctype is absent.
 OPTIONS = {
     "target_basis": ["Billed", "Booked"],
-    "default_date_range": ["7d", "30d", "90d", "ytd"],
+    "default_date_range": ["7d", "30d", "60d", "90d", "6m", "ytd", "1y", "all"],
     "default_task_priority": ["High", "Medium", "Low"],
     "default_event_category": ["Event", "Meeting", "Call", "Sent/Received Email", "Other"],
 }

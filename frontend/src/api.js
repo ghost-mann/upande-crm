@@ -56,6 +56,17 @@ export const themeSaveApi       = (seeds) => api(S + 'crm_theme_save', { seeds: 
 export const themePresetApi     = (name) => api(S + 'crm_theme_apply_preset', { name });
 export const themeResetApi      = () => api(S + 'crm_theme_reset', {});
 
+// ---------------------------------------------------------------- analytics
+// Purpose-built pipeline analytics — its own queries, not a report viewer.
+// One endpoint per tab so a tab nobody opened costs nothing.
+const AN = 'upande_crm.api.pipeline.crm_analytics_';
+export const ANALYTICS_LOADERS = {
+  funnel:  (args) => api(AN + 'funnel', args),
+  leads:   (args) => api(AN + 'leads', args),
+  opps:    (args) => api(AN + 'opportunities', args),
+  revenue: (args) => api(AN + 'revenue', args),
+};
+
 // ---------------------------------------------------------------- calls
 // Logged into Frappe's core Call Log (Telephony). Writes throw; the dashboard
 // read degrades — see api/calls.py.

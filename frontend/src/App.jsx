@@ -21,16 +21,19 @@ const Settings = lazy(() => import('./sections/Settings/index.jsx'));
 const Reports = lazy(() => import('./sections/Reports/index.jsx'));
 const Calls = lazy(() => import('./sections/Calls/index.jsx'));
 const Analytics = lazy(() => import('./sections/Analytics/index.jsx'));
+const Campaigns = lazy(() => import('./sections/Campaigns/index.jsx'));
 const ThreadView = lazy(() => import('./components/ThreadView'));
 const ComposeDialog = lazy(() => import('./components/ComposeDialog'));
 const EventDialog = lazy(() => import('./components/EventDialog'));
 const TaskDialog = lazy(() => import('./components/TaskDialog'));
 const CallDialog = lazy(() => import('./components/CallDialog'));
+const CampaignDialog = lazy(() => import('./components/CampaignDialog'));
+const EnrolDialog = lazy(() => import('./components/EnrolDialog'));
 
 const SECTIONS = {
   overview: Overview, mail: Mail, wa: WhatsApp, leads: Leads, opps: Opportunities,
   prosp: Prospects, cust: Customers, evt: Events, act: Activity, set: Settings,
-  rep: Reports, calls: Calls, anl: Analytics,
+  rep: Reports, calls: Calls, anl: Analytics, camp: Campaigns,
 };
 
 function fmtTime(d) {
@@ -95,6 +98,8 @@ export default function App() {
         <EventDialog />
         <TaskDialog />
         <CallDialog />
+        <CampaignDialog />
+        <EnrolDialog />
       </Suspense>
     </div>
   );

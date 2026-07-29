@@ -1,0 +1,1 @@
+const t=["Lead","Contact","Email Group"],n={Lead:"person_add",Contact:"contacts","Email Group":"group"};function o(r){const a=Number(r);return!Number.isFinite(a)||a<=0?"same day":a===1?"over 1 day":`over ${a} days`}export{t as E,n as T,o as d};

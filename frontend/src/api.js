@@ -56,6 +56,22 @@ export const themeSaveApi       = (seeds) => api(S + 'crm_theme_save', { seeds: 
 export const themePresetApi     = (name) => api(S + 'crm_theme_apply_preset', { name });
 export const themeResetApi      = () => api(S + 'crm_theme_reset', {});
 
+// ---------------------------------------------------------------- campaigns
+// A surface over ERPNext's Campaign / Email Campaign drip engine. Sending is the
+// daily scheduler's job — nothing here sends on save. See api/campaigns.py.
+const CP = 'upande_crm.api.campaigns.';
+export const getCampaigns          = (args) => api(CP + 'crm_dashboard_campaigns', args);
+export const campaignSaveApi       = (payload) => api(CP + 'crm_campaign_save', { campaign: JSON.stringify(payload) });
+export const campaignDetailApi     = (name) => api(CP + 'crm_campaign_detail', { name });
+export const campaignEnrolApi      = (p) => api(CP + 'crm_campaign_enrol', {
+  campaign: p.campaign, target: p.target, recipients: JSON.stringify(p.recipients || []),
+  start_date: p.start_date, sender: p.sender, attribute: p.attribute ?? 1,
+});
+export const campaignCancelApi     = (name) => api(CP + 'crm_campaign_cancel', { name });
+export const campaignRecipientsApi = (target, search = '') => api(CP + 'crm_campaign_recipients', { target, search });
+export const emailTemplatesApi     = () => api(CP + 'crm_email_templates', {});
+export const emailGroupsApi        = () => api(CP + 'crm_email_groups', {});
+
 // ---------------------------------------------------------------- analytics
 // Purpose-built pipeline analytics — its own queries, not a report viewer.
 // One endpoint per tab so a tab nobody opened costs nothing.
@@ -100,5 +116,6 @@ export const SECTION_LOADERS = {
   sales: getSales,
   wa: getWhatsapp,
   calls: getCalls,
+  campaigns: getCampaigns,
   overview: getOverview,
 };

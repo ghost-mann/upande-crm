@@ -9,6 +9,7 @@ import {
   reportsApi, reportCatalogueApi,
   saveCallApi, deleteCallApi,
   ANALYTICS_LOADERS,
+  campaignSaveApi, campaignEnrolApi, campaignCancelApi,
 } from './api';
 
 const SETTINGS_KEY = 'crm_settings';
@@ -123,6 +124,7 @@ export const SECTION_META = {
   evt:      { title: 'Events, Tasks & Emails', sub: 'Meetings · ToDos · communications' },
   calls:    { title: 'Calls',              sub: 'Incoming · outgoing · outcomes' },
   anl:      { title: 'Sales Analytics',    sub: 'Funnel · leads · opportunities · revenue' },
+  camp:     { title: 'Campaigns',          sub: 'Drip sequences · enrolment · audiences' },
   act:      { title: 'Activity Log',       sub: 'CRM triggers · audit trail' },
   rep:      { title: 'Reports',            sub: "ERPNext's CRM and sales reports" },
   set:      { title: 'CRM Settings',       sub: 'Targets · defaults · integrations' },
@@ -186,6 +188,9 @@ export const useStore = create((set, get) => ({
   reportCatalogue: null,
   // call dialog — null = closed, object = open ({} means log-a-new-call mode)
   callDialog: null,
+  // campaign dialogs — null = closed
+  campaignDialog: null,
+  enrolDialog: null,
   // analytics, one payload per tab, loaded on demand
   analytics: {},
   analyticsLoading: {},
@@ -273,6 +278,33 @@ export const useStore = create((set, get) => ({
     get().loadAll({ silent: true });
     if (get().health) get().loadHealth();
     return org;
+  },
+
+  // ---------------------------------------------------------------- campaigns
+  openCampaignDialog(c = {}) { set({ campaignDialog: c }); },
+  closeCampaignDialog() { set({ campaignDialog: null }); },
+  openEnrolDialog(c = {}) { set({ enrolDialog: c }); },
+  closeEnrolDialog() { set({ enrolDialog: null }); },
+
+  // All three throw: the dialogs keep the user's input and show why.
+  async saveCampaign(payload) {
+    const r = await campaignSaveApi(payload);
+    await get().reloadSection('campaigns');
+    return r;
+  },
+
+  async enrolCampaign(payload) {
+    const r = await campaignEnrolApi(payload);
+    await get().reloadSection('campaigns');
+    // Attribution writes utm_campaign on leads, so lead-derived views are stale.
+    if (payload.attribute) await get().reloadSection('leads');
+    return r;
+  },
+
+  async cancelEnrolment(name) {
+    const r = await campaignCancelApi(name);
+    await get().reloadSection('campaigns');
+    return r;
   },
 
   // ---------------------------------------------------------------- analytics

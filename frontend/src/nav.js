@@ -59,6 +59,19 @@ export const NAV = [
     ],
   },
   {
+    label: 'Marketing',
+    items: [
+      { type: 'group', section: 'camp', icon: 'campaign', label: 'Campaigns',
+        subs: [
+          { table: '', label: 'Dashboard' },
+          { table: 'rows', label: 'Campaigns' },
+          { table: 'enrol', label: 'Enrolments' },
+          { table: 'mine', label: 'My enrolments', mine: true },
+          { table: 'audiences', label: 'Audiences' },
+        ] },
+    ],
+  },
+  {
     label: 'Analytics',
     items: [
       { type: 'group', section: 'anl', icon: 'insights', label: 'Sales Analytics',

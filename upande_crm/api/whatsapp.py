@@ -17,6 +17,7 @@ Reads degrade to empty. Sends throw — a send that looks successful but never l
 the building is the worst outcome this module can produce.
 """
 
+import ast
 import json
 import re
 
@@ -200,7 +201,8 @@ def crm_whatsapp_conversations(search="", limit=60):
         try:
             for m in frappe.db.sql(
                 """select coalesce(nullif(`to`, ''), `from`) party, message, type,
-                          status, creation, profile_name
+                          status, creation, profile_name, message_type, template,
+                          template_parameters
                    from `tabWhatsApp Message`
                    where coalesce(nullif(`to`, ''), `from`) in %(p)s
                    order by creation asc""",
@@ -220,7 +222,7 @@ def crm_whatsapp_conversations(search="", limit=60):
             "party": r.party,
             "display_name": (m.get("profile_name") or profiles.get(s)
                              or (idx.get(s) or {}).get("label") or r.party),
-            "last_message": _plain(m.get("message")),
+            "last_message": _plain(_message_text(m) if m else None),
             "last_at": r.last_at,
             "last_direction": m.get("type") or "Incoming",
             "last_status": m.get("status"),
@@ -245,6 +247,111 @@ def _plain(html, limit=140):
     return t[:limit]
 
 
+# ---------------------------------------------------------------- template text
+# For template sends, `frappe_whatsapp` does not store what was said — it stores
+# the Meta request payload as a *Python repr*:
+#
+#   whatsapp_notification.py:  "message": str(data['template'])
+#
+# So `message` reads `{'name': 'visitor_host_alert_v2', 'components': [...]}`, which
+# is what a thread renders if taken at face value. The readable text is recoverable:
+# `WhatsApp Templates.template` holds the body with `{{1}}` placeholders and the row
+# carries the substitutions in `template_parameters` (with the payload itself as a
+# fallback when that column is empty). We rebuild here rather than patching
+# `frappe_whatsapp` — it owns that data, and its historic rows would stay broken.
+
+PLACEHOLDER = re.compile(r"\{\{\s*(\d+)\s*\}\}")
+
+
+def _looks_like_payload(text):
+    t = str(text or "").strip()
+    return t.startswith("{") and ("'components'" in t or '"components"' in t)
+
+
+def _payload_params(text):
+    """Body-component parameter texts, in order. Never raises.
+
+    Only the `body` component: the button component carries a URL suffix
+    (`APMT-Gilbert%20kiprop-2265780`), which is routing, not conversation.
+    """
+    t = str(text or "").strip()
+    if not t.startswith("{"):
+        return []
+    data = None
+    for parse in (ast.literal_eval, json.loads):
+        try:
+            data = parse(t)
+            break
+        except Exception:
+            continue
+    if not isinstance(data, dict):
+        return []
+    for comp in data.get("components") or []:
+        if isinstance(comp, dict) and comp.get("type") == "body":
+            return [str(p.get("text", "")) for p in (comp.get("parameters") or [])
+                    if isinstance(p, dict)]
+    return []
+
+
+def _fill(body, params):
+    """Substitute `{{1}}`-style placeholders. Unmatched ones are dropped rather
+    than shown — `{{2}}` on a customer's screen is worse than a short sentence."""
+    def sub(m):
+        i = int(m.group(1)) - 1
+        return str(params[i]) if 0 <= i < len(params) else ""
+    return re.sub(r"\s+", " ", PLACEHOLDER.sub(sub, str(body or ""))).strip()
+
+
+def _template_bodies():
+    """name -> (body, header) for every template, fetched once per request.
+
+    Cached on `frappe.local`: a 200-message thread would otherwise re-read the
+    template table once per bubble.
+    """
+    cached = getattr(frappe.local, "upande_crm_wa_templates", None)
+    if cached is not None:
+        return cached
+    out = {}
+    if _has("WhatsApp Templates"):
+        try:
+            for r in frappe.get_all("WhatsApp Templates",
+                                    fields=["name", "template", "header"],
+                                    limit=0, ignore_permissions=True):
+                out[r.name] = (r.template or "", r.header or "")
+        except Exception:
+            out = {}
+    frappe.local.upande_crm_wa_templates = out
+    return out
+
+
+def _message_text(row):
+    """Readable text for one message row, whatever `frappe_whatsapp` stored."""
+    raw = row.get("message")
+    is_template = (row.get("message_type") == "Template"
+                   or bool(row.get("template"))
+                   or _looks_like_payload(raw))
+    if not is_template:
+        return raw
+
+    params = []
+    try:
+        params = frappe.parse_json(row.get("template_parameters") or "[]") or []
+    except Exception:
+        params = []
+    if not isinstance(params, list) or not params:
+        params = _payload_params(raw)
+
+    body, header = _template_bodies().get(row.get("template") or "", ("", ""))
+    text = _fill(body, params) if body else ""
+    if not text:
+        # No template body on record (deleted, or a foreign template): the
+        # parameters alone still say more than the payload does.
+        text = " · ".join(str(p) for p in params if str(p).strip())
+    if not text:
+        return _("[template message]")
+    return f"{header}\n{text}" if header else text
+
+
 @frappe.whitelist()
 def crm_whatsapp_thread(party, limit=200):
     """Every message exchanged with `party`, oldest first."""
@@ -254,7 +361,8 @@ def crm_whatsapp_thread(party, limit=200):
     limit = max(1, min(int(limit or 200), 500))
 
     fields = ["name", "type", "status", "message", "content_type", "creation",
-              "profile_name", "message_id", "reference_doctype", "reference_name"]
+              "profile_name", "message_id", "reference_doctype", "reference_name",
+              "message_type", "template", "template_parameters"]
     fields = [f for f in fields if f == "name" or _hascol("WhatsApp Message", f)]
     try:
         rows = frappe.get_all(
@@ -268,6 +376,15 @@ def crm_whatsapp_thread(party, limit=200):
     except Exception:
         frappe.log_error(frappe.get_traceback(), "crm_whatsapp_thread failed")
         rows = []
+
+    # Replace the stored payload with what was actually said. `template_name` lets
+    # the bubble label itself, since a template read differently from free text.
+    for r in rows:
+        r["template_name"] = r.get("template") or None
+        r["is_template"] = 1 if (r.get("message_type") == "Template"
+                                 or r.get("template")
+                                 or _looks_like_payload(r.get("message"))) else 0
+        r["message"] = _message_text(r)
 
     last_inbound = None
     for r in rows:
@@ -361,13 +478,31 @@ def _last_inbound_at(party):
         return None
 
 
+def _free_text_warning(party):
+    """Why this free-text send may not land — or None if the window is open.
+
+    A warning, not a refusal. Outside Meta's 24-hour window free text is usually
+    rejected, but not always (the window reopens on any inbound message, and this
+    site's data is not the only source of truth for that). Refusing outright meant
+    a chat could not be sent at all on a thread whose last inbound was old, so the
+    call is now attempted and Meta's own verdict is what decides.
+    """
+    if _window_open(_last_inbound_at(party)):
+        return None
+    return _(
+        "This contact has not messaged in the last 24 hours, so WhatsApp may reject "
+        "free text. Send an approved template if it does not arrive."
+    )
+
+
 @frappe.whitelist()
 def crm_whatsapp_send(to, message, reference_doctype=None, reference_name=None, reply_to=None):
     """Send free-form text.
 
-    Refused outside Meta's 24-hour window: free text there is rejected by Meta,
-    and 82 of 191 outgoing messages on this site are already `failed`. Better to
-    stop it here with an explanation than to add another silent failure.
+    Attempted regardless of Meta's 24-hour window: a closed window is reported
+    back as a `warning` rather than blocking the send, so a chat can always be
+    sent on a thread that has only ever carried templates. A rejection by Meta
+    propagates from the insert below — it is never reported as a success.
     """
     _guard()
     if not _available():
@@ -380,11 +515,7 @@ def crm_whatsapp_send(to, message, reference_doctype=None, reference_name=None, 
         frappe.throw(_("Message cannot be empty"))
     _validate_ref(reference_doctype, reference_name)
 
-    if not _window_open(_last_inbound_at(number)):
-        frappe.throw(_(
-            "This contact has not messaged in the last 24 hours, so WhatsApp will "
-            "not deliver free text. Send an approved template instead."
-        ))
+    warning = _free_text_warning(number)
 
     doc = frappe.get_doc({
         "doctype": "WhatsApp Message",
@@ -403,7 +534,7 @@ def crm_whatsapp_send(to, message, reference_doctype=None, reference_name=None, 
     # The insert itself performs the Meta dispatch (frappe_whatsapp
     # before_insert), so a failure here must propagate rather than be swallowed.
     doc.insert(ignore_permissions=True)
-    return {"name": doc.name, "status": doc.status or "sent"}
+    return {"name": doc.name, "status": doc.status or "sent", "warning": warning}
 
 
 @frappe.whitelist()

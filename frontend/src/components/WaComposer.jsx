@@ -7,10 +7,11 @@ import { waTemplatesApi } from '../api';
 
 // Composer for a WhatsApp thread.
 //
-// Meta only delivers free-form text within 24 hours of the contact's last inbound
-// message. Outside that window this switches to template-only and says why —
-// letting the user type into a dead box would just add to the 82 failed sends
-// already on this site.
+// Meta only reliably delivers free-form text within 24 hours of the contact's last
+// inbound message. Outside that window this defaults to Template and says why, but
+// chat stays available: a thread that has only ever carried templates still needs a
+// way to send an ordinary message. The backend attempts it and reports Meta's own
+// verdict, so a rejection is visible rather than silent.
 export default function WaComposer({ party, windowOpen, link, lastInboundAt }) {
   const sendWhatsapp = useStore((s) => s.sendWhatsapp);
   const sendWhatsappTemplate = useStore((s) => s.sendWhatsappTemplate);
@@ -23,10 +24,11 @@ export default function WaComposer({ party, windowOpen, link, lastInboundAt }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [ok, setOk] = useState('');
+  const [warn, setWarn] = useState('');
 
   useEffect(() => {
     setMode(windowOpen ? 'text' : 'template');
-    setErr(''); setOk('');
+    setErr(''); setOk(''); setWarn('');
   }, [windowOpen, party]);
 
   useEffect(() => {
@@ -52,7 +54,7 @@ export default function WaComposer({ party, windowOpen, link, lastInboundAt }) {
   };
 
   async function send() {
-    setBusy(true); setErr(''); setOk('');
+    setBusy(true); setErr(''); setOk(''); setWarn('');
     try {
       if (mode === 'template') {
         if (!template) { setErr('Pick a template.'); setBusy(false); return; }
@@ -61,10 +63,13 @@ export default function WaComposer({ party, windowOpen, link, lastInboundAt }) {
         setTemplate('');
       } else {
         if (!text.trim()) { setErr('Type a message.'); setBusy(false); return; }
-        await sendWhatsapp({ to: party, message: text, ...ref });
+        const r = await sendWhatsapp({ to: party, message: text, ...ref });
         // Only clear on success — a failed send must not lose what was typed.
         setText('');
         setOk('Sent');
+        // Accepted by Meta, but outside the 24h window: say so rather than
+        // letting "Sent" imply it was definitely delivered.
+        if (r?.warning) setWarn(r.warning);
       }
     } catch (e) {
       setErr(e.message || 'Could not send the message.');
@@ -79,12 +84,13 @@ export default function WaComposer({ party, windowOpen, link, lastInboundAt }) {
     <div className="border-t border-hairline px-4 py-3">
       <div className="flex items-center gap-2 mb-2.5">
         <button
-          onClick={() => windowOpen && setMode('text')}
-          disabled={!windowOpen}
-          title={windowOpen ? 'Send free text' : 'Free text is not deliverable outside the 24-hour window'}
+          onClick={() => setMode('text')}
+          title={windowOpen
+            ? 'Send free text'
+            : 'Outside the 24-hour window WhatsApp may reject free text — it will still be attempted'}
           className={`text-[12px] px-3 py-1.5 rounded-full font-medium transition-colors ${
             mode === 'text' ? 'bg-grad-ink text-white' : 'text-ink-4 hover:text-ink'
-          } ${!windowOpen ? 'opacity-40 cursor-not-allowed' : ''}`}
+          }`}
         >
           Message
         </button>
@@ -100,8 +106,8 @@ export default function WaComposer({ party, windowOpen, link, lastInboundAt }) {
           <span className="text-[11.5px] text-warn flex items-center gap-1.5">
             <Icon name="schedule" className="text-[14px]" />
             {lastInboundAt
-              ? 'No reply in 24h — WhatsApp only delivers approved templates now'
-              : 'This contact has never messaged in — templates only'}
+              ? 'No reply in 24h — a template is the reliable option'
+              : 'This contact has never messaged in — a template is the reliable option'}
           </span>
         )}
       </div>
@@ -133,15 +139,23 @@ export default function WaComposer({ party, windowOpen, link, lastInboundAt }) {
           )}
         </div>
       ) : (
-        <Textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Write a WhatsApp message…"
-          className="min-h-[64px]"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
-          }}
-        />
+        <div className="grid gap-1.5">
+          <Textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Write a WhatsApp message…"
+            className="min-h-[64px]"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
+            }}
+          />
+          {!windowOpen && (
+            <div className="text-[11.5px] text-ink-mute">
+              This will be attempted, but Meta often rejects free text more than 24h
+              after the contact's last message. Use a template if it does not arrive.
+            </div>
+          )}
+        </div>
       )}
 
       <div className="flex items-center gap-3 mt-2.5">
@@ -156,7 +170,8 @@ export default function WaComposer({ party, windowOpen, link, lastInboundAt }) {
           </span>
         )}
         {err && <span className="ml-auto text-[12px] text-bad text-right max-w-[60%]">{err}</span>}
-        {!err && ok && <span className="ml-auto text-[12px] text-good">{ok}</span>}
+        {!err && warn && <span className="ml-auto text-[12px] text-warn text-right max-w-[60%]">{warn}</span>}
+        {!err && !warn && ok && <span className="ml-auto text-[12px] text-good">{ok}</span>}
       </div>
     </div>
   );

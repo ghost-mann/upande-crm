@@ -139,6 +139,97 @@ class TestConversations(FrappeTestCase):
         self.assertEqual(left, 0)
 
 
+class TestTemplateRendering(FrappeTestCase):
+    """`frappe_whatsapp` stores `str(payload_dict)` in `message` for template sends
+    (whatsapp_notification.py), so the raw Meta payload is what reaches the thread.
+    These assert we rebuild readable text instead of showing it."""
+
+    # Exactly what sits in `tabWhatsApp Message`.`message` on this site.
+    PAYLOAD = (
+        "{'name': 'visitor_host_alert_v2', 'language': {'code': 'en'}, 'components': "
+        "[{'type': 'body', 'parameters': [{'type': 'text', 'text': 'Evans Kemoi Kiprono'}, "
+        "{'type': 'text', 'text': 'Gilbert kiprop'}, {'type': 'text', 'text': 'To service'}]}, "
+        "{'type': 'button', 'sub_type': 'url', 'index': '0', 'parameters': "
+        "[{'type': 'text', 'text': 'APMT-Gilbert%20kiprop-2265780'}]}]}"
+    )
+
+    def test_detects_a_payload(self):
+        self.assertTrue(wa._looks_like_payload(self.PAYLOAD))
+
+    def test_does_not_mistake_ordinary_text_for_a_payload(self):
+        self.assertFalse(wa._looks_like_payload("Hello, are we still on for tomorrow?"))
+        self.assertFalse(wa._looks_like_payload(""))
+        self.assertFalse(wa._looks_like_payload("{not a dict"))
+
+    def test_extracts_body_parameters_only(self):
+        # The button's URL suffix is not part of what was said.
+        self.assertEqual(
+            wa._payload_params(self.PAYLOAD),
+            ["Evans Kemoi Kiprono", "Gilbert kiprop", "To service"])
+
+    def test_extraction_survives_garbage(self):
+        self.assertEqual(wa._payload_params("{'name': broken"), [])
+
+    def test_substitutes_positional_placeholders(self):
+        body = "Hello {{1}}, {{2}} has arrived to see you regarding {{3}}."
+        self.assertEqual(
+            wa._fill(body, ["Evans", "Gilbert", "service"]),
+            "Hello Evans, Gilbert has arrived to see you regarding service.")
+
+    def test_missing_parameter_leaves_no_raw_placeholder(self):
+        self.assertNotIn("{{2}}", wa._fill("Hi {{1}}, re {{2}}", ["Evans"]))
+
+    def test_renders_a_real_template_row(self):
+        row = frappe.db.sql(
+            """select name, message, message_type, template, template_parameters
+               from `tabWhatsApp Message`
+               where message_type='Template' and coalesce(template,'') <> ''
+               order by creation desc limit 1""", as_dict=True)
+        if not row:
+            self.skipTest("no template messages on site")
+        text = wa._message_text(row[0])
+        self.assertFalse(wa._looks_like_payload(text), f"still a payload: {text[:80]}")
+        self.assertNotIn("'components'", text)
+        params = frappe.parse_json(row[0].template_parameters or "[]")
+        if params:
+            self.assertIn(str(params[0]), text)
+
+    def test_thread_never_returns_a_raw_payload(self):
+        party = frappe.db.sql(
+            """select `to` p from `tabWhatsApp Message`
+               where message_type='Template' and coalesce(`to`,'') <> '' limit 1""")
+        if not party:
+            self.skipTest("no template messages on site")
+        t = wa.crm_whatsapp_thread(party[0][0])
+        for m in t["messages"]:
+            self.assertFalse(wa._looks_like_payload(m.get("message")),
+                             f"{m['name']} leaked a payload")
+
+    def test_conversation_preview_never_shows_a_payload(self):
+        for r in wa.crm_whatsapp_conversations(limit=200)["rows"]:
+            self.assertFalse(wa._looks_like_payload(r["last_message"]),
+                             f"{r['party']} preview leaked a payload")
+
+
+class TestDeliverabilityWarning(FrappeTestCase):
+    """Free text outside Meta's 24h window is warned about, not refused."""
+
+    def tearDown(self):
+        frappe.db.rollback()
+
+    def test_warns_when_contact_has_never_messaged_in(self):
+        self.assertIsNotNone(wa._free_text_warning("254799000111"))
+
+    def test_no_warning_when_window_is_open(self):
+        doc = frappe.get_doc({
+            "doctype": "WhatsApp Message", "type": "Incoming",
+            "from": "254799000222", "message": "hi", "content_type": "text",
+        })
+        doc.flags.ignore_validate = True
+        doc.db_insert()
+        self.assertIsNone(wa._free_text_warning("254799000222"))
+
+
 class TestSendValidation(FrappeTestCase):
     """Every case here must reject BEFORE insert — insert is what dispatches."""
 
@@ -163,11 +254,9 @@ class TestSendValidation(FrappeTestCase):
             wa.crm_whatsapp_send("254799000111", "hi",
                                  reference_doctype="Sales Invoice", reference_name="x")
 
-    def test_closed_window_refuses_free_text(self):
-        # A number that has never messaged in has a closed window by definition.
-        with self.assertRaises(frappe.ValidationError) as cm:
-            wa.crm_whatsapp_send("254799000111", "hello there")
-        self.assertIn("24 hours", str(cm.exception))
+    # A closed window no longer refuses: free text is attempted and Meta's own
+    # rejection is surfaced. There is deliberately no endpoint test for that path —
+    # calling it would dispatch. See TestDeliverabilityWarning for the warning.
 
     def test_template_send_requires_a_template(self):
         with self.assertRaises(frappe.ValidationError):

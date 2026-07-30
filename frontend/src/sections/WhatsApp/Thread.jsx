@@ -94,6 +94,12 @@ export default function Thread() {
                 </span>}
                 <div className={cn('flex items-center gap-1.5 mt-1.5 text-[10px]',
                   failed ? 'text-bad' : 'text-ink-mute')}>
+                  {/* A template reads differently from something typed by hand. */}
+                  {m.is_template ? (
+                    <span className="inline-flex items-center gap-1" title={m.template_name || 'Template message'}>
+                      <Icon name="description" className="text-[11px]" />template
+                    </span>
+                  ) : null}
                   <span>{fmtDateTime(m.creation)}</span>
                   {out && st && (
                     <>

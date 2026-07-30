@@ -1,4 +1,4 @@
-import{d as u,j as s}from"./react-Bh9SVn8b.js";import{T as r,i as M,L as C,u as h,C as D,I as i,N as A,z as I,k as L,x as E,q as O}from"./crm-CmwSCrhv.js";import{B as l}from"./button-DinU_-MC.js";import"./vendor-CnGtvI7V.js";function q(e){return String(e||"").replace(/<\s*br\s*\/?>/gi,`
+import{d as u,j as s}from"./react-Bh9SVn8b.js";import{T as r,i as M,L as C,u as h,C as D,I as i,N as A,z as I,k as L,x as E,q as O}from"./crm-Dgv_iXNy.js";import{B as l}from"./button-Dmlv70Cu.js";import"./vendor-CnGtvI7V.js";function q(e){return String(e||"").replace(/<\s*br\s*\/?>/gi,`
 `).replace(/<\/(p|div|tr|h[1-6])>/gi,`
 `).replace(/<[^>]+>/g,"").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/\n{3,}/g,`
 

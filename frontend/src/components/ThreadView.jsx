@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Icon from './Icon';
+import OpenIndicator from './OpenIndicator';
 import { api } from '@shared/api';
 import { avatarBg, openFrappe, currentUser } from '@/lib/crm';
 import { initials, fmtDateTime, fmtRelative, nameFromAddress } from '@shared/utils';
@@ -119,6 +120,10 @@ export default function ThreadView() {
               <span className="text-[14px] font-semibold text-ink">{senderName}</span>
               <span className="text-[12px] text-ink-mute">&lt;{m.sender}&gt;</span>
               {status && <span className="bdg bdg-open">{status}</span>}
+              {/* Whether the recipient opened it. Sits beside `delivery_status`
+                  because the two answer different questions: delivery is what the
+                  mail server did, this is what the person did. */}
+              <OpenIndicator row={m} />
             </div>
             <button className="text-[12px] text-ink-mute hover:text-ink mt-0.5 flex items-center gap-1" onClick={() => setShowDetails((v) => !v)}>
               to {nameFromAddress(m.recipients || '') || m.recipients || '—'}

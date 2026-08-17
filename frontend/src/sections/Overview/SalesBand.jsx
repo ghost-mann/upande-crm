@@ -120,8 +120,6 @@ export default function SalesBand() {
   const k = S.kpis;
   const ccy = S.currency || 'KES';
   const trend = S.revenue_trend || [];
-  const reps = S.rep_performance || [];
-  const products = S.top_products || [];
   const terr = S.territory_revenue || [];
   const aging = S.aging || [];
 
@@ -169,8 +167,10 @@ export default function SalesBand() {
         </span>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-[18px] mb-[18px]">
-        {tiles.map((t) => <KpiCard key={t.lbl} {...t} />)}
+      {/* Fixed columns, for the same reason as the command centre's KPI row:
+          six tiles into auto-fit wraps 5 + 1 and leaves a four-card hole. */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-[18px] mb-[18px]">
+        {tiles.map((t) => <KpiCard key={t.lbl} {...t} compact />)}
       </div>
 
       <div className="mb-[18px]">
@@ -226,51 +226,11 @@ export default function SalesBand() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-[18px] mb-[18px]">
-        <Card>
-          <CardHeader>
-            <div><CardTitle>Sales reps</CardTitle><CardSub>By order value · in range</CardSub></div>
-          </CardHeader>
-          <CardContent>
-            {reps.length ? (
-              <div className="list">
-                {reps.slice(0, 6).map((r, i) => (
-                  <div key={r.label} className="list__row !cursor-default">
-                    <div className={`list__rank${i === 0 ? ' lead' : ''}`}>{i + 1}</div>
-                    <div>
-                      <div className="list__name truncate">{r.label}</div>
-                      <div className="list__meta">{fmt(r.orders)} orders</div>
-                    </div>
-                    <div className="list__qty">{fmtMoneyCompact(r.amount, ccy)}</div>
-                  </div>
-                ))}
-              </div>
-            ) : <div className="crm-empty">No rep data in range</div>}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div><CardTitle>Top products</CardTitle><CardSub>By revenue · in range</CardSub></div>
-          </CardHeader>
-          <CardContent>
-            {products.length ? (
-              <div className="list">
-                {products.slice(0, 6).map((r, i) => (
-                  <div key={r.label} className="list__row !cursor-default">
-                    <div className={`list__rank${i === 0 ? ' lead' : ''}`}>{i + 1}</div>
-                    <div>
-                      <div className="list__name truncate">{r.label}</div>
-                      <div className="list__meta">{fmt(Math.round(r.qty))} units</div>
-                    </div>
-                    <div className="list__qty">{fmtMoneyCompact(r.amount, ccy)}</div>
-                  </div>
-                ))}
-              </div>
-            ) : <div className="crm-empty">No product data in range</div>}
-          </CardContent>
-        </Card>
-
+      {/* The rep and product lists that used to sit here are gone: the command
+          centre's Salesperson performance table and Top-5-sellers views answer
+          both questions properly, with prior-period movement and a drill. What is
+          left here is the one cut neither of them covers. */}
+      <div className="mb-[18px]">
         <ChartCard title="Revenue by territory" sub={`Invoiced · ${ccy}`} height="h-[240px]">
           {terr.length ? (
             <HBarsChart labels={terr.map((r) => r.label)} data={terr.map((r) => r.amount)} money ccy={ccy} />

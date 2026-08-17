@@ -36,10 +36,19 @@ the same funnel, as though orders were 300x the leads that produced them.
 
 The document chain on this site, measured:
 
-    Lead -> Opportunity        45 linked        usable
+    Lead -> Opportunity        45 linked        usable, direct
+    Lead -> Prospect -> Opp     0 reachable     see below
     Opportunity -> Quotation    3 linked        too thin to rate
     Quotation -> Sales Order    0 linked        chain not used at all
     submitted orders        10,625
+
+The walk itself now lives in `api/funnel.py`, shared with the Overview so the two
+cannot disagree about what a funnel is. That walk also follows the prospect route
+(`Prospect Lead` -> Prospect -> `opportunity_from='Prospect'`), which this module
+used to ignore. On today's data it recovers nothing: 8 opportunities do come from
+a Prospect, but every one of them sits on a prospect with no lead links, and the
+30 prospects that have lead links have no opportunities. The route is walked
+because it is correct, not because it currently finds anything.
 
 So orders are raised directly, not from quotations. A lead-to-cash funnel is
 therefore **not computable** here, and presenting "0% quote-to-order conversion"
@@ -65,6 +74,7 @@ from upande_crm.api.crm import (
     _hascol,
     _range,
 )
+from upande_crm.api.funnel import cohort
 
 # Age buckets for open records, in days.
 AGE_BUCKETS = ((0, 7, "0-7d"), (7, 30, "7-30d"), (30, 90, "30-90d"), (90, None, "90d+"))
@@ -142,24 +152,18 @@ def crm_analytics_funnel(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)
     scope = _scope(customer)
-    ld = {**_df("Lead", "creation", frm, to), **_sf(scope, "Lead")}
 
-    leads = frappe.get_all("Lead", filters=ld, pluck="name", limit=0) if _has("Lead") else []
-    lead_names = list(leads)
-
-    # --- forward walk: what became of these leads
-    opps = []
-    if lead_names and _has("Opportunity"):
-        opps = frappe.get_all(
-            "Opportunity",
-            filters={"opportunity_from": "Lead", "party_name": ["in", lead_names]},
-            fields=["name", "status", "transaction_date", "party_name",
-                    "base_opportunity_amount", "probability"],
-            limit=0,
-        )
-    opp_names = [o.name for o in opps]
-    won = [o for o in opps if o.status == "Converted"]
-    lost = [o for o in opps if o.status == "Lost"]
+    # The walk itself lives in `api/funnel.py` so this section and the Overview
+    # cannot disagree about what a funnel is — they used to, and the Overview's
+    # version was the wrong one. It also reaches opportunities the old walk here
+    # missed: this used to filter `opportunity_from='Lead'` only, dropping the
+    # eight that arrive through a Prospect.
+    walk = cohort(frm, to, scope)
+    lead_names = walk["leads"]
+    opps = walk["opportunities"]
+    opp_names = [o["name"] for o in opps]
+    won = walk["won"]
+    lost = walk["lost"]
 
     quotes = []
     if opp_names and _has("Quotation") and _hascol("Quotation", "opportunity"):
@@ -173,18 +177,12 @@ def crm_analytics_funnel(date_from=None, date_to=None, customer=None):
 
     n_leads = len(lead_names)
     # Only stages that are genuinely on the path, so the funnel narrows
-    # monotonically. Quotations are NOT a stage here: 3 of 30 opportunities have
-    # one while 20 were won, so inserting it would draw a funnel that narrows to 3
-    # and then widens back to 20 — visibly wrong, and wrong about the process. It
-    # is reported under `linkage` as the aside it actually is.
-    stages = [
-        {"key": "leads", "label": "Leads", "count": n_leads,
-         "of_previous": 100.0 if n_leads else 0.0, "of_first": 100.0 if n_leads else 0.0},
-        {"key": "opportunities", "label": "Became an opportunity", "count": len(opps),
-         "of_previous": _pct(len(opps), n_leads), "of_first": _pct(len(opps), n_leads)},
-        {"key": "won", "label": "Won", "count": len(won),
-         "of_previous": _pct(len(won), len(opps)), "of_first": _pct(len(won), n_leads)},
-    ]
+    # monotonically. Quotations are NOT a stage: 3 of 30 opportunities have one
+    # while 20 were won, so inserting it would draw a funnel that narrows to 3 and
+    # then widens back to 20 — visibly wrong, and wrong about the process. Prospect
+    # is excluded for the same reason and reported inside the Opportunity stage
+    # instead. Both are reported under `linkage` as the asides they actually are.
+    stages = walk["stages"]
 
     # --- velocity, from real timestamps only
     lead_created = {}
@@ -252,6 +250,12 @@ def crm_analytics_funnel(date_from=None, date_to=None, customer=None):
         # instead of implying a stage conversion it cannot measure.
         "linkage": {
             "opp_from_lead": len(opps),
+            # How the cohort reached its opportunities. Prospect is a branch on the
+            # way to an Opportunity, not a stage before one, so it is reported here
+            # rather than drawn into the funnel.
+            "opp_direct": walk["counts"]["direct"],
+            "opp_via_prospect": walk["counts"]["via_prospect"],
+            "prospects_from_lead": walk["counts"]["prospects"],
             "quote_from_opp": len(quotes),
             "orders": orders,
             "orders_from_quotation": from_quote,

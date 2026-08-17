@@ -105,6 +105,39 @@ export const reportRunApi    = ({ key, report, filters, date_from, date_to, cust
   });
 export const reportCatalogueApi = () => api(RP + 'crm_report_catalogue', {});
 
+// ---------------------------------------------------------------- command centre
+// The Overview's own endpoints. Split so the KPI row and the day's work are not
+// held behind the per-item aggregation, and so the mover drill costs nothing
+// until it is opened — see api/command.py.
+const CM = 'upande_crm.api.command.';
+export const getCommand     = (args) => api(CM + 'crm_command_center', args);
+export const getTrack       = (args) => api(CM + 'crm_sales_track_record', args);
+export const moverDetailApi = ({ kind, key, date_from, date_to, customer }) =>
+  api(CM + 'crm_mover_detail', { kind, key, date_from, date_to, customer });
+
+// ---------------------------------------------------------------- demand
+// What clients are asking for, from open opportunity and quotation lines — the
+// forward counterpart to command.py's top sellers, which counts what shipped.
+export const getDemand = (args) => api('upande_crm.api.demand.crm_demand', args);
+
+// ---------------------------------------------------------------- leads (writes)
+// Lead capture and conversion. A write layer: these throw so the dialogs keep
+// what was typed and show why. Conversion delegates to ERPNext's own mappers —
+// see api/leads.py.
+const LD = 'upande_crm.api.leads.';
+export const leadSaveApi        = (payload) => api(LD + 'crm_lead_save', { lead: JSON.stringify(payload) });
+export const leadToProspectApi  = (lead, o = {}) => api(LD + 'crm_lead_to_prospect', {
+  lead, prospect: o.prospect || '', company_name: o.company_name || '',
+});
+export const leadToOppApi       = (lead, payload) => api(LD + 'crm_lead_to_opportunity', {
+  lead, opportunity: JSON.stringify(payload || {}),
+});
+export const prospectToOppApi   = (prospect, payload) => api(LD + 'crm_prospect_to_opportunity', {
+  prospect, opportunity: JSON.stringify(payload || {}),
+});
+export const leadOptionsApi     = () => api(LD + 'crm_lead_form_options', {});
+export const flowerSearchApi    = (query = '', limit = 20) => api(LD + 'crm_flower_search', { query, limit });
+
 // section key → loader, used by loadAll()
 export const SECTION_LOADERS = {
   leads: getLeads,
@@ -118,4 +151,7 @@ export const SECTION_LOADERS = {
   calls: getCalls,
   campaigns: getCampaigns,
   overview: getOverview,
+  command: getCommand,
+  track: getTrack,
+  demand: getDemand,
 };

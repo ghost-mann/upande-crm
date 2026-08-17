@@ -290,18 +290,12 @@ def crm_dashboard_overview(date_from=None, date_to=None, customer=None):
             "revenue": {"amount": rev_amount, "orders": rev_orders},
             "tasks": {"open": tasks_open, "high": tasks_high},
         },
-        # The funnel narrows with the customer filter too — a funnel that stayed
-        # global while the KPIs above narrowed was the most visible symptom of the
-        # filter not working.
-        "funnel": [
-            {"label": "Leads", "count": leads_total},
-            {"label": "Opportunities", "count": opps_total},
-            {"label": "Quotations", "count": _count("Quotation", {**_df("Quotation", "transaction_date", frm, to), **_sf(scope, "Quotation")}) if _has("Quotation") else 0},
-            {"label": "Sales Orders", "count": _count("Sales Order", {
-                **_df("Sales Order", "transaction_date", frm, to), "docstatus": 1,
-                **({"customer": customer} if customer else {})})},
-            {"label": "Converted", "count": opps_won},
-        ],
+        # No `funnel` here any more. This used to return five independently
+        # counted stages, which is not a funnel: the counts share no records, so
+        # the shape could widen — on this site it reported 4 leads and 1,429
+        # orders side by side, as though orders were 300x the leads that made
+        # them. The Overview now draws `crm_command_center`'s cohort funnel, which
+        # follows one lead population forward. See api/funnel.py.
         "lead_status": _group("Lead", "status", _dw("Lead", "creation", frm, to, base=_sw(scope, "Lead"))),
         # Trends obey the date picker (day/month buckets depending on span).
         "lead_trend": _trend_in_range("Lead", "creation", frm, to, where=_sw(scope, "Lead")),
@@ -793,11 +787,15 @@ def crm_mail_data(folder="inbox", tab="all", search="", limit=100, offset=0,
         params += [str(date_from), str(date_to) + " 23:59:59"]
 
     where = " and ".join(conds)
+    # Read-receipt columns are core fields, but this module never assumes a column
+    # exists — an install that has diverged should lose the indicator, not the inbox.
+    receipts = _hascol("Communication", "read_by_recipient")
+    receipt_cols = ", read_by_recipient, read_by_recipient_on, delivery_status" if receipts else ""
     rows = []
     try:
         rows = frappe.db.sql(
             f"""select name, subject, sender, recipients, cc, communication_date, sent_or_received,
-                       reference_doctype, reference_name, status, seen, _user_tags
+                       reference_doctype, reference_name, status, seen, _user_tags{receipt_cols}
                 from `tabCommunication` where {where}
                 order by communication_date desc limit {limit} offset {offset}""",
             params, as_dict=True,
@@ -812,6 +810,15 @@ def crm_mail_data(folder="inbox", tab="all", search="", limit=100, offset=0,
         r["counterparty"] = cp
         r["display_name"] = _name_from_addr(cp)
         r["unread"] = 1 if (direction == "Received" and r.get("status") == "Open" and not r.get("seen")) else 0
+        # Whether the *recipient* opened it — only meaningful on mail we sent.
+        # Frappe stamps this from a tracking pixel, so it undercounts: a client
+        # that blocks images reads the mail and never registers. The UI therefore
+        # says "no open recorded", never "not opened". There is no open *count* to
+        # report — `update_communication_as_read` returns early once the flag is
+        # set, so only the first open is ever stored.
+        opened = 1 if (direction == "Sent" and r.get("read_by_recipient")) else 0
+        r["opened"] = opened
+        r["opened_on"] = r.get("read_by_recipient_on") if opened else None
         # Heavy email body (`content`) is intentionally omitted from the list; the
         # thread view fetches the full Communication on open.
 

@@ -1,42 +1,66 @@
 import { useStore } from '../../store';
-import { fmt, fmtMoney, fmtMoneyCompact } from '@shared/utils';
-import { openFrappe } from '@/lib/crm';
+import { fmt } from '@shared/utils';
 import { Card, CardHeader, CardTitle, CardSub, CardContent } from '@/components/ui/card';
-import { KpiCard } from '../../components/Kpi';
+import { Button } from '@/components/ui/button';
+import Icon from '../../components/Icon';
 import ChartCard from '../../components/ChartCard';
-import { DoughnutStat, BarsChart, HBarsChart, SalesOrdersChart, AreaTrendChart } from '../../charts/Charts';
+import { DoughnutStat, BarsChart, HBarsChart, AreaTrendChart } from '../../charts/Charts';
 import { PAL } from '../../charts/palette';
 import SalesBand from './SalesBand';
+import Kpis from './Kpis';
+import Upcoming from './Upcoming';
+import TrackRecord from './TrackRecord';
+import Movers from './Movers';
+import MoverDrill from './MoverDrill';
+import TopSellers from './TopSellers';
+import Demand from './Demand';
+import RepScorecard from './RepScorecard';
+import RepConversion from './RepConversion';
+import Funnel from './Funnel';
+import FollowUps from './FollowUps';
+import { BandHead } from './parts';
 
-// Funnel bar colours — ink → gold descending ramp.
-const FUNNEL_RAMP = ['#2a2a26', '#5a5a52', '#8a6a10', '#a87d0d', '#d9a514'];
-
-function Funnel({ rows }) {
-  const max = Math.max(...rows.map((r) => r.count), 1);
+// Capture, in the two moves that matter. Both open the same dialogs the Demand
+// card links to, so "there is no demand recorded" and "here is how you record it"
+// are one gesture apart.
+function CaptureBar() {
+  const openLead = useStore((s) => s.openLeadDialog);
+  const openConvert = useStore((s) => s.openConvertDialog);
   return (
-    <div className="funnel">
-      {rows.map((f, i) => {
-        const pct = Math.max((f.count / max) * 100, 12);
-        return (
-          <div key={f.label} className="funnel__stage">
-            <div className="funnel__bar" style={{ width: `${pct}%`, background: FUNNEL_RAMP[i % FUNNEL_RAMP.length] }}>
-              {f.label}
-            </div>
-            <div className="funnel__meta"><b>{fmt(f.count)}</b>{i > 0 ? `${((f.count / (rows[0].count || 1)) * 100).toFixed(0)}% of leads` : 'entering'}</div>
-          </div>
-        );
-      })}
+    <div className="flex items-center gap-2.5 flex-wrap mb-[18px]">
+      <Button size="sm" onClick={() => openLead({})}
+        className="rounded-full bg-gold text-[var(--on-accent)] hover:bg-gold-2 hover:text-white shadow-none px-4">
+        <Icon name="person_add" className="text-[16px]" />New lead
+      </Button>
+      <Button size="sm" variant="outline" className="rounded-full"
+        onClick={() => openConvert({ mode: 'opportunity' })}>
+        <Icon name="trending_up" className="text-[16px]" />Convert a lead
+      </Button>
+      <span className="text-[11.5px] text-ink-mute">
+        converting is also where the flowers a client asked for get recorded
+      </span>
     </div>
   );
 }
 
+// The command centre, in the order a sales manager actually reads it:
+//
+//   what you can add        → capture bar
+//   what came in            → KPIs
+//   what has to be done     → upcoming work, follow-ups waiting
+//   how sales are going     → track record per flower and per rep
+//   what moved and why      → movers, and the drill behind them
+//   who buys what           → top sellers, and what is being asked for
+//   who sells it            → salesperson performance, and conversion
+//   the money               → sales band, funnel, pipeline shape
+//
+// Revenue used to lead this page. It now sits where it belongs: after the work.
 export default function Overview() {
-  const { data, status, settings } = useStore();
+  const { data, status } = useStore();
   const OV = data.overview;
-  const ccy = OV?.currency || 'KES';
-  const C = data.cust;
+  const C = data.command;
 
-  if (!OV?.kpis) {
+  if (!OV?.kpis && !C?.kpis) {
     return (
       <div className="p-12 text-center text-ink-mute text-[13px]">
         {status === 'loading' ? 'Loading' : status === 'offline' ? 'Failed to load CRM data' : 'No overview data'}
@@ -44,70 +68,38 @@ export default function Overview() {
     );
   }
 
-  const k = OV.kpis;
-  const kpis = [
-    { lbl: 'Leads', val: fmt(k.leads?.total), sub: 'in selected range', chip: `${k.leads?.conv_rate ?? 0}% conversion`, chipTone: 'gold' },
-    { lbl: 'Opportunities', val: fmt(k.opps?.total), sub: `${fmt(k.opps?.open)} open`, chip: `${fmt(k.opps?.won)} won`, chipTone: 'up' },
-    { lbl: 'Prospects', val: fmt(k.prosp?.total), sub: 'engaged accounts', chip: `${fmt(k.prosp?.territories)} territories` },
-    { lbl: 'Customers', val: fmt(k.cust?.active), sub: 'active accounts', chip: `${fmt(k.cust?.companies)} companies` },
-    { lbl: 'Revenue', val: fmtMoneyCompact(k.revenue?.amount, ccy), sub: 'sales orders', chip: `${fmt(k.revenue?.orders)} orders`, chipTone: 'gold' },
-    { lbl: 'Open Tasks', val: fmt(k.tasks?.open), sub: 'to action', chip: `${fmt(k.tasks?.high)} high priority`, chipTone: k.tasks?.high ? 'down' : '' },
-  ];
-
-  const soTrend = C?.sales_order_trend;
-  const totR = soTrend?.reduce((s, r) => s + (r.revenue || 0), 0) || 0;
-  const totC = soTrend?.reduce((s, r) => s + (r.count || 0), 0) || 0;
-  const topCust = C?.top_revenue || [];
-  const leadStatus = OV.lead_status || [];
+  const leadStatus = OV?.lead_status || [];
 
   return (
     <div>
-      {/* KPI ROW */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-[18px] mb-[18px]">
-        {kpis.map((x) => <KpiCard key={x.lbl} {...x} />)}
-      </div>
+      <CaptureBar />
+      <Kpis />
 
-      {/* SALES ANALYTICS */}
+      <BandHead title="The day" note="from now forward, independent of the date range" />
+      <div className="mb-[18px]"><Upcoming /></div>
+      <FollowUps />
+
+      <BandHead title="Track record"
+        note="how sales have been going, and what changed" />
+      <div className="mb-[18px]"><TrackRecord /></div>
+      <Movers />
+
+      {/* Sold beside asked-for. Neither number means much alone: a variety that
+          tops the sales list and nobody is asking for any more is the expensive
+          case this pairing exists to make visible. */}
+      <BandHead title="Who buys what" note="what shipped, and what is being asked for" />
+      <div className="mb-[18px]"><TopSellers /></div>
+      <div className="mb-[18px]"><Demand /></div>
+
+      <BandHead title="Who sells it" note="what they booked, and what they convert" />
+      <div className="mb-[18px]"><RepScorecard /></div>
+      <div className="mb-[18px]"><RepConversion /></div>
+
       <SalesBand />
-
-      {/* TREND + TOP CUSTOMERS */}
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-[18px] mb-[18px]">
-        <Card>
-          <CardHeader>
-            <div><CardTitle>Sales &amp; Orders Trend</CardTitle><CardSub>Daily orders and revenue in range</CardSub></div>
-            <div className="text-[12px] text-ink-mute font-medium">{fmt(totC)} orders · {fmtMoney(totR, ccy)}</div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] relative">
-              {soTrend?.length ? <SalesOrdersChart rows={soTrend} ccy={ccy} />
-                : <AreaTrendChart labels={(OV.so_trend || []).map((r) => r.label)} data={(OV.so_trend || []).map((r) => r.count)} />}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><div><CardTitle>Top Customers</CardTitle><CardSub>By revenue · in range</CardSub></div></CardHeader>
-          <CardContent>
-            {topCust.length ? (
-              <div className="list">
-                {topCust.slice(0, 6).map((r, i) => (
-                  <div key={r.customer} className="list__row" onClick={() => openFrappe('Customer', r.customer, settings.openInNewTab)}>
-                    <div className={`list__rank${i === 0 ? ' lead' : ''}`}>{i + 1}</div>
-                    <div><div className="list__name truncate">{r.customer}</div><div className="list__meta">Customer</div></div>
-                    <div className="list__qty">{fmtMoneyCompact(r.amount, ccy)}</div>
-                  </div>
-                ))}
-              </div>
-            ) : <div className="crm-empty">No revenue in range</div>}
-          </CardContent>
-        </Card>
-      </div>
 
       {/* FUNNEL + LEAD STATUS */}
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-[18px] mb-[18px]">
-        <Card>
-          <CardHeader><div><CardTitle>Sales Funnel</CardTitle><CardSub>Conversion at each stage</CardSub></div></CardHeader>
-          <CardContent>{OV.funnel?.length ? <Funnel rows={OV.funnel} /> : <div className="crm-empty">No data</div>}</CardContent>
-        </Card>
+        <Funnel />
         <Card>
           <CardHeader><div><CardTitle>Lead Status</CardTitle><CardSub>Distribution</CardSub></div></CardHeader>
           <CardContent>
@@ -124,15 +116,17 @@ export default function Overview() {
       {/* SECONDARY CHARTS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-[18px] mb-[18px]">
         <ChartCard title="Lead Trend" sub="In selected range" height="h-[240px]">
-          <AreaTrendChart labels={(OV.lead_trend || []).map((r) => r.label)} data={(OV.lead_trend || []).map((r) => r.count)} />
+          <AreaTrendChart labels={(OV?.lead_trend || []).map((r) => r.label)} data={(OV?.lead_trend || []).map((r) => r.count)} />
         </ChartCard>
         <ChartCard title="Top Territories" height="h-[240px]">
-          <HBarsChart labels={(OV.top_territories || []).map((r) => r.label)} data={(OV.top_territories || []).map((r) => r.count)} />
+          <HBarsChart labels={(OV?.top_territories || []).map((r) => r.label)} data={(OV?.top_territories || []).map((r) => r.count)} />
         </ChartCard>
         <ChartCard title="Sales Stages" height="h-[240px]">
-          <BarsChart labels={(OV.sales_stages || []).map((r) => r.label)} data={(OV.sales_stages || []).map((r) => r.count)} />
+          <BarsChart labels={(OV?.sales_stages || []).map((r) => r.label)} data={(OV?.sales_stages || []).map((r) => r.count)} />
         </ChartCard>
       </div>
+
+      <MoverDrill />
     </div>
   );
 }

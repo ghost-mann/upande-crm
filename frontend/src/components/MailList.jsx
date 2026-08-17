@@ -1,5 +1,6 @@
 import { useStore } from '../store';
 import Icon from './Icon';
+import OpenIndicator from './OpenIndicator';
 import { avatarBg, openFrappe } from '@/lib/crm';
 import { initials, fmtRelative, nameFromAddress } from '@shared/utils';
 
@@ -59,6 +60,9 @@ export default function MailList({ rows = [], onOpen, selected, onToggleSelect }
               {e.reference_doctype && <span className="m-chip">{e.reference_doctype}</span>}
               <span className="m-subj">{e.subject || '(no subject)'}</span>
               {e.reference_name && <span className="m-snip">— {e.reference_name}</span>}
+              {/* Renders itself away on received mail, where an open flag on the
+                  other party's message would mean nothing. */}
+              <OpenIndicator row={e} className="ml-2" />
             </div>
             <div className="m-time">{fmtRelative(e.communication_date)}</div>
             <div className="m-actions">

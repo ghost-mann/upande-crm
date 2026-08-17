@@ -15,6 +15,7 @@ from frappe.tests.utils import FrappeTestCase
 
 from upande_crm.api import scope as SC
 from upande_crm.api.analytics import crm_sales_analytics
+from upande_crm.api.command import crm_command_center
 from upande_crm.api.crm import (
     crm_dashboard_customers,
     crm_dashboard_events_tasks,
@@ -173,13 +174,21 @@ class TestEveryReaderNarrows(FrappeTestCase):
         self.assertLessEqual(narrow["revenue"]["amount"], wide["revenue"]["amount"])
         self.assertLessEqual(narrow["tasks"]["open"], wide["tasks"]["open"])
 
-    def test_overview_funnel_narrows(self):
-        wide = {f["label"]: f["count"] for f in crm_dashboard_overview(**WIDE)["funnel"]}
-        narrow = {f["label"]: f["count"]
-                  for f in crm_dashboard_overview(**WIDE, customer=self.customer)["funnel"]}
+    def test_funnel_narrows(self):
+        # The funnel moved to `crm_command_center` when it stopped being five
+        # independently counted stages and became a cohort walk. The filter must
+        # follow it there — a funnel that stayed global while the KPIs above it
+        # narrowed was the most visible symptom of the original bug.
+        wide = {f["key"]: f["count"] for f in crm_command_center(**WIDE)["funnel"]}
+        narrow = {f["key"]: f["count"]
+                  for f in crm_command_center(**WIDE, customer=self.customer)["funnel"]}
         self.assertEqual(set(wide), set(narrow))
-        for label, count in narrow.items():
-            self.assertLessEqual(count, wide[label], label)
+        for key, count in narrow.items():
+            self.assertLessEqual(count, wide[key], key)
+
+    def test_the_overview_no_longer_carries_its_own_funnel(self):
+        # Two funnels drawn from different queries is how they drifted apart.
+        self.assertNotIn("funnel", crm_dashboard_overview(**WIDE))
 
     def test_overview_selected_customer_is_never_reported_as_zero(self):
         # The customer KPI drops the date window when one is selected, so picking

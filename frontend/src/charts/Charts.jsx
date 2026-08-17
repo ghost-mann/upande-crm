@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Line, Area, AreaChart, ComposedChart,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Line, LineChart, Area, AreaChart, ComposedChart,
 } from 'recharts';
 import { fmt, fmtMoney, fmtMoneyCompact } from '@shared/utils';
-import { PAL, BAR_FILL, GRID, ORDER_COLOR, REVENUE_COLOR, AREA_INK } from './palette';
+import { PAL, SERIES, BAR_FILL, GRID, ORDER_COLOR, REVENUE_COLOR, AREA_INK } from './palette';
 
 const MONO = { fontSize: 9.5, fontFamily: 'Poppins', fill: '#8a8780' };
 
@@ -130,6 +131,87 @@ export function AreaTrendChart({ labels, data }) {
         <Area type="monotone" dataKey="value" stroke="#2a2a26" strokeWidth={2} fill="url(#gTrend)" dot={false} activeDot={{ r: 3 }} />
       </AreaChart>
     </ResponsiveContainer>
+  );
+}
+
+// Track-record tooltip: every series at the hovered bucket, ranked, zeroes
+// dropped. Ranked because the question being asked of this chart is "who is on
+// top and who fell", which a fixed series order answers slowly.
+function SeriesTooltip({ active, payload, label, series, money, ccy }) {
+  if (!active || !payload?.length) return null;
+  const byId = Object.fromEntries(series.map((s) => [s.id, s.label]));
+  const rows = payload
+    .filter((p) => p.value)
+    .sort((a, b) => b.value - a.value);
+  if (!rows.length) return null;
+  return (
+    <div className="rounded-xl border border-hairline bg-surface-2 shadow-hover px-3.5 py-2.5 min-w-[180px]">
+      <div className="text-[11px] text-ink-mute font-medium mb-1.5">{label}</div>
+      {rows.map((p) => (
+        <div key={p.dataKey} className="flex items-center gap-2 py-[3px]">
+          <i className="w-2 h-2 rounded-full shrink-0" style={{ background: p.stroke }} />
+          <span className="text-[11.5px] text-ink-2 flex-1 truncate">{byId[p.dataKey] || p.dataKey}</span>
+          <span className="text-[11.5px] text-ink font-semibold tabular-nums">
+            {money ? fmtMoneyCompact(p.value, ccy) : fmt(Math.round(p.value))}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Multi-series trend. series: [{id, label, total}], rows: [{label, s0, s1, …}]
+//
+// Identity is never colour-alone: the legend is always rendered and doubles as
+// the value table (each entry carries its own total), which is also the relief
+// the palette's gold step needs for its sub-3:1 contrast. Hovering a legend
+// entry isolates that line — six lines overlap, and picking one out by eye is
+// the thing this chart is otherwise bad at.
+export function MultiLineChart({ rows, series, money = true, ccy, onSelect }) {
+  const [focus, setFocus] = useState(null);
+  if (!rows?.length || !series?.length) return <Empty />;
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex-1 min-h-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={rows} margin={{ top: 8, right: 12, left: -6, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke={GRID} />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={MONO}
+              interval="preserveStartEnd" minTickGap={24} />
+            <YAxis tickLine={false} axisLine={false} tick={MONO} width={46}
+              tickFormatter={(v) => (money ? fmtMoneyCompact(v, ccy) : fmt(v))} />
+            <Tooltip cursor={{ stroke: 'rgba(10,10,10,0.16)', strokeWidth: 1 }}
+              content={<SeriesTooltip series={series} money={money} ccy={ccy} />} />
+            {series.map((s, i) => {
+              const dim = focus && focus !== s.id;
+              return (
+                <Line key={s.id} type="monotone" dataKey={s.id}
+                  stroke={SERIES[i % SERIES.length]}
+                  strokeWidth={focus === s.id ? 2.75 : 2}
+                  strokeOpacity={dim ? 0.16 : 1}
+                  dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: '#fff' }}
+                  isAnimationActive={false} />
+              );
+            })}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 pt-3 mt-1">
+        {series.map((s, i) => (
+          <button key={s.id} type="button"
+            onMouseEnter={() => setFocus(s.id)} onMouseLeave={() => setFocus(null)}
+            onClick={onSelect ? () => onSelect(s) : undefined}
+            className={`flex items-center gap-2 text-left transition-opacity ${
+              focus && focus !== s.id ? 'opacity-40' : ''} ${onSelect ? 'cursor-pointer' : 'cursor-default'}`}>
+            <i className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: SERIES[i % SERIES.length] }} />
+            <span className="text-[12px] text-ink-2 font-medium">{s.label}</span>
+            <span className="text-[12px] text-ink-mute tabular-nums">
+              {money ? fmtMoneyCompact(s.total, ccy) : fmt(Math.round(s.stems || 0))}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

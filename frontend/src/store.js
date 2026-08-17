@@ -8,8 +8,9 @@ import {
   themeApi, themeSaveApi, themePresetApi, themeResetApi,
   reportsApi, reportCatalogueApi,
   saveCallApi, deleteCallApi,
-  ANALYTICS_LOADERS,
+  ANALYTICS_LOADERS, moverDetailApi,
   campaignSaveApi, campaignEnrolApi, campaignCancelApi,
+  leadSaveApi, leadToProspectApi, leadToOppApi, prospectToOppApi, leadOptionsApi,
 } from './api';
 
 const SETTINGS_KEY = 'crm_settings';
@@ -188,12 +189,27 @@ export const useStore = create((set, get) => ({
   reportCatalogue: null,
   // call dialog — null = closed, object = open ({} means log-a-new-call mode)
   callDialog: null,
+  // lead capture — null = closed. `leadDialog` creates; `convertDialog` moves an
+  // existing lead or prospect on. Kept separate so converting does not have to
+  // re-render a create form the user already finished with.
+  leadDialog: null,
+  convertDialog: null,
+  // Form vocabulary (sources, territories, and whatever fields THIS site has made
+  // mandatory on Lead). Fetched once on first open and cached — it does not change
+  // between dialogs, and refetching made opening the convert step feel slow.
+  leadOptions: null,
   // campaign dialogs — null = closed
   campaignDialog: null,
   enrolDialog: null,
   // analytics, one payload per tab, loaded on demand
   analytics: {},
   analyticsLoading: {},
+  // mover drill — null = closed. `mover` is the row that was clicked, so the
+  // dialog can render its headline immediately and fill in the explanation when
+  // the detail request lands.
+  mover: null,
+  moverDetail: null,
+  moverLoading: false,
 
   select(section, table = '') {
     set({ section, table, openMsg: null });
@@ -324,6 +340,24 @@ export const useStore = create((set, get) => ({
     }
   },
 
+  // ---------------------------------------------------------------- mover drill
+  // Fetched on open rather than with loadAll: the decomposition is several
+  // queries per subject, and nobody looks at every mover.
+  async openMover(kind, key, label) {
+    set({ mover: { kind, key, label }, moverDetail: null, moverLoading: true });
+    const args = { kind, key, date_from: get().dateFrom, date_to: get().dateTo };
+    if (get().customerFilter) args.customer = get().customerFilter;
+    try {
+      const d = await moverDetailApi(args);
+      // Ignore a response for a drill the user has already closed or replaced.
+      if (get().mover?.key === key) set({ moverDetail: d, moverLoading: false });
+    } catch {
+      if (get().mover?.key === key) set({ moverDetail: { error: true }, moverLoading: false });
+    }
+  },
+
+  closeMover() { set({ mover: null, moverDetail: null, moverLoading: false }); },
+
   // ---------------------------------------------------------------- calls
   openCallDialog(call = {}) { set({ callDialog: call }); },
   closeCallDialog() { set({ callDialog: null }); },
@@ -341,6 +375,64 @@ export const useStore = create((set, get) => ({
     const r = await deleteCallApi(name);
     await get().reloadSection('calls');
     return r;
+  },
+
+  // ---------------------------------------------------------------- leads
+  openLeadDialog(lead = {}) { set({ leadDialog: lead }); get().loadLeadOptions(); },
+  closeLeadDialog() { set({ leadDialog: null }); },
+  // `ctx` is {lead} or {prospect}, plus a label for the dialog headline.
+  openConvertDialog(ctx = {}) { set({ convertDialog: ctx }); get().loadLeadOptions(); },
+  closeConvertDialog() { set({ convertDialog: null }); },
+
+  async loadLeadOptions() {
+    if (get().leadOptions) return get().leadOptions;
+    try {
+      const o = await leadOptionsApi();
+      set({ leadOptions: o });
+      return o;
+    } catch {
+      // A read, so it degrades: the dialog renders with empty selects rather than
+      // refusing to open.
+      const empty = { sources: [], territories: [], industries: [], market_segments: [],
+        sales_stages: [], opportunity_types: [], lead_statuses: [], users: [],
+        required_fields: [], error: true };
+      set({ leadOptions: empty });
+      return empty;
+    }
+  },
+
+  // All four throw: the dialogs keep the user's input and show why.
+  async saveLead(payload) {
+    const r = await leadSaveApi(payload);
+    await get().afterPipelineWrite();
+    return r;
+  },
+
+  async leadToProspect(lead, opts) {
+    const r = await leadToProspectApi(lead, opts);
+    await get().afterPipelineWrite();
+    return r;
+  },
+
+  async leadToOpportunity(lead, payload) {
+    const r = await leadToOppApi(lead, payload);
+    await get().afterPipelineWrite();
+    return r;
+  },
+
+  async prospectToOpportunity(prospect, payload) {
+    const r = await prospectToOppApi(prospect, payload);
+    await get().afterPipelineWrite();
+    return r;
+  },
+
+  // A lead write moves the funnel, the KPI row, the conversion card and — when
+  // item lines were entered — the demand card. Reloading the four sections that
+  // read them beats a full loadAll, which would refetch WhatsApp and campaigns
+  // for a change that cannot touch them.
+  async afterPipelineWrite() {
+    await Promise.all(['command', 'track', 'demand', 'leads', 'overview']
+      .map((k) => get().reloadSection(k)));
   },
 
   // ---------------------------------------------------------------- reports

@@ -28,7 +28,7 @@ Measured on `kaitet.local` before anything here was designed:
 | 9,202 of 21,299 sent Communications carry `read_by_recipient=1` | Open tracking is **already live**. This is a display job, not a plumbing job. |
 | 47 Email Accounts have `track_email_status=1` | The tracking pixel is being injected; `crm_send_email` already passes `communication=` to `sendmail`. |
 | Frappe stores `read_by_recipient` (bool) + `read_by_recipient_on` (first open only) | **There is no open counter.** `update_communication_as_read` returns early once the flag is set. "Opened ×3" is not obtainable and will not be shown. |
-| 45 Opportunities have `opportunity_from='Lead'`, 8 have `'Prospect'` | The cohort walk must union both routes. `pipeline.py` currently filters `opportunity_from='Lead'` only, and so **misses all 8 prospect-routed opportunities**. |
+| 45 Opportunities have `opportunity_from='Lead'`, 8 have `'Prospect'` | The cohort walk unions both routes. See the correction below — the second route recovers nothing today. |
 | 30 rows in `Prospect Lead`, against 45 lead→opportunity links | Prospect **cannot be a funnel stage**: Leads 112 → Prospects 30 → Opportunities 45 widens. |
 | 6 Opportunity Item rows, 48 Quotation Item rows, 43,714 Sales Order Item rows | The demand card starts nearly empty. It must say so rather than look broken. |
 | `Lead.lead_owner` has 14 distinct values; `Lead.owner` is 46 Guest / 31 Administrator | Conversion must key on `lead_owner`, not `owner`. |
@@ -38,6 +38,36 @@ Measured on `kaitet.local` before anything here was designed:
 Per `upande-crm-surfaces-not-reimplementations`: the write layer delegates to
 ERPNext's own mappers (`lead.make_opportunity`, `prospect.make_opportunity`,
 `lead.add_lead_to_prospect`) rather than reproducing their field mapping.
+
+## Corrections found during implementation
+
+Three claims in the original draft of this document were wrong. They are recorded
+rather than quietly edited out, because each one changed the build.
+
+**The prospect route recovers nothing.** The draft said the shared walk would fix
+an undercount of 8 opportunities in the Analytics funnel. It does not. Those 8
+sit on five prospects — Asia Pacific Florals, Deutsche Blumen AG, Gulf
+Horticulture Holdings, MSD, Nippon Flower Trading — that have **zero** rows in
+`Prospect Lead`, while the 30 prospects that do carry lead links have no
+opportunities. The two populations do not intersect, so `via_prospect` is 0 and
+the sub-band never draws. The route is still walked: it is the correct traversal,
+it costs one indexed query, and it starts counting the moment somebody converts a
+lead through a prospect from the new dialog. It is simply not a bug fix.
+
+**A fixed field allowlist could not create a lead on this site.** Lead here has
+sixteen mandatory fields, two of them custom (`custom_business_unit`,
+`custom_business_registration_number`), plus `country`, `city`, `whatsapp_no` and
+others the draft's allowlist never mentioned. Every create failed on
+`MandatoryError` with no way for the dialog to even ask for the values. The
+allowlist is therefore computed: a fixed base, widened by the site's own
+mandatory fields read from the meta, minus a `PROTECTED_FIELDS` denylist that
+`owner`, `docstatus`, timestamps and assignment internals can never leave. The
+form renders one input per discovered field, so a customised Lead is fillable
+from the CRM instead of only from the desk.
+
+**"Opened ×3" was never obtainable**, as noted in the table above — confirmed
+against `update_communication_as_read`, which returns early once the flag is set.
+The indicator shows whether and when, and nothing else.
 
 ## Module layout
 
@@ -205,8 +235,9 @@ then widens back to 20 — visibly wrong, and wrong about the process."
 ### Consumers
 
 - `pipeline.py::crm_analytics_funnel` imports `cohort` and deletes its own walk.
-  It gains the 8 prospect-routed opportunities it currently misses. Its velocity,
-  linkage and order-book sections are untouched.
+  It gains the prospect route — which finds nothing today, see the corrections
+  above — and reports both route counts under `linkage`. Its velocity, linkage
+  and order-book sections are otherwise untouched.
 - `crm_command_center` returns `funnel`.
 - The independently-counted `funnel` key is **removed** from
   `crm_dashboard_overview`. Only `Overview/index.jsx` consumes it. This is the
@@ -237,11 +268,15 @@ ink→gold ramp already used by `FUNNEL_RAMP`, not hardcoded hex.
 | `crm_lead_form_options()` | — | Lead Source, Territory, Industry, statuses, assignable users, sales stages |
 | `crm_flower_search(q)` | Item | `is_sales_item=1`, not disabled |
 
-Allowlisted lead fields: `lead_name`, `first_name`, `last_name`, `company_name`,
-`email_id`, `mobile_no`, `phone`, `source`, `territory`, `industry`,
-`market_segment`, `lead_owner`, `status`, `no_of_employees`, `website`. Anything
-else in the payload is dropped rather than written, so a crafted request cannot
-set `owner`, `docstatus`, or another app's custom field.
+The lead allowlist is a fixed base (`lead_name`, `first_name`, `last_name`,
+`company_name`, `email_id`, `mobile_no`, `phone`, `source`, `territory`,
+`industry`, `market_segment`, `lead_owner`, `status`, `no_of_employees`,
+`website`, …) **unioned with whatever this site has made mandatory**, read from
+the Lead meta at call time. Anything outside that union is dropped rather than
+written, and `PROTECTED_FIELDS` — `owner`, `docstatus`, `name`, timestamps,
+`_assign`, `_user_tags`, `naming_series` — is subtracted last, so no schema
+change can make an internal field writable. See the corrections above for why
+this is computed rather than frozen.
 
 Item lines accept `item_code`, `qty`, `rate` only. `item_code` is validated
 against Item before the child row is built.
@@ -297,4 +332,14 @@ Item rows) is the version with data behind it today — at the cost of overlappi
 
 **Removing `funnel` from `crm_dashboard_overview`** is the only breaking change
 to an existing payload. Only `Overview/index.jsx` reads it in this repo; an
-external caller of that endpoint would notice.
+external caller of that endpoint would notice. `test_scope.py` followed the
+funnel to `crm_command_center` and now asserts the old key is gone.
+
+**A latent Tailwind bug exists elsewhere in the app.** The theme defines its
+semantic colours as bare `var(--bad)` rather than channel triples, so Tailwind's
+slash-opacity modifier (`bg-bad/55`) compiles to an invalid colour and renders
+nothing. This bit the funnel's drop-off wedge, which was fixed with an explicit
+`style` opacity. Three pre-existing instances remain and are **not** touched
+here: `sections/WhatsApp/Thread.jsx:89` (`border-gold/30`, `border-bad/40`) and
+`sections/WhatsApp/Dashboard.jsx:33` (`border-bad/40`). Those borders are
+currently invisible.

@@ -1,0 +1,137 @@
+{
+ "app": "upande_crm",
+ "charts": [],
+ "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>WhatsApp</b></span>\", \"col\": 12}}, {\"id\": \"sc0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"WhatsApp Message\", \"col\": 3}}, {\"id\": \"spc\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"cd0\", \"type\": \"card\", \"data\": {\"card_name\": \"Messaging\", \"col\": 4}}, {\"id\": \"cd1\", \"type\": \"card\", \"data\": {\"card_name\": \"Configuration\", \"col\": 4}}]",
+ "creation": "2026-08-19 09:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "messages-square",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "WhatsApp",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Messaging",
+   "link_count": 3,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "WhatsApp Message",
+   "link_count": 0,
+   "link_to": "WhatsApp Message",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "WhatsApp Templates",
+   "link_count": 0,
+   "link_to": "WhatsApp Templates",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "WhatsApp Notification",
+   "link_count": 0,
+   "link_to": "WhatsApp Notification",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Configuration",
+   "link_count": 3,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "WhatsApp Account",
+   "link_count": 0,
+   "link_to": "WhatsApp Account",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "WhatsApp Profiles",
+   "link_count": 0,
+   "link_to": "WhatsApp Profiles",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "WhatsApp Settings",
+   "link_count": 0,
+   "link_to": "WhatsApp Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-08-19 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Upande CRM",
+ "name": "WhatsApp",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "Upande CRM",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "Sales User"
+  },
+  {
+   "role": "CRM Manager"
+  },
+  {
+   "role": "CRM User"
+  }
+ ],
+ "sequence_id": 6.0,
+ "shortcuts": [
+  {
+   "doc_view": "",
+   "label": "WhatsApp Message",
+   "link_to": "WhatsApp Message",
+   "type": "DocType"
+  }
+ ],
+ "title": "WhatsApp",
+ "type": "Workspace"
+}

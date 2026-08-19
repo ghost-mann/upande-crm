@@ -1,0 +1,111 @@
+{
+ "app": "upande_crm",
+ "charts": [],
+ "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Analytics</b></span>\", \"col\": 12}}, {\"id\": \"sc0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sales Analytics\", \"col\": 3}}, {\"id\": \"spc\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"cd0\", \"type\": \"card\", \"data\": {\"card_name\": \"Sales Analytics\", \"col\": 4}}]",
+ "creation": "2026-08-19 09:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "chart-line",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Analytics",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Sales Analytics",
+   "link_count": 4,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Sales Analytics",
+   "link_count": 0,
+   "link_to": "Sales Analytics",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Sales Order",
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Opportunity Summary by Sales Stage",
+   "link_count": 0,
+   "link_to": "Opportunity Summary by Sales Stage",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Opportunity",
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Lead Conversion Time",
+   "link_count": 0,
+   "link_to": "Lead Conversion Time",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Communication",
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "First Response Time for Opportunity",
+   "link_count": 0,
+   "link_to": "First Response Time for Opportunity",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Opportunity",
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-08-19 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Upande CRM",
+ "name": "Analytics",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "Upande CRM",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "Sales User"
+  },
+  {
+   "role": "CRM Manager"
+  },
+  {
+   "role": "CRM User"
+  }
+ ],
+ "sequence_id": 7.0,
+ "shortcuts": [
+  {
+   "doc_view": "",
+   "label": "Sales Analytics",
+   "link_to": "Sales Analytics",
+   "type": "Report"
+  }
+ ],
+ "title": "Analytics",
+ "type": "Workspace"
+}

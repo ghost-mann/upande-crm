@@ -7,10 +7,9 @@ React app loads everything else via the upande_crm.api.crm.* whitelisted methods
 import frappe
 from frappe import _
 
-no_cache = 1
+from upande_crm.api.crm import CRM_ROLES
 
-# Mirrors upande_crm.api.crm.CRM_ROLES — who may see the sales CRM.
-CRM_ROLES = {"System Manager", "Sales Manager", "Sales User", "CRM Manager", "CRM User"}
+no_cache = 1
 
 
 def get_context(context):

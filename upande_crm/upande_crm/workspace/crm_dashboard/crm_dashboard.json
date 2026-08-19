@@ -1,0 +1,48 @@
+{
+ "app": "upande_crm",
+ "charts": [],
+ "content": "[]",
+ "creation": "2026-08-19 09:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "external_link": "/customer-relationship-management",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "layout-dashboard",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "CRM Dashboard",
+ "links": [],
+ "modified": "2026-08-19 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Upande CRM",
+ "name": "CRM Dashboard",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "Upande CRM",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "Sales User"
+  },
+  {
+   "role": "CRM Manager"
+  },
+  {
+   "role": "CRM User"
+  }
+ ],
+ "sequence_id": 99.0,
+ "shortcuts": [],
+ "title": "CRM Dashboard",
+ "type": "URL"
+}

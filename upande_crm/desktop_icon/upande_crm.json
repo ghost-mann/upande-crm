@@ -1,0 +1,36 @@
+{
+ "app": "upande_crm",
+ "creation": "2026-08-19 09:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon_type": "App",
+ "idx": 6,
+ "label": "Upande CRM",
+ "link": "/customer-relationship-management",
+ "link_type": "External",
+ "logo_url": "/assets/upande_crm/images/logo.png",
+ "modified": "2026-08-19 11:30:00.000000",
+ "modified_by": "Administrator",
+ "name": "Upande CRM",
+ "owner": "Administrator",
+ "restrict_removal": 0,
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "Sales User"
+  },
+  {
+   "role": "CRM Manager"
+  },
+  {
+   "role": "CRM User"
+  }
+ ],
+ "standard": 1
+}

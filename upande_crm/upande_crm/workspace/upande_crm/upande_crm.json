@@ -1,0 +1,96 @@
+{
+ "app": "upande_crm",
+ "charts": [],
+ "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Upande CRM</b></span>\", \"col\": 12}}, {\"id\": \"sc0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"CRM Dashboard\", \"col\": 3}}, {\"id\": \"sc1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Leads\", \"col\": 3}}, {\"id\": \"sc2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Opportunities\", \"col\": 3}}, {\"id\": \"sc3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Customers\", \"col\": 3}}, {\"id\": \"sc4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Quotations\", \"col\": 3}}, {\"id\": \"sc5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Calls\", \"col\": 3}}, {\"id\": \"sc6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Tasks\", \"col\": 3}}, {\"id\": \"sc7\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Campaigns\", \"col\": 3}}, {\"id\": \"spc\", \"type\": \"spacer\", \"data\": {\"col\": 12}}]",
+ "creation": "2026-08-19 09:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "handshake",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Upande CRM",
+ "links": [],
+ "modified": "2026-08-19 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Upande CRM",
+ "name": "Upande CRM",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "Sales User"
+  },
+  {
+   "role": "CRM Manager"
+  },
+  {
+   "role": "CRM User"
+  }
+ ],
+ "sequence_id": 1.0,
+ "shortcuts": [
+  {
+   "doc_view": "",
+   "label": "CRM Dashboard",
+   "type": "URL",
+   "url": "/customer-relationship-management"
+  },
+  {
+   "doc_view": "",
+   "label": "Leads",
+   "link_to": "Lead",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Opportunities",
+   "link_to": "Opportunity",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Customers",
+   "link_to": "Customer",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Quotations",
+   "link_to": "Quotation",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Calls",
+   "link_to": "Call Log",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Tasks",
+   "link_to": "ToDo",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Campaigns",
+   "link_to": "Campaign",
+   "type": "DocType"
+  }
+ ],
+ "title": "Upande CRM",
+ "type": "Workspace"
+}

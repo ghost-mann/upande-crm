@@ -10,10 +10,14 @@ app_license = "mit"
 # Vite assets live under upande_crm/public/frontend/ and are served by Frappe
 # at /assets/upande_crm/frontend/ (matching the frontend build `base`).
 
-# Desk app icon. Routes straight to the React dashboard rather than the desk
-# workspace: the workspace tree is reachable from the desk sidebar anyway, and
-# the dashboard is what people open the app for. `has_permission` keeps the tile
-# off the launcher for anyone the dashboard would refuse.
+# The /apps launcher tile, which routes straight to the React dashboard —
+# distinct from the desk grid tile in upande_crm/desktop_icon/, which opens the
+# Workspace Sidebar. Two surfaces, two entries: the desk one has to be
+# `link_type: Workspace Sidebar` because sidebar_header.js never draws an
+# External icon, so it cannot double as the route to the SPA. The dashboard is
+# still one click from the desk, pinned at the bottom of that sidebar.
+# `has_permission` keeps this tile off the launcher for anyone the dashboard
+# would refuse.
 add_to_apps_screen = [
 	{
 		"name": "upande_crm",

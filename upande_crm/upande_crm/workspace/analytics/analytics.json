@@ -10,7 +10,7 @@
  "hide_custom": 0,
  "icon": "chart-line",
  "idx": 0,
- "is_hidden": 0,
+ "is_hidden": 1,
  "label": "Analytics",
  "links": [
   {
@@ -70,7 +70,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-08-19 09:00:00.000000",
+ "modified": "2026-08-19 13:45:00.000000",
  "modified_by": "Administrator",
  "module": "Upande CRM",
  "name": "Analytics",

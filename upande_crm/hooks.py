@@ -28,8 +28,8 @@ add_to_apps_screen = [
 	}
 ]
 
-# CRM Manager / CRM User are named in upande_crm.api.crm.CRM_ROLES but shipped
-# by nobody, so this app creates them. `before_migrate` (not `after_migrate`)
-# because the workspace fixtures that gate on them are imported by sync_all().
-after_install = "upande_crm.setup.ensure_crm_roles"
-before_migrate = "upande_crm.setup.ensure_crm_roles"
+# Creates the two CRM roles the workspaces gate on, and the Custom HTML Block
+# the parent workspace renders. `before_migrate` rather than `after_migrate`,
+# because sync_all() imports the workspace fixtures that reference both.
+after_install = "upande_crm.setup.setup"
+before_migrate = "upande_crm.setup.setup"

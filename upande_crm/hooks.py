@@ -33,3 +33,14 @@ add_to_apps_screen = [
 # because sync_all() imports the workspace fixtures that reference both.
 after_install = "upande_crm.setup.setup"
 before_migrate = "upande_crm.setup.setup"
+
+# The one document hook in this app. `Prospect.make_opportunity` maps four fields
+# and Prospect owns no contact field, so an opportunity raised from a prospect used
+# to land with nobody to call — 0 of 8 on this site carried a contact. Hooked rather
+# than fixed in `api/leads.py` so the desk's own convert button gets it too. See
+# upande_crm/handover.py for why this one is allowed to swallow its exceptions.
+doc_events = {
+	"Opportunity": {
+		"before_insert": "upande_crm.handover.before_insert",
+	},
+}

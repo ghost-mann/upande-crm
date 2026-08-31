@@ -9,10 +9,31 @@ neither role is shipped by Frappe or ERPNext, so on most sites they simply did
 not exist — the role set silently degraded to the three ERPNext sales roles.
 The desk workspaces are gated on the same set, so the roles are created here.
 
-They are tags only: no DocPerm rows are attached, and holding one grants no
-access on its own. Wired to both `after_install` and `before_migrate` so a
-fresh install and an upgrade converge on the same state, and so the roles exist
-before `sync_all()` imports the workspace fixtures that reference them.
+Wired to both `after_install` and `before_migrate` so a fresh install and an
+upgrade converge on the same state, and so the roles exist before `sync_all()`
+imports the workspace fixtures that reference them.
+
+## The two roles carry real permissions
+
+They used to be tags with no DocPerm rows, which made them a trap: holding one
+passed `upande_crm.api.crm._guard()` and opened the dashboard, and then every
+write was refused and every button hidden, because permission to *create* the
+target is checked per hop in `api/advance.py`. A role that gets you in and lets
+you do nothing is worse than no role.
+
+`CRM_ROLE_PERMS` below models CRM User on Sales User and CRM Manager on Sales
+Manager, with the two gaps in those roles closed, because the dashboard needs
+every hop to work:
+
+  * Sales User cannot create a **Prospect** -- so "To prospect" is dead for them.
+  * Sales Manager cannot create a **Customer** -- so every customer hop is dead.
+
+`Contact` and `Address` are in the table because they are not incidental: when a
+lead becomes a customer, `api/carry_across.py` inserts both under the user's own
+permissions, and without them the customer arrives with no email address.
+
+Only ever grants. Nothing here revokes a permission a site has set, so a farm
+that has tightened these roles keeps its decision.
 """
 
 import frappe
@@ -21,6 +42,51 @@ from upande_crm.api.crm import CRM_ROLES
 
 # The subset of CRM_ROLES this app owns; the rest come from Frappe/ERPNext.
 OWNED_ROLES = ("CRM Manager", "CRM User")
+
+# What each owned role may do, per doctype and permission level.
+#
+# CRM User mirrors Sales User; CRM Manager mirrors Sales Manager, whose only real
+# advantage on this site is `export` plus write on Quotation's level-1 fields.
+# Neither gets `delete`, matching the sales roles.
+#
+# Level 1 rows are included where the sales roles have them: without them the
+# permlevel-1 fields on Lead, Quotation and Customer are invisible, and a form
+# that hides half its fields reads as broken rather than as restricted.
+_USER = "read,write,create,report,print,email,share"
+_MANAGER = _USER + ",export"
+
+CRM_ROLE_PERMS = {
+	"CRM User": {
+		("Lead", 0): _USER,
+		("Lead", 1): "read,report",
+		("Prospect", 0): _USER,
+		("Opportunity", 0): _USER,
+		# Submit/cancel/amend match Sales User. The dashboard never submits — it
+		# raises drafts — but a user holding only this role has to be able to
+		# finish the quote in the desk.
+		("Quotation", 0): _USER + ",submit,cancel,amend",
+		("Quotation", 1): "read,report",
+		("Customer", 0): _USER,
+		("Customer", 1): "read",
+		("Contact", 0): _USER,
+		("Address", 0): _USER,
+		# Read-only: the variety picker searches items, it never creates one.
+		("Item", 0): "read",
+	},
+	"CRM Manager": {
+		("Lead", 0): _MANAGER,
+		("Lead", 1): "read,report",
+		("Prospect", 0): _MANAGER,
+		("Opportunity", 0): _MANAGER,
+		("Quotation", 0): _MANAGER + ",submit,cancel,amend",
+		("Quotation", 1): "read,write,report",
+		("Customer", 0): _MANAGER,
+		("Customer", 1): "read",
+		("Contact", 0): _MANAGER,
+		("Address", 0): _MANAGER,
+		("Item", 0): "read",
+	},
+}
 
 
 def ensure_crm_roles():
@@ -32,6 +98,40 @@ def ensure_crm_roles():
 			{"doctype": "Role", "role_name": role, "desk_access": 1}
 		).insert(ignore_permissions=True)
 	frappe.db.commit()
+
+
+def ensure_crm_role_permissions():
+	"""Grant `CRM_ROLE_PERMS`, additively.
+
+	`add_permission` copies a doctype's standard DocPerms into Custom DocPerm
+	before adding to it, so existing roles keep exactly what they had. A doctype
+	this site does not have is skipped rather than raising: `Prospect` and
+	`Quotation` come from ERPNext, and this app has to install on a site without
+	it.
+	"""
+	from frappe.permissions import add_permission, update_permission_property
+
+	granted = 0
+	for role, table in CRM_ROLE_PERMS.items():
+		if not frappe.db.exists("Role", role):
+			continue
+		for (doctype, permlevel), flags in table.items():
+			if not frappe.db.exists("DocType", doctype):
+				continue
+			try:
+				add_permission(doctype, role, permlevel)
+				for flag in flags.split(","):
+					update_permission_property(doctype, role, permlevel, flag, 1)
+				granted += 1
+			except Exception:
+				# One unavailable doctype must not stop the rest of the grant, and
+				# must not fail a migrate.
+				frappe.log_error(
+					"Upande CRM role permissions",
+					f"Could not grant {role} on {doctype} (level {permlevel})",
+				)
+	frappe.db.commit()
+	return granted
 
 
 # ---------------------------------------------------------------- nav block
@@ -105,5 +205,6 @@ def hide_workspaces():
 
 def setup():
     ensure_crm_roles()
+    ensure_crm_role_permissions()
     ensure_nav_block()
     hide_workspaces()

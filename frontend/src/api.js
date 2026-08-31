@@ -126,17 +126,43 @@ export const getDemand = (args) => api('upande_crm.api.demand.crm_demand', args)
 // see api/leads.py.
 const LD = 'upande_crm.api.leads.';
 export const leadSaveApi        = (payload) => api(LD + 'crm_lead_save', { lead: JSON.stringify(payload) });
-export const leadToProspectApi  = (lead, o = {}) => api(LD + 'crm_lead_to_prospect', {
-  lead, prospect: o.prospect || '', company_name: o.company_name || '',
-});
-export const leadToOppApi       = (lead, payload) => api(LD + 'crm_lead_to_opportunity', {
-  lead, opportunity: JSON.stringify(payload || {}),
-});
-export const prospectToOppApi   = (prospect, payload) => api(LD + 'crm_prospect_to_opportunity', {
-  prospect, opportunity: JSON.stringify(payload || {}),
-});
 export const leadOptionsApi     = () => api(LD + 'crm_lead_form_options', {});
 export const flowerSearchApi    = (query = '', limit = 20) => api(LD + 'crm_flower_search', { query, limit });
+
+// ---------------------------------------------------------------- advance (writes)
+// Every hop between pipeline documents. One endpoint per route, all of them
+// delegating to ERPNext's own mappers — see api/advance.py. They throw, so the
+// dialog keeps what was typed and shows why.
+const AD = 'upande_crm.api.advance.';
+export const leadToProspectApi  = (lead, o = {}) => api(AD + 'crm_lead_to_prospect', {
+  lead, prospect: o.prospect || '', company_name: o.company_name || '',
+});
+export const leadToOppApi       = (lead, payload) => api(AD + 'crm_lead_to_opportunity', {
+  lead, opportunity: JSON.stringify(payload || {}),
+});
+export const prospectToOppApi   = (prospect, payload) => api(AD + 'crm_prospect_to_opportunity', {
+  prospect, opportunity: JSON.stringify(payload || {}),
+});
+export const leadToQuoteApi     = (lead, payload, withOpp = false) => api(AD + 'crm_lead_to_quotation', {
+  lead, quotation: JSON.stringify(payload || {}), with_opportunity: withOpp ? 1 : 0,
+});
+export const oppToQuoteApi      = (opportunity, payload) => api(AD + 'crm_opportunity_to_quotation', {
+  opportunity, quotation: JSON.stringify(payload || {}),
+});
+export const leadToCustomerApi  = (lead, payload) => api(AD + 'crm_lead_to_customer', {
+  lead, customer: JSON.stringify(payload || {}),
+});
+export const prospectToCustomerApi = (prospect, payload) => api(AD + 'crm_prospect_to_customer', {
+  prospect, customer: JSON.stringify(payload || {}),
+});
+export const oppToCustomerApi   = (opportunity, payload) => api(AD + 'crm_opportunity_to_customer', {
+  opportunity, customer: JSON.stringify(payload || {}),
+});
+export const quoteToCustomerApi = (quotation) => api(AD + 'crm_quotation_to_customer', { quotation });
+// Reads, so they degrade rather than block the dialog they sit in.
+export const advancePreviewApi  = (sourceDoctype, source, targetDoctype = 'Customer') =>
+  api(AD + 'crm_advance_preview', { source_doctype: sourceDoctype, source, target_doctype: targetDoctype });
+export const advanceRoutesApi   = () => api(AD + 'crm_advance_routes', {});
 
 // section key → loader, used by loadAll()
 export const SECTION_LOADERS = {

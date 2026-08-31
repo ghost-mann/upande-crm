@@ -1,4 +1,4 @@
-"""Whitelisted CRM *write* endpoints for capturing a lead and moving it along.
+"""Whitelisted CRM *write* endpoints for capturing a lead.
 
 Same contract as `api/activity.py`, and the inverse of `api/crm.py`'s: the
 dashboards degrade to an empty chart when something is missing, but **every
@@ -6,13 +6,13 @@ failure here must surface.** A lead the user believes they saved and which was
 silently dropped is the worst outcome this module can produce. Never add a bare
 `except` around a write.
 
-Design rule: delegate, don't reimplement.
-  * Lead -> Opportunity   -> erpnext.crm.doctype.lead.lead.make_opportunity
-  * Prospect -> Opportunity -> erpnext.crm.doctype.prospect.prospect.make_opportunity
-  * Lead -> existing Prospect -> erpnext.crm.doctype.lead.lead.add_lead_to_prospect
-  * Lead -> new Prospect  -> the Lead controller's own `create_prospect`
-We own the role gate, the field allowlist, the item lines, and the UI. The field
-mapping between doctypes is ERPNext's, and stays ERPNext's.
+## Capture here, movement in `api/advance.py`
+
+This module used to own conversion too, and grew into two jobs. It now keeps one:
+creating and editing a Lead, and serving the options the capture dialogs need.
+Every hop between doctypes — lead to opportunity, quotation, prospect or customer,
+and everything downstream of those — lives in `api/advance.py`, which imports
+`_payload`, `_pick` and `_require` from here.
 
 ## Permissions are checked here, unlike everywhere else in this app
 
@@ -21,13 +21,13 @@ sees the whole pipeline. Writes do not inherit that. Holding a CRM role is enoug
 to *see* every lead on the Overview; it is not enough to create one. Every
 endpoint below asks `frappe.has_permission` and lets the refusal through.
 
-## Why the item lines are here at all
+## Why the item lines exist at all
 
 `api/demand.py` reads what clients are asking for from Opportunity Item and
 Quotation Item lines. There were six such lines on the whole site, because there
-was no way to enter one without opening the desk. Adding varieties at the moment
-of conversion — where the salesperson already knows what was asked for — is what
-gives that card anything to show.
+was no way to enter one without opening the desk. `crm_flower_search` below is the
+picker that fixed that; the lines themselves are validated in `api/advance.py`,
+where the documents that carry them are built.
 """
 
 import json
@@ -35,7 +35,6 @@ import re
 
 import frappe
 from frappe import _
-from frappe.utils import flt, getdate
 
 from upande_crm.api.crm import _guard
 
@@ -100,26 +99,6 @@ LEAD_FIELDS = {
     "type",
 }
 
-# Opportunity header fields a conversion may set. `party_name`,
-# `opportunity_from` and `company` come from the mapper and are not overridable.
-OPPORTUNITY_FIELDS = {
-    "opportunity_type",
-    "sales_stage",
-    "expected_closing",
-    "probability",
-    "opportunity_amount",
-    "territory",
-    "contact_email",
-    "contact_mobile",
-    "opportunity_owner",
-}
-
-# What an item line may carry. Rate is optional; qty is not.
-ITEM_FIELDS = ("item_code", "qty", "rate", "uom", "description")
-
-MAX_ITEMS = 50
-
-
 def _payload(raw, what="payload"):
     if isinstance(raw, dict):
         return raw
@@ -178,46 +157,6 @@ def _require(doctype, ptype, name=None):
         )
 
 
-def _items(payload):
-    """Validated item lines. Returns [] when none were supplied.
-
-    An unknown `item_code` is rejected rather than dropped: silently discarding a
-    variety the salesperson typed would make the demand card lie about what was
-    asked for, which is the one thing it exists to report.
-    """
-    raw = payload.get("items") or []
-    if isinstance(raw, str):
-        try:
-            raw = json.loads(raw)
-        except (TypeError, ValueError):
-            frappe.throw(_("Malformed item lines"))
-    if not isinstance(raw, list):
-        frappe.throw(_("Malformed item lines"))
-    if len(raw) > MAX_ITEMS:
-        frappe.throw(_("At most {0} item lines").format(MAX_ITEMS))
-
-    out = []
-    for i, row in enumerate(raw, start=1):
-        if not isinstance(row, dict):
-            frappe.throw(_("Malformed item line {0}").format(i))
-        code = (row.get("item_code") or "").strip()
-        if not code:
-            frappe.throw(_("Item line {0} has no variety").format(i))
-        if not frappe.db.exists("Item", code):
-            frappe.throw(_("Item line {0}: {1} is not an item").format(i, code))
-        qty = flt(row.get("qty"))
-        if qty <= 0:
-            frappe.throw(_("Item line {0}: quantity must be more than zero").format(i))
-        line = {"item_code": code, "qty": qty}
-        if row.get("rate") not in (None, ""):
-            line["rate"] = flt(row.get("rate"))
-        for extra in ("uom", "description"):
-            if row.get(extra):
-                line[extra] = row[extra]
-        out.append(line)
-    return out
-
-
 # ---------------------------------------------------------------- lead
 @frappe.whitelist()
 def crm_lead_save(lead):
@@ -248,100 +187,6 @@ def crm_lead_save(lead):
         "company_name": doc.company_name,
         "status": doc.status,
     }
-
-
-# ---------------------------------------------------------------- lead -> prospect
-@frappe.whitelist()
-def crm_lead_to_prospect(lead, prospect=None, company_name=None):
-    """Attach a Lead to a Prospect, creating the Prospect when none is named."""
-    _guard()
-    lead = (lead or "").strip()
-    if not lead or not frappe.db.exists("Lead", lead):
-        frappe.throw(_("Lead not found"))
-    _require("Lead", "read", lead)
-
-    prospect = (prospect or "").strip()
-    if prospect:
-        if not frappe.db.exists("Prospect", prospect):
-            frappe.throw(_("Prospect not found"))
-        _require("Prospect", "write", prospect)
-        if frappe.db.exists("Prospect Lead", {"parent": prospect, "lead": lead}):
-            frappe.throw(_("That lead is already on this prospect"))
-        from erpnext.crm.doctype.lead.lead import add_lead_to_prospect
-
-        add_lead_to_prospect(lead, prospect)
-        return {"prospect": prospect, "created": False}
-
-    _require("Prospect", "create")
-    doc = frappe.get_doc("Lead", lead)
-    title = (company_name or doc.company_name or doc.lead_name or "").strip()
-    if not title:
-        frappe.throw(_("A prospect needs a company name"))
-    # Prospect is named by `company_name`, so a clash is a real collision the user
-    # has to resolve — offer the existing record rather than a naming error.
-    if frappe.db.exists("Prospect", title):
-        frappe.throw(_("Prospect {0} already exists — add the lead to it instead").format(title))
-
-    # The controller's own method: it carries employees, industry, territory,
-    # owner and notes across, and appends the lead to the child table.
-    doc.create_prospect(title)
-    return {"prospect": title, "created": True}
-
-
-# ---------------------------------------------------------------- -> opportunity
-def _build_opportunity(doc, payload):
-    """Apply the header fields and item lines a conversion supplied, then insert."""
-    header = _pick(payload, OPPORTUNITY_FIELDS)
-    if header.get("expected_closing"):
-        try:
-            header["expected_closing"] = str(getdate(header["expected_closing"]))
-        except Exception:
-            frappe.throw(_("Expected closing is not a date"))
-    doc.update(header)
-
-    for line in _items(payload):
-        doc.append("items", line)
-
-    doc.insert()
-    return {
-        "name": doc.name,
-        "party_name": doc.party_name,
-        "opportunity_from": doc.opportunity_from,
-        "items": len(doc.get("items") or []),
-    }
-
-
-@frappe.whitelist()
-def crm_lead_to_opportunity(lead, opportunity=None):
-    """Convert a Lead into an Opportunity, optionally with the flowers asked for."""
-    _guard()
-    lead = (lead or "").strip()
-    if not lead or not frappe.db.exists("Lead", lead):
-        frappe.throw(_("Lead not found"))
-    _require("Lead", "read", lead)
-    _require("Opportunity", "create")
-
-    from erpnext.crm.doctype.lead.lead import make_opportunity
-
-    # If this throws, nothing has been written and the Lead is untouched — the
-    # mapper builds an in-memory document and `_build_opportunity` inserts it as
-    # the last step.
-    return _build_opportunity(make_opportunity(lead), _payload(opportunity, "opportunity"))
-
-
-@frappe.whitelist()
-def crm_prospect_to_opportunity(prospect, opportunity=None):
-    """Convert a Prospect into an Opportunity, optionally with item lines."""
-    _guard()
-    prospect = (prospect or "").strip()
-    if not prospect or not frappe.db.exists("Prospect", prospect):
-        frappe.throw(_("Prospect not found"))
-    _require("Prospect", "read", prospect)
-    _require("Opportunity", "create")
-
-    from erpnext.crm.doctype.prospect.prospect import make_opportunity
-
-    return _build_opportunity(make_opportunity(prospect), _payload(opportunity, "opportunity"))
 
 
 # ---------------------------------------------------------------- form options
@@ -384,6 +229,10 @@ def crm_lead_form_options():
         "sales_stages": _link_options("Sales Stage"),
         "opportunity_types": _link_options("Opportunity Type"),
         "lead_statuses": _select_options("Lead", "status"),
+        # For the quotation and customer hops in `api/advance.py`.
+        "order_types": _select_options("Quotation", "order_type"),
+        "customer_groups": _link_options("Customer Group"),
+        "customer_types": _select_options("Customer", "customer_type"),
         "users": users,
         # What this site insists on. The dialog renders one input per entry, so a
         # customised Lead is fillable from here rather than only from the desk.
@@ -391,6 +240,8 @@ def crm_lead_form_options():
         "can_create_lead": bool(frappe.has_permission("Lead", "create")),
         "can_create_prospect": bool(frappe.has_permission("Prospect", "create")),
         "can_create_opportunity": bool(frappe.has_permission("Opportunity", "create")),
+        "can_create_quotation": bool(frappe.has_permission("Quotation", "create")),
+        "can_create_customer": bool(frappe.has_permission("Customer", "create")),
     }
 
 

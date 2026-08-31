@@ -23,7 +23,7 @@ export default function LeadDialog() {
   const close = useStore((s) => s.closeLeadDialog);
   const saveLead = useStore((s) => s.saveLead);
   const options = useStore((s) => s.leadOptions);
-  const openConvert = useStore((s) => s.openConvertDialog);
+  const openAdvance = useStore((s) => s.openAdvanceDialog);
 
   const [form, setForm] = useState({});
   const [err, setErr] = useState('');
@@ -43,6 +43,14 @@ export default function LeadDialog() {
   if (!ctx) return null;
 
   const required = options?.required_fields || [];
+
+  // Hand the freshly saved lead to the Advance dialog, whichever hop was picked.
+  const advance = (mode) => openAdvance({
+    doctype: 'Lead',
+    name: saved.name,
+    label: saved.company_name || saved.lead_name,
+    mode,
+  });
   const requiredNames = new Set(required.map((f) => f.fieldname));
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -91,18 +99,22 @@ export default function LeadDialog() {
               <b>{saved.company_name || saved.lead_name}</b> is saved as {saved.name}.
             </div>
             <div className="text-[12.5px] text-ink-mute leading-relaxed">
-              Move it on now while you still have the detail. Converting to an
-              opportunity is also where you record which flowers were asked for —
+              Move it on now while you still have the detail. An opportunity or a
+              quotation is also where you record which flowers were asked for —
               that is what the demand card reads.
             </div>
             <div className="flex flex-wrap gap-2.5">
               <Button size="sm"
                 className="rounded-full bg-gold text-[var(--on-accent)] hover:bg-gold-2 hover:text-white shadow-none px-5"
-                onClick={() => { close(); openConvert({ lead: saved.name, label: saved.company_name || saved.lead_name, mode: 'opportunity' }); }}>
+                onClick={() => { close(); advance('Opportunity'); }}>
                 <Icon name="trending_up" className="text-[16px]" />Convert to opportunity
               </Button>
               <Button size="sm" variant="outline" className="rounded-full"
-                onClick={() => { close(); openConvert({ lead: saved.name, label: saved.company_name || saved.lead_name, mode: 'prospect' }); }}>
+                onClick={() => { close(); advance('Quotation'); }}>
+                <Icon name="request_quote" className="text-[16px]" />Quote it
+              </Button>
+              <Button size="sm" variant="outline" className="rounded-full"
+                onClick={() => { close(); advance('Prospect'); }}>
                 <Icon name="travel_explore" className="text-[16px]" />Make it a prospect
               </Button>
               <button onClick={close} className="text-[13px] text-ink-3 hover:text-ink px-2">

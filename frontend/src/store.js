@@ -11,6 +11,8 @@ import {
   ANALYTICS_LOADERS, moverDetailApi,
   campaignSaveApi, campaignEnrolApi, campaignCancelApi,
   leadSaveApi, leadToProspectApi, leadToOppApi, prospectToOppApi, leadOptionsApi,
+  leadToQuoteApi, oppToQuoteApi, leadToCustomerApi, prospectToCustomerApi,
+  oppToCustomerApi, quoteToCustomerApi, advancePreviewApi, advanceRoutesApi,
 } from './api';
 
 const SETTINGS_KEY = 'crm_settings';
@@ -189,11 +191,14 @@ export const useStore = create((set, get) => ({
   reportCatalogue: null,
   // call dialog — null = closed, object = open ({} means log-a-new-call mode)
   callDialog: null,
-  // lead capture — null = closed. `leadDialog` creates; `convertDialog` moves an
-  // existing lead or prospect on. Kept separate so converting does not have to
-  // re-render a create form the user already finished with.
+  // lead capture — null = closed. `leadDialog` creates; `advanceDialog` moves an
+  // existing record to the next document. Kept separate so advancing does not
+  // have to re-render a create form the user already finished with.
   leadDialog: null,
-  convertDialog: null,
+  advanceDialog: null,
+  // Which hops this user may take, per source doctype — the dialog's mode strip.
+  // Fetched once, like `leadOptions`, because permissions do not change mid-session.
+  advanceRoutes: null,
   // Form vocabulary (sources, territories, and whatever fields THIS site has made
   // mandatory on Lead). Fetched once on first open and cached — it does not change
   // between dialogs, and refetching made opening the convert step feel slow.
@@ -380,9 +385,39 @@ export const useStore = create((set, get) => ({
   // ---------------------------------------------------------------- leads
   openLeadDialog(lead = {}) { set({ leadDialog: lead }); get().loadLeadOptions(); },
   closeLeadDialog() { set({ leadDialog: null }); },
-  // `ctx` is {lead} or {prospect}, plus a label for the dialog headline.
-  openConvertDialog(ctx = {}) { set({ convertDialog: ctx }); get().loadLeadOptions(); },
-  closeConvertDialog() { set({ convertDialog: null }); },
+  // `ctx` is {doctype, name, label, mode}. The older {lead} / {prospect} shape is
+  // still accepted so existing callers keep working.
+  openAdvanceDialog(ctx = {}) {
+    const norm = ctx.lead ? { doctype: 'Lead', name: ctx.lead, ...ctx }
+      : ctx.prospect ? { doctype: 'Prospect', name: ctx.prospect, ...ctx }
+        : { doctype: 'Lead', name: '', ...ctx };
+    set({ advanceDialog: norm });
+    get().loadLeadOptions();
+    get().loadAdvanceRoutes();
+  },
+  closeAdvanceDialog() { set({ advanceDialog: null }); },
+
+  async loadAdvanceRoutes() {
+    if (get().advanceRoutes) return get().advanceRoutes;
+    try {
+      const r = await advanceRoutesApi();
+      set({ advanceRoutes: r });
+      return r;
+    } catch {
+      // A read: an empty map means the dialog offers nothing rather than failing
+      // to open. The write it guards would refuse anyway.
+      set({ advanceRoutes: {} });
+      return {};
+    }
+  },
+
+  async advancePreview(doctype, name) {
+    try {
+      return await advancePreviewApi(doctype, name, 'Customer');
+    } catch {
+      return {};
+    }
+  },
 
   async loadLeadOptions() {
     if (get().leadOptions) return get().leadOptions;
@@ -426,12 +461,50 @@ export const useStore = create((set, get) => ({
     return r;
   },
 
-  // A lead write moves the funnel, the KPI row, the conversion card and — when
-  // item lines were entered — the demand card. Reloading the four sections that
-  // read them beats a full loadAll, which would refetch WhatsApp and campaigns
+  async leadToQuotation(lead, payload, withOpportunity) {
+    const r = await leadToQuoteApi(lead, payload, withOpportunity);
+    await get().afterPipelineWrite();
+    return r;
+  },
+
+  async opportunityToQuotation(opportunity, payload) {
+    const r = await oppToQuoteApi(opportunity, payload);
+    await get().afterPipelineWrite();
+    return r;
+  },
+
+  async leadToCustomer(lead, payload) {
+    const r = await leadToCustomerApi(lead, payload);
+    await get().afterPipelineWrite();
+    return r;
+  },
+
+  async prospectToCustomer(prospect, payload) {
+    const r = await prospectToCustomerApi(prospect, payload);
+    await get().afterPipelineWrite();
+    return r;
+  },
+
+  async opportunityToCustomer(opportunity, payload) {
+    const r = await oppToCustomerApi(opportunity, payload);
+    await get().afterPipelineWrite();
+    return r;
+  },
+
+  async quotationToCustomer(quotation) {
+    const r = await quoteToCustomerApi(quotation);
+    await get().afterPipelineWrite();
+    return r;
+  },
+
+  // A pipeline write moves the funnel, the KPI row, the conversion card and —
+  // when item lines were entered — the demand card. Now that every hop is
+  // available, opportunities, prospects and customers move too. Still a targeted
+  // set rather than a full loadAll, which would refetch WhatsApp and campaigns
   // for a change that cannot touch them.
   async afterPipelineWrite() {
-    await Promise.all(['command', 'track', 'demand', 'leads', 'overview']
+    await Promise.all(['command', 'track', 'demand', 'leads', 'overview',
+      'opps', 'prosp', 'cust']
       .map((k) => get().reloadSection(k)));
   },
 

@@ -30,7 +30,7 @@ const CallDialog = lazy(() => import('./components/CallDialog'));
 const CampaignDialog = lazy(() => import('./components/CampaignDialog'));
 const EnrolDialog = lazy(() => import('./components/EnrolDialog'));
 const LeadDialog = lazy(() => import('./components/LeadDialog'));
-const ConvertDialog = lazy(() => import('./components/ConvertDialog'));
+const AdvanceDialog = lazy(() => import('./components/AdvanceDialog'));
 
 const SECTIONS = {
   overview: Overview, mail: Mail, wa: WhatsApp, leads: Leads, opps: Opportunities,
@@ -103,7 +103,7 @@ export default function App() {
         <CampaignDialog />
         <EnrolDialog />
         <LeadDialog />
-        <ConvertDialog />
+        <AdvanceDialog />
       </Suspense>
     </div>
   );

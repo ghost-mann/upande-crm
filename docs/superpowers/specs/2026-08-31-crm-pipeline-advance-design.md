@@ -88,7 +88,7 @@ precondition, and whether the mapper inserts the document itself.
 | Prospect → Customer | `prospect.make_customer` | precondition: no customer yet |
 | Opportunity → Quotation | `opportunity.make_quotation` | header |
 | Opportunity → Customer | `opportunity.make_customer` | precondition: no customer yet |
-| Quotation → Customer | `quotation._make_customer` | resolver: inserts itself |
+| Quotation → Customer | `advance._resolve_quotation_customer` | resolver: re-enters `_advance` |
 
 The mapper is resolved **from this table only**, never from anything the client
 sends. The dispatcher is shared; the endpoints are not — each hop is a three-line
@@ -238,3 +238,63 @@ terminal.
   be fixed by cancel-and-amend.
 * **No backfill of the 9 existing contactless customers.**
 * **No new custom fields on Customer** for the homeless lead fields.
+
+
+## What the build changed
+
+Four things the design did not anticipate, each found by running it.
+
+**The quotation hop could not use ERPNext's resolver.** `quotation._make_customer`
+inserts the Customer itself, which skips the carry-across — and measured, that
+fails outright: this site makes `default_currency` and `default_price_list`
+mandatory on Customer, and nothing else fills them. The hop now resolves the
+party and re-enters `_advance` through the Lead or Prospect route, so a
+quotation-raised customer gets exactly the same treatment as any other.
+
+**Mandatory Customer fields needed a fallback.** A Lead carries answers for both
+required fields; a Prospect carries neither, so the prospect and opportunity
+routes failed on ERPNext's "Could not auto create Customer" every time.
+`carry_across.fill_required` fills any still-empty mandatory field from the
+site's own settings — `Selling Settings.selling_price_list`, the company's
+default currency — and **never** from an arbitrary row of the link target. What
+it cannot answer is left empty, so the insert raises ERPNext's own message
+naming the field rather than this module inventing a value nobody chose.
+
+**Contacts and addresses had to be reused, not created.** Two things already
+build them on this site: ERPNext's `Lead.after_insert` calls `link_to_contact()`,
+and a site Server Script, "Shipping and Billing Address Creation", makes a
+billing and a shipping Address. Creating fresh ones gave every converted customer
+a duplicate. `ensure_contact` and `ensure_address` now link what exists, fill
+only its blank fields, and create only what is missing.
+
+**A numeric zero is not data.** The live walk wrote "Annual revenue: 0.0" into a
+customer's details, because `annual_revenue` is present on every lead here and
+zero on nearly all of them — the same trap `api/pipeline.py` documents for
+`opportunity_amount`. `notes_block` now skips numeric zeros.
+
+## Verified
+
+57 tests across `test_leads`, `test_advance` and `test_carry_across`, and one
+live walk on `kaitet.local`:
+
+    Lead CRM-LEAD-2026-00278 (Bloomgate Exports Ltd)
+      -> Opportunity CRM-OPP-2026-00048        1 variety line
+      -> Quotation   SAL-QTN-2026-00025        to Lead, opportunity linked,
+                                               draft, KES 184,800.00
+      -> Customer    Bloomgate Exports Ltd     contact Amina Wanjiru linked,
+                                               email and mobile fetched through it,
+                                               currency USD, price list USD Price List
+
+    Lead CRM-LEAD-2026-00279 (Rift Valley Blooms Ltd)
+      -> Quotation   SAL-QTN-2026-00026        direct, no customer created,
+                                               lead status still "Lead"
+
+The second walk is the thing that was asked for: a quotation raised against a
+lead that is not a customer, with no customer created as a side effect.
+
+One pre-existing site issue surfaced and was **not** fixed, because it is outside
+this work: the Server Script "Shipping and Billing Address Creation" inserts an
+Address whenever any of street, city or country is set, so a lead with a city but
+no street line fails on a mandatory `address_line1` — and its own error handler
+then raises `AttributeError: module has no attribute 'get_traceback'`, hiding the
+cause. The test fixtures avoid tripping it rather than working around it.

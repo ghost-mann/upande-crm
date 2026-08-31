@@ -1,4 +1,5 @@
 import { useStore } from '../store';
+import CaptureBar, { BARS } from '../components/CaptureBar';
 
 import { fmt, fmtDate, fmtMoney } from '@shared/utils';
 import { KpiRow } from '../components/Kpi';
@@ -51,6 +52,7 @@ export default function Customers() {
   const k = C.kpis;
   return (
     <>
+      <CaptureBar {...BARS.cust} />
       <KpiRow items={[
         { lbl: 'Total', val: fmt(k.total) }, { lbl: 'Active', val: fmt(k.active) }, { lbl: 'Disabled', val: fmt(k.disabled) },
         { lbl: 'Companies', val: fmt(k.companies) }, { lbl: 'Individuals', val: fmt(k.individuals) }, { lbl: 'New 30d', val: fmt(k.new_30d) },

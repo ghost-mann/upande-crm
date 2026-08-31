@@ -1,4 +1,5 @@
 import { useStore } from '../store';
+import CaptureBar, { BARS } from '../components/CaptureBar';
 import { fmt, fmtDate } from '@shared/utils';
 import { KpiRow } from '../components/Kpi';
 import ChartCard from '../components/ChartCard';
@@ -40,6 +41,7 @@ export default function Opportunities() {
   const k = O.kpis;
   return (
     <>
+      <CaptureBar {...BARS.opps} />
       <KpiRow items={[
         { lbl: 'Total', val: fmt(k.total) }, { lbl: 'Open', val: fmt(k.open) }, { lbl: 'Converted', val: fmt(k.converted) },
         { lbl: 'Lost', val: fmt(k.lost) }, { lbl: 'Win Rate', val: k.win_rate, suffix: '%' }, { lbl: 'From Prospect', val: fmt(k.from_prospect) },

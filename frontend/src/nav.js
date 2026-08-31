@@ -1,4 +1,9 @@
 // Sidebar navigation model — mirrors the source page's static nav exactly.
+//
+// There used to be a `newDoctype` key on the Leads, Opportunities, Events and
+// Calls groups. Nothing ever read it. The intent it stood for — creating a record
+// from the section you are looking at — is now served by `components/CaptureBar`,
+// which knows the hops as well as the creates, so the dead key is gone.
 export const NAV = [
   {
     label: 'Dashboard',
@@ -37,9 +42,9 @@ export const NAV = [
   {
     label: 'Pipeline',
     items: [
-      { type: 'group', section: 'leads', icon: 'person_add', label: 'Leads', newDoctype: 'Lead',
+      { type: 'group', section: 'leads', icon: 'person_add', label: 'Leads',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'mine', label: 'My leads', mine: true }, { table: 'rows', label: 'All Leads' }, { table: 'emails', label: 'Emails' }] },
-      { type: 'group', section: 'opps', icon: 'trending_up', label: 'Opportunities', newDoctype: 'Opportunity',
+      { type: 'group', section: 'opps', icon: 'trending_up', label: 'Opportunities',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'mine', label: 'My opportunities', mine: true }, { table: 'rows', label: 'All Opportunities' }, { table: 'emails', label: 'Emails' }] },
       { type: 'group', section: 'prosp', icon: 'travel_explore', label: 'Prospects',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'mine', label: 'My prospects', mine: true }, { table: 'rows', label: 'All Prospects' }, { table: 'emails', label: 'Emails' }] },
@@ -50,9 +55,9 @@ export const NAV = [
   {
     label: 'Activity',
     items: [
-      { type: 'group', section: 'evt', icon: 'event', label: 'Events & Tasks', newDoctype: 'Event',
+      { type: 'group', section: 'evt', icon: 'event', label: 'Events & Tasks',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'calendar', label: 'Calendar' }, { table: 'mine_events', label: 'My events', mine: true }, { table: 'mine_todos', label: 'My tasks', mine: true }, { table: 'events', label: 'All Events' }, { table: 'todos', label: 'CRM Tasks' }, { table: 'emails', label: 'All Emails' }] },
-      { type: 'group', section: 'calls', icon: 'call', label: 'Calls', newDoctype: null,
+      { type: 'group', section: 'calls', icon: 'call', label: 'Calls',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'rows', label: 'Call log' }, { table: 'mine', label: 'My calls', mine: true }] },
       { type: 'group', section: 'act', icon: 'bolt', label: 'Activity Log',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'rows', label: 'Recent (500)' }] },

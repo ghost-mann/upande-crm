@@ -1,4 +1,5 @@
 import { useStore } from '../store';
+import CaptureBar, { BARS } from '../components/CaptureBar';
 import { fmt, fmtDate } from '@shared/utils';
 import { KpiRow } from '../components/Kpi';
 import ChartCard from '../components/ChartCard';
@@ -39,6 +40,7 @@ export default function Leads() {
   const k = L.kpis;
   return (
     <>
+      <CaptureBar {...BARS.leads} />
       <KpiRow items={[
         { lbl: 'Total', val: fmt(k.total) }, { lbl: 'Open', val: fmt(k.open) }, { lbl: '→ Opp', val: fmt(k.to_opp) },
         { lbl: '→ Quotation', val: fmt(k.to_quot) }, { lbl: 'Converted', val: fmt(k.converted) },

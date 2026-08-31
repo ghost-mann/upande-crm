@@ -25,7 +25,7 @@ import { BandHead } from './parts';
 // are one gesture apart.
 function CaptureBar() {
   const openLead = useStore((s) => s.openLeadDialog);
-  const openConvert = useStore((s) => s.openConvertDialog);
+  const openAdvance = useStore((s) => s.openAdvanceDialog);
   return (
     <div className="flex items-center gap-2.5 flex-wrap mb-[18px]">
       <Button size="sm" onClick={() => openLead({})}
@@ -33,7 +33,7 @@ function CaptureBar() {
         <Icon name="person_add" className="text-[16px]" />New lead
       </Button>
       <Button size="sm" variant="outline" className="rounded-full"
-        onClick={() => openConvert({ mode: 'opportunity' })}>
+        onClick={() => openAdvance({ doctype: 'Lead', mode: 'Opportunity' })}>
         <Icon name="trending_up" className="text-[16px]" />Convert a lead
       </Button>
       <span className="text-[11.5px] text-ink-mute">

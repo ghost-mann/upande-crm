@@ -1,4 +1,5 @@
 import { useStore } from '../store';
+import CaptureBar, { BARS } from '../components/CaptureBar';
 import { fmt, fmtDate } from '@shared/utils';
 import { KpiRow } from '../components/Kpi';
 import ChartCard from '../components/ChartCard';
@@ -36,6 +37,7 @@ export default function Prospects() {
   const k = P.kpis;
   return (
     <>
+      <CaptureBar {...BARS.prosp} />
       <KpiRow items={[
         { lbl: 'Total', val: fmt(k.total) }, { lbl: 'With Opps', val: fmt(k.with_opp) }, { lbl: '→ Customer', val: fmt(k.to_customer) },
         { lbl: 'Conv. Rate', val: k.conv_rate, suffix: '%' }, { lbl: 'Territories', val: fmt(k.territories) }, { lbl: 'This Quarter', val: fmt(k.this_quarter) },

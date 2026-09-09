@@ -18,6 +18,15 @@ app_license = "mit"
 # still one click from the desk, pinned at the bottom of that sidebar.
 # `has_permission` keeps this tile off the launcher for anyone the dashboard
 # would refuse.
+#
+# The two surfaces carry two logos on purpose. The launcher tile is wide enough for
+# the wordmark (`images/logo.png`, 237x213). The desk grid tile is small and square,
+# so `desktop_icon/upande_crm.json` points at the square badge instead — the same
+# 689x689 `upande-logo.png` the IT Operations tile uses, so the two sit level on the
+# apps screen. It is copied in rather than read across from `/assets/upande_core/`
+# so the icon does not break on a site that has the CRM without upande_core. Keep
+# the two files byte-identical; a smaller copy of the same artwork upscales soft at
+# tile size, which is what the earlier 180x180 version got wrong.
 add_to_apps_screen = [
 	{
 		"name": "upande_crm",
@@ -33,6 +42,12 @@ add_to_apps_screen = [
 # because sync_all() imports the workspace fixtures that reference both.
 after_install = "upande_crm.setup.setup"
 before_migrate = "upande_crm.setup.setup"
+
+# Reconciles the desk grid tile against every stored apps-screen arrangement.
+# `after_migrate`, because it reads back the `Desktop Icon` that sync_all() has
+# just imported. See upande_crm/apps_screen.py for why this is a hook and not a
+# one-shot patch.
+after_migrate = "upande_crm.apps_screen.sync_desktop_tile"
 
 # The one document hook in this app. `Prospect.make_opportunity` maps four fields
 # and Prospect owns no contact field, so an opportunity raised from a prospect used

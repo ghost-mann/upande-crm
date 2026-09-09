@@ -130,6 +130,7 @@ export const SECTION_META = {
   // `bleed`: render edge-to-edge with no page header. The map is the page,
   // and a 44px title above it would crop the only thing worth looking at.
   terr:     { title: 'Territories',        sub: 'World map · reach · concentration', bleed: true },
+  corr:     { title: 'Correspondence',     sub: 'Who talks to which account' },
   camp:     { title: 'Campaigns',          sub: 'Drip sequences · enrolment · audiences' },
   act:      { title: 'Activity Log',       sub: 'CRM triggers · audit trail' },
   rep:      { title: 'Reports',            sub: "ERPNext's CRM and sales reports" },

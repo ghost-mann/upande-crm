@@ -166,3 +166,84 @@ Choropleth fills use **inline `rgba`, never Tailwind opacity modifiers** —
 
 Deep-linking from the panel into filtered Leads/Opportunities lists; continent
 level drill-down; editing a record's territory from the map.
+
+---
+
+# Addendum — 2026-09-10: claims, consignees, varieties, logistics, correspondence
+
+A second pass widened the map beyond customers, and added two surfaces beside
+it. As before, every decision below came from measuring the data first.
+
+## What was asked for, and what the data supported
+
+| Asked for | Found | Built |
+|---|---|---|
+| Customers | already mapped | — |
+| Claims | `Customer Feedback` 3,378 rows, 3.6M stems, $572K | **yes** |
+| Consignees | `Consignee` 1,231 rows with a `country` string | **yes** |
+| Flowers selling best | `Sales Invoice Item` 62K rows over four flower Item Groups | **yes** |
+| Sales person performance | `Sales Team` 28 rows, all one person; `sales_partner` empty on 13,780 invoices | **replaced** — see below |
+| Issues faced | `Customer Feedback Item.reason_category` exists but is filled on 6 of 3,378 claims | **coverage stated, not charted** |
+| Delivery points | 41 freight handlers, all at JKIA, no coordinates | **yes, as a schematic** |
+| Harvest → dispatch → sales | chain broken at both ends | **middle only** |
+
+## Attribution comes from email, not Sales Team
+
+The field ERPNext provides for "who owns this account" is unusable here, so
+`api/correspondence.py` derives it from who actually sends mail:
+
+    Communication.recipients contains Contact Email.email_id   (outbound)
+    Contact Email.parent -> Contact -> Dynamic Link -> Customer/Lead/Prospect
+
+15,414 of 15,457 inbound emails match a Contact, and the outbound side yields
+194 distinct (staff, party) pairs across 33 people. Automated Messages — 20,735
+of 37,196 rows — are excluded, or the notification mailer would rank as the most
+active salesperson in the company. Shared mailboxes (`purchasing@`, `info@`) are
+counted but flagged, so nobody reads them as an individual's performance.
+
+Surfaced three ways: a **Correspondence** section (staff x account matrix), a
+gold **handled-by chip** on every inbox row (one batched lookup per page, not one
+per row), and an **In contact** block in the map's pinned panel.
+
+## The Nairobi hub is a schematic, and says so
+
+`Sales Order.custom_delivery_point` is populated on 9,806 of 11,323 orders and
+is the real link from handler to customer. But no handler carries a latitude,
+an address, or anything else locational, and all of them operate at the same
+airport — so a world map would stack them on one pixel.
+
+They are drawn as a ring around JKIA instead. Disc size and distance from the
+hub encode order volume; **the angle means nothing**, and the caption says so on
+screen. Angular slots are sized by each label's width, because even spacing put
+the two busiest handlers adjacent and merged their discs. Clicking one lists the
+customers moving through it and, usefully, the destination territories — the one
+join that reconnects origin logistics to the world map.
+
+## The fulfilment chain, only where it is joined
+
+    Harvest           19,566 rows — no order, no customer, no forward link
+    Farm Pack List     8,612 / 8,614 carry a Sales Order   (100%)
+    Order Pick List   13,807 / 13,807 carry a Sales Order  (100%)
+    Dispatch Form          1 / 126 carries a Sales Order     (1%)
+
+Only Ordered → Picked → Packed is drawn. Harvest and Dispatch are named as
+`gaps` in the payload and printed under the chart. An empty "Dispatched" bar
+would read as "no work happened" rather than "no data exists".
+
+## Honesty carried forward
+
+The regional ledger now also reports rows that reached no territory at all: 691
+claims naming a company that is not a Customer, and 5 consignees in a country
+with no Territory record. `mapped + regional + orphaned` reconciles to source
+totals, and a test fails if it stops doing so.
+
+Two data-quality facts the UI states rather than hides: **KES 300.6M of invoice
+value carries no `item_code`** and is excluded from every varieties list, and the
+consignee master is free text in which many "names" are addresses.
+
+## Not built
+
+Sales-person performance as a chartable dimension — one active person on 28
+customers is not a comparison. Claim reasons as a breakdown, until the field is
+filled. Anything joining harvest to an order, which the schema cannot express
+today.

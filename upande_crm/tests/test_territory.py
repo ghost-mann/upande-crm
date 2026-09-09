@@ -159,6 +159,52 @@ class TestTerritoryMap(unittest.TestCase):
         self.assertNotEqual(self.data["currency"], "$")
 
 
+class TestClaimsAndConsignees(unittest.TestCase):
+    """The two joins that do not go through a `territory` column.
+
+    Claims reach a country only by matching free text to a Customer name, and
+    consignees only by translating an ISO country string. Both lose rows, and
+    both must say how many.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.data = crm_territory_map(**ALL_TIME)
+
+    def test_orphan_counts_are_reported(self):
+        self.assertIn("orphaned", self.data)
+        for key in ("claims", "consignees"):
+            self.assertIn(key, self.data["orphaned"])
+            self.assertGreaterEqual(self.data["orphaned"][key], 0)
+
+    def test_claims_reconcile_with_the_source(self):
+        """mapped + regional + orphaned == every claim in range."""
+        if not frappe.db.exists("DocType", "Customer Feedback"):
+            self.skipTest("no Customer Feedback on this site")
+        total = frappe.db.sql(
+            "select count(*) from `tabCustomer Feedback` where feedback_date between %s and %s",
+            (ALL_TIME["date_from"], ALL_TIME["date_to"]),
+        )[0][0]
+        accounted = self.data["totals"]["all"]["claims"] + self.data["orphaned"]["claims"]
+        self.assertEqual(
+            accounted, total, "claims are being dropped rather than counted as orphaned"
+        )
+
+    def test_consignees_reconcile_with_the_source(self):
+        if not frappe.db.exists("DocType", "Consignee"):
+            self.skipTest("no Consignee on this site")
+        total = frappe.db.sql(
+            "select count(*) from `tabConsignee` where ifnull(country,'') <> ''"
+        )[0][0]
+        accounted = self.data["totals"]["all"]["consignees"] + self.data["orphaned"]["consignees"]
+        self.assertEqual(accounted, total, "consignees are being dropped silently")
+
+    def test_claim_cost_is_never_negative(self):
+        for r in self.data["territories"]:
+            self.assertGreaterEqual(r["claim_cost"], 0)
+            self.assertGreaterEqual(r["claim_stems"], 0)
+
+
 class TestTerritoryDetail(unittest.TestCase):
     def test_detail_shape(self):
         target = next(
@@ -175,6 +221,51 @@ class TestTerritoryDetail(unittest.TestCase):
         self.assertEqual(d["territory"], target)
         for key in ("top_accounts", "stages", "recent", "trend"):
             self.assertIsInstance(d[key], list)
+
+    def test_detail_carries_the_new_panels(self):
+        d = crm_territory_detail("Netherlands", **ALL_TIME)
+        for key in ("flowers", "claim_types", "claim_reasons", "staff", "consignees"):
+            self.assertIn(key, d)
+        self.assertIn("rows", d["flowers"])
+        self.assertIn("unattributed", d["flowers"])
+
+    def test_flowers_exclude_uncoded_lines_and_say_so(self):
+        """The un-coded lines outweigh every named variety here."""
+        d = crm_territory_detail("Netherlands", **ALL_TIME)
+        for row in d["flowers"]["rows"]:
+            self.assertTrue(row["label"], "a variety row with no item code leaked in")
+        self.assertGreaterEqual(d["flowers"]["unattributed"], 0)
+
+    def test_claim_reason_coverage_is_stated(self):
+        """Coverage matters more than the rows: the field is ~0% filled."""
+        d = crm_territory_detail("Netherlands", **ALL_TIME)
+        r = d["claim_reasons"]
+        self.assertLessEqual(r["covered"], r["total"])
+
+    def test_fulfilment_only_charts_joined_stages(self):
+        """Harvest joins to nothing and Dispatch Form is 1% linked.
+
+        Both must be named as gaps rather than drawn as empty funnel stages —
+        a stage reading zero would look like no work happened, not like no data.
+        """
+        d = crm_territory_detail("Netherlands", **ALL_TIME)
+        f = d["fulfilment"]
+        labels = [s["label"] for s in f["stages"]]
+        self.assertNotIn("Harvested", labels)
+        self.assertNotIn("Dispatched", labels)
+        if frappe.db.exists("DocType", "Harvest"):
+            self.assertTrue(
+                any("Harvest" in g for g in f["gaps"]),
+                "the harvest gap must be stated, not omitted silently",
+            )
+
+    def test_fulfilment_stages_do_not_exceed_orders(self):
+        """You cannot pick more orders than exist."""
+        d = crm_territory_detail("Netherlands", **ALL_TIME)
+        stages = {s["label"]: s["orders"] for s in d["fulfilment"]["stages"]}
+        if "Ordered" in stages:
+            for label, n in stages.items():
+                self.assertLessEqual(n, stages["Ordered"], f"{label} exceeds Ordered")
 
     def test_blank_territory_returns_empty(self):
         self.assertEqual(crm_territory_detail("", **ALL_TIME), {})

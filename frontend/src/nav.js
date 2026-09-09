@@ -78,7 +78,10 @@ export const NAV = [
   },
   {
     label: 'Territories',
-    items: [{ type: 'item', section: 'terr', icon: 'public', label: 'World Map' }],
+    items: [
+      { type: 'item', section: 'terr', icon: 'public', label: 'World Map' },
+      { type: 'item', section: 'corr', icon: 'forward_to_inbox', label: 'Correspondence' },
+    ],
   },
   {
     label: 'Analytics',

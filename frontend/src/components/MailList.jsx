@@ -3,6 +3,7 @@ import Icon from './Icon';
 import OpenIndicator from './OpenIndicator';
 import { avatarBg, openFrappe } from '@/lib/crm';
 import { initials, fmtRelative, nameFromAddress } from '@shared/utils';
+import { counterpartyAddress, useCorrespondents } from '@/lib/correspondents';
 
 // Renders an array of Communication/email rows as Gmail-style mail-rows.
 export default function MailList({ rows = [], onOpen, selected, onToggleSelect }) {
@@ -11,6 +12,8 @@ export default function MailList({ rows = [], onOpen, selected, onToggleSelect }
   const markRead = useStore((s) => s.markRead);
   const openCompose = useStore((s) => s.openCompose);
   const newTab = useStore((s) => s.settings.openInNewTab);
+  // Who on our side owns each conversation. One batched lookup for the page.
+  const owners = useCorrespondents(rows);
 
   if (!rows.length) return <div className="crm-empty">No emails</div>;
 
@@ -36,6 +39,7 @@ export default function MailList({ rows = [], onOpen, selected, onToggleSelect }
         };
 
         const checked = selected ? selected.has(e.name) : false;
+        const owner = owners.get(counterpartyAddress(e));
         return (
           <div key={e.name} className={`mail-row ${unread ? 'unread' : ''} ${checked ? 'selected' : ''}`} onClick={() => onOpen?.(e)}>
             <div className="m-check" onClick={(ev) => ev.stopPropagation()}>
@@ -57,6 +61,16 @@ export default function MailList({ rows = [], onOpen, selected, onToggleSelect }
               <div className="m-name">{counterparty}</div>
             </div>
             <div className="m-subj-cell">
+              {owner && (
+                <span
+                  className="m-chip"
+                  title={`${owner.staff_name} <${owner.staff}> — ${owner.emails} sent${owner.shared ? ' (shared mailbox)' : ''}`}
+                  style={{ background: 'var(--gold-soft)', color: 'var(--gold-text)', borderColor: 'var(--gold)' }}
+                >
+                  {owner.staff_name}
+                  {owner.shared ? '*' : ''}
+                </span>
+              )}
               {e.reference_doctype && <span className="m-chip">{e.reference_doctype}</span>}
               <span className="m-subj">{e.subject || '(no subject)'}</span>
               {e.reference_name && <span className="m-snip">— {e.reference_name}</span>}

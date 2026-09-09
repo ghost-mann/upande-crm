@@ -29,6 +29,7 @@ from frappe.utils import flt
 
 from upande_crm.api.analytics import _company_currency
 from upande_crm.api.crm import _guard, _has, _hascol, _range
+from upande_crm.api.territory_names import to_territory
 
 # Metric key -> the doctype and column it is counted from. `amount` is None for
 # pure counts. Order matters only for readability of the payload.
@@ -66,6 +67,10 @@ ZERO = {
     "opps": 0,
     "opp_value": 0.0,
     "revenue": 0.0,
+    "claims": 0,
+    "claim_stems": 0,
+    "claim_cost": 0.0,
+    "consignees": 0,
 }
 
 
@@ -146,6 +151,15 @@ def crm_territory_map(date_from=None, date_to=None):
     ):
         _accumulate(bucket, name, "revenue", flt(value))
 
+    claims, claims_orphaned = _claims_by_territory(frm, to)
+    for name, row in claims.items():
+        for key, value in row.items():
+            _accumulate(bucket, name, key, value)
+
+    consignees, consignees_orphaned = _consignees_by_territory()
+    for name, value in consignees.items():
+        _accumulate(bucket, name, "consignees", value)
+
     # A territory's kind decides whether it can be painted. Read once for the
     # names actually present rather than loading the whole 206-row tree.
     groups = _group_flags(list(bucket))
@@ -166,7 +180,97 @@ def crm_territory_map(date_from=None, date_to=None):
         # module docstring for why it cannot be distributed onto the map.
         "groups": regional,
         "totals": _totals(countries, regional),
+        # Rows that resolved to no territory at all. Claims name their customer
+        # in free text and consignees name a country in a different vocabulary,
+        # so neither joins cleanly for every row; what did not join is counted
+        # here rather than dropped. The UI shows it next to the regional ledger.
+        "orphaned": {"claims": claims_orphaned, "consignees": consignees_orphaned},
     }
+
+
+def _claims_by_territory(frm, to):
+    """Quality claims per territory, and how many could not be placed.
+
+    `Customer Feedback.customer_company` is free text, not a Link — so a claim
+    reaches a territory only by matching that text to a Customer and reading its
+    territory. On kaitet.local 85% of 3,378 claims match a Customer name exactly;
+    the rest name a company that was never created as one (FLAMINGO UK, for
+    instance). Those are returned as a count, not silently discarded: a claims
+    map that showed 85% of the claims while implying it showed all of them would
+    misstate where the trouble is.
+    """
+    if not _has("Customer Feedback") or not _has("Customer"):
+        return {}, 0
+
+    try:
+        rows = frappe.db.sql(
+            """select cu.territory, count(*) n,
+                      coalesce(sum(cf.total_stems_claimed), 0) stems,
+                      coalesce(sum(cf.total_claim_cost), 0) cost
+               from `tabCustomer Feedback` cf
+               join `tabCustomer` cu on cu.name = cf.customer_company
+               where cf.feedback_date between %s and %s
+                 and ifnull(cu.territory, '') <> ''
+               group by cu.territory""",
+            (frm, to),
+            as_dict=True,
+        )
+        orphaned = frappe.db.sql(
+            """select count(*) from `tabCustomer Feedback` cf
+               left join `tabCustomer` cu
+                 on cu.name = cf.customer_company and ifnull(cu.territory, '') <> ''
+               where cf.feedback_date between %s and %s and cu.name is null""",
+            (frm, to),
+        )[0][0]
+    except Exception:
+        frappe.clear_last_message()
+        return {}, 0
+
+    return (
+        {
+            r.territory: {
+                "claims": int(r.n or 0),
+                "claim_stems": int(r.stems or 0),
+                "claim_cost": flt(r.cost),
+            }
+            for r in rows
+        },
+        int(orphaned or 0),
+    )
+
+
+def _consignees_by_territory():
+    """Consignees per territory, and how many name a place with no Territory.
+
+    Consignee carries a free `country` string from the ISO-3166 vocabulary
+    ("Russian Federation") rather than Territory's common-name one ("Russia"),
+    so the alias table in `territory_names` does the translation. Deliberately
+    not date-filtered: a consignee is a standing relationship, not an event, and
+    scoping it to the dashboard's window would empty the layer for any short
+    range.
+    """
+    if not _has("Consignee") or not _hascol("Consignee", "country"):
+        return {}, 0
+
+    try:
+        rows = frappe.db.sql(
+            """select country, count(*) n from `tabConsignee`
+               where ifnull(country, '') <> '' group by country""",
+            as_dict=True,
+        )
+    except Exception:
+        frappe.clear_last_message()
+        return {}, 0
+
+    known = {t.name for t in frappe.get_all("Territory", fields=["name"])}
+    out, orphaned = {}, 0
+    for r in rows:
+        name = to_territory(r.country)
+        if name and name in known:
+            out[name] = out.get(name, 0) + int(r.n or 0)
+        else:
+            orphaned += int(r.n or 0)
+    return out, orphaned
 
 
 def _group_flags(names):
@@ -224,7 +328,229 @@ def crm_territory_detail(territory, date_from=None, date_to=None, limit=6):
         "stages": _stage_split(territory, frm, to),
         "recent": _recent(territory, limit),
         "trend": _trend(territory, frm, to),
+        "flowers": _top_flowers(territory, frm, to, limit),
+        "claim_types": _claim_types(territory, frm, to),
+        "claim_reasons": _claim_reasons(territory, frm, to),
+        "staff": _staff(territory, frm, to, limit),
+        "consignees": _consignees(territory, limit),
+        "fulfilment": _fulfilment(territory, frm, to),
     }
+
+
+def _fulfilment(territory, frm, to):
+    """How much of this territory's order book got picked and packed.
+
+    Only the middle of the chain is here, because only the middle is joined.
+    Measured on kaitet.local:
+
+        Harvest              19,566 rows, and no forward link of any kind —
+                             it records a bucket, a greenhouse and a variety,
+                             never an order or a customer
+        Farm Pack List        8,612 / 8,614 carry a Sales Order  (100%)
+        Order Pick List      13,807 / 13,807 carry a Sales Order (100%)
+        Dispatch Form             1 / 126 carries a Sales Order   (1%)
+
+    So "harvest to dispatch" cannot be drawn: the first stage joins to nothing
+    and the last is essentially unused. Pretending otherwise would mean a funnel
+    whose top and bottom are guesses. `gaps` names the missing stages so the UI
+    can say which parts of the chain it is not showing.
+    """
+    out = {"stages": [], "gaps": []}
+
+    if _has("Sales Order") and _hascol("Sales Order", "territory"):
+        for label, doctype, join_col in (
+            ("Picked", "Order Pick List", "sales_order"),
+            ("Packed", "Farm Pack List", "custom_sales_order"),
+        ):
+            if not _has(doctype) or not _hascol(doctype, join_col):
+                continue
+            try:
+                n = frappe.db.sql(
+                    f"""select count(distinct so.name) from `tab{doctype}` x
+                        join `tabSales Order` so on so.name = x.`{join_col}`
+                        where so.territory = %s and so.docstatus = 1
+                          and so.transaction_date between %s and %s""",
+                    (territory, frm, to),
+                )[0][0]
+            except Exception:
+                frappe.clear_last_message()
+                continue
+            out["stages"].append({"label": label, "orders": int(n or 0)})
+
+        try:
+            ordered = frappe.db.sql(
+                """select count(*) from `tabSales Order`
+                   where territory = %s and docstatus = 1
+                     and transaction_date between %s and %s""",
+                (territory, frm, to),
+            )[0][0]
+            out["stages"].insert(0, {"label": "Ordered", "orders": int(ordered or 0)})
+        except Exception:
+            frappe.clear_last_message()
+
+    if _has("Harvest"):
+        out["gaps"].append("Harvest records no order or customer, so it cannot be traced forward.")
+    if _has("Dispatch Form") and _hascol("Dispatch Form", "custom_sales_order"):
+        try:
+            tot = frappe.db.count("Dispatch Form")
+            linked = frappe.db.sql(
+                "select count(*) from `tabDispatch Form` where ifnull(custom_sales_order,'') <> ''"
+            )[0][0]
+            if tot and linked / tot < 0.5:
+                out["gaps"].append(
+                    f"Dispatch Form links to an order on {linked} of {tot} records, too few to chart."
+                )
+        except Exception:
+            frappe.clear_last_message()
+
+    return out
+
+
+# Item groups that are actual product, as opposed to freight, services and the
+# raw-material codes the packhouse books against. Without this filter "top
+# flowers" is led by `Raw Material` codes AB/AA/NH, which are grades rather than
+# varieties and tell a sales reader nothing.
+FLOWER_GROUPS = ("Spray Roses", "Standard Roses", "Summer Flowers", "Chrysanthemums")
+
+
+def _top_flowers(territory, frm, to, limit):
+    """Best-selling varieties in this territory.
+
+    Lines with no `item_code` are excluded and counted separately. They are not
+    a rounding error: on this site they are the single largest block of invoice
+    value, so a varieties list that quietly absorbed them would be wrong, and one
+    that ignored them without saying so would overstate how complete it is.
+    """
+    if not _has("Sales Invoice Item") or not _hascol("Sales Invoice", "territory"):
+        return {"rows": [], "unattributed": 0.0}
+    try:
+        rows = frappe.db.sql(
+            """select sii.item_code label, i.item_group grp,
+                      coalesce(sum(sii.base_amount), 0) amount,
+                      coalesce(sum(sii.qty), 0) qty
+               from `tabSales Invoice Item` sii
+               join `tabSales Invoice` si on si.name = sii.parent
+               left join `tabItem` i on i.name = sii.item_code
+               where si.territory = %s and si.docstatus = 1
+                 and si.posting_date between %s and %s
+                 and ifnull(sii.item_code, '') <> ''
+               group by label, grp order by amount desc limit %s""",
+            (territory, frm, to, limit),
+            as_dict=True,
+        )
+        blank = frappe.db.sql(
+            """select coalesce(sum(sii.base_amount), 0)
+               from `tabSales Invoice Item` sii
+               join `tabSales Invoice` si on si.name = sii.parent
+               where si.territory = %s and si.docstatus = 1
+                 and si.posting_date between %s and %s
+                 and ifnull(sii.item_code, '') = ''""",
+            (territory, frm, to),
+        )[0][0]
+    except Exception:
+        frappe.clear_last_message()
+        return {"rows": [], "unattributed": 0.0}
+    return {"rows": rows, "unattributed": flt(blank)}
+
+
+def _claim_types(territory, frm, to):
+    """Claims in this territory by claim type — Claimed, Rejected, Returns."""
+    if not _has("Customer Feedback") or not _has("Customer"):
+        return []
+    try:
+        return frappe.db.sql(
+            """select coalesce(nullif(cf.claim_type, ''), 'Unclassified') label,
+                      count(*) count,
+                      coalesce(sum(cf.total_claim_cost), 0) amount,
+                      coalesce(sum(cf.total_stems_claimed), 0) stems
+               from `tabCustomer Feedback` cf
+               join `tabCustomer` cu on cu.name = cf.customer_company
+               where cu.territory = %s and cf.feedback_date between %s and %s
+               group by label order by count desc""",
+            (territory, frm, to),
+            as_dict=True,
+        )
+    except Exception:
+        frappe.clear_last_message()
+        return []
+
+
+def _claim_reasons(territory, frm, to):
+    """Why claims were raised, from the itemised child table.
+
+    Returns `coverage` alongside the rows because this field is barely populated:
+    6 of 3,378 claims carry any itemised reason on this site. The UI states that
+    coverage rather than presenting a three-row list as the shape of quality
+    problems in a market. The query is written for the day it is filled in.
+    """
+    empty = {"rows": [], "covered": 0, "total": 0}
+    if not _has("Customer Feedback Item") or not _has("Customer"):
+        return empty
+    try:
+        rows = frappe.db.sql(
+            """select coalesce(nullif(cfi.reason_category, ''), 'Unclassified') label,
+                      coalesce(nullif(cfi.reason, ''), '') detail,
+                      count(*) count,
+                      coalesce(sum(cfi.claim_cost), 0) amount
+               from `tabCustomer Feedback Item` cfi
+               join `tabCustomer Feedback` cf on cf.name = cfi.parent
+               join `tabCustomer` cu on cu.name = cf.customer_company
+               where cu.territory = %s and cf.feedback_date between %s and %s
+               group by label, detail order by count desc limit 8""",
+            (territory, frm, to),
+            as_dict=True,
+        )
+        covered, total = frappe.db.sql(
+            """select count(distinct cfi.parent), count(distinct cf.name)
+               from `tabCustomer Feedback` cf
+               join `tabCustomer` cu on cu.name = cf.customer_company
+               left join `tabCustomer Feedback Item` cfi on cfi.parent = cf.name
+               where cu.territory = %s and cf.feedback_date between %s and %s""",
+            (territory, frm, to),
+        )[0]
+    except Exception:
+        frappe.clear_last_message()
+        return empty
+    return {"rows": rows, "covered": int(covered or 0), "total": int(total or 0)}
+
+
+def _staff(territory, frm, to, limit):
+    """Who is actually in contact with customers in this territory.
+
+    Not `Sales Team`: that child table holds 28 rows on this site and every one
+    of them is the same person, so it answers nothing. Correspondence does — the
+    sender of an outgoing email is a real, per-account signal. See
+    `api/correspondence.py`, which owns the join; this only narrows it to one
+    territory.
+    """
+    from upande_crm.api.correspondence import staff_for_territory
+
+    return staff_for_territory(territory, frm, to, limit)
+
+
+def _consignees(territory, limit):
+    """Consignees whose country resolves to this territory."""
+    if not _has("Consignee"):
+        return []
+    aliases = [c for c, t in _alias_pairs() if t == territory]
+    candidates = list({territory, *aliases})
+    try:
+        return frappe.get_all(
+            "Consignee",
+            filters={"country": ["in", candidates]},
+            fields=["name as label", "customer"],
+            limit=limit,
+            order_by="name",
+        )
+    except Exception:
+        frappe.clear_last_message()
+        return []
+
+
+def _alias_pairs():
+    from upande_crm.api.territory_names import COUNTRY_ALIASES
+
+    return list(COUNTRY_ALIASES.items())
 
 
 def _top_accounts(territory, frm, to, limit):

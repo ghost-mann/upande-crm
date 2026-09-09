@@ -25,6 +25,7 @@ const Campaigns = lazy(() => import('./sections/Campaigns/index.jsx'));
 // The atlas and d3-geo are ~150KB together; code-splitting keeps them out of
 // the bundle for everyone who never opens the map.
 const Territories = lazy(() => import('./sections/Territories/index.jsx'));
+const Correspondence = lazy(() => import('./sections/Correspondence/index.jsx'));
 const ThreadView = lazy(() => import('./components/ThreadView'));
 const ComposeDialog = lazy(() => import('./components/ComposeDialog'));
 const EventDialog = lazy(() => import('./components/EventDialog'));
@@ -39,6 +40,7 @@ const SECTIONS = {
   overview: Overview, mail: Mail, wa: WhatsApp, leads: Leads, opps: Opportunities,
   prosp: Prospects, cust: Customers, evt: Events, act: Activity, set: Settings,
   rep: Reports, calls: Calls, anl: Analytics, camp: Campaigns, terr: Territories,
+  corr: Correspondence,
 };
 
 function fmtTime(d) {

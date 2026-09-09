@@ -127,6 +127,9 @@ export const SECTION_META = {
   evt:      { title: 'Events, Tasks & Emails', sub: 'Meetings · ToDos · communications' },
   calls:    { title: 'Calls',              sub: 'Incoming · outgoing · outcomes' },
   anl:      { title: 'Sales Analytics',    sub: 'Funnel · leads · opportunities · revenue' },
+  // `bleed`: render edge-to-edge with no page header. The map is the page,
+  // and a 44px title above it would crop the only thing worth looking at.
+  terr:     { title: 'Territories',        sub: 'World map · reach · concentration', bleed: true },
   camp:     { title: 'Campaigns',          sub: 'Drip sequences · enrolment · audiences' },
   act:      { title: 'Activity Log',       sub: 'CRM triggers · audit trail' },
   rep:      { title: 'Reports',            sub: "ERPNext's CRM and sales reports" },

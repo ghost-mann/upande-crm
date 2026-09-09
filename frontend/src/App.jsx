@@ -22,6 +22,9 @@ const Reports = lazy(() => import('./sections/Reports/index.jsx'));
 const Calls = lazy(() => import('./sections/Calls/index.jsx'));
 const Analytics = lazy(() => import('./sections/Analytics/index.jsx'));
 const Campaigns = lazy(() => import('./sections/Campaigns/index.jsx'));
+// The atlas and d3-geo are ~150KB together; code-splitting keeps them out of
+// the bundle for everyone who never opens the map.
+const Territories = lazy(() => import('./sections/Territories/index.jsx'));
 const ThreadView = lazy(() => import('./components/ThreadView'));
 const ComposeDialog = lazy(() => import('./components/ComposeDialog'));
 const EventDialog = lazy(() => import('./components/EventDialog'));
@@ -35,7 +38,7 @@ const AdvanceDialog = lazy(() => import('./components/AdvanceDialog'));
 const SECTIONS = {
   overview: Overview, mail: Mail, wa: WhatsApp, leads: Leads, opps: Opportunities,
   prosp: Prospects, cust: Customers, evt: Events, act: Activity, set: Settings,
-  rep: Reports, calls: Calls, anl: Analytics, camp: Campaigns,
+  rep: Reports, calls: Calls, anl: Analytics, camp: Campaigns, terr: Territories,
 };
 
 function fmtTime(d) {
@@ -74,20 +77,22 @@ export default function App() {
   return (
     <div className="min-h-screen bg-canvas text-ink">
       <TopBar />
-      <div className={`w-full px-5 md:px-8 pt-6 pb-20 grid ${collapsed ? 'grid-cols-[72px_minmax(0,1fr)]' : 'grid-cols-[240px_minmax(0,1fr)]'} max-[900px]:grid-cols-1 gap-6 items-start`}>
+      <div className={`w-full ${meta.bleed ? 'px-0 pt-0 pb-0 gap-0' : 'px-5 md:px-8 pt-6 pb-20 gap-6'} grid ${collapsed ? 'grid-cols-[72px_minmax(0,1fr)]' : 'grid-cols-[240px_minmax(0,1fr)]'} max-[900px]:grid-cols-1 items-start`}>
         <Sidebar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} onCompose={() => openCompose({})} onSettings={() => select('set', '')} />
         <main className="min-w-0">
-          <div className="flex items-end justify-between gap-8 pb-9">
-            <div className="min-w-0">
-              <div className="text-[11px] text-ink-mute uppercase tracking-[0.2em] font-medium mb-2.5 flex items-center gap-2.5 before:content-[''] before:w-[18px] before:h-px before:bg-ink-3">
-                {getBoot().brandName}{customerFilter ? ` · ${customerFilter}` : ''}
+          {!meta.bleed && (
+            <div className="flex items-end justify-between gap-8 pb-9">
+              <div className="min-w-0">
+                <div className="text-[11px] text-ink-mute uppercase tracking-[0.2em] font-medium mb-2.5 flex items-center gap-2.5 before:content-[''] before:w-[18px] before:h-px before:bg-ink-3">
+                  {getBoot().brandName}{customerFilter ? ` · ${customerFilter}` : ''}
+                </div>
+                <h1 className="text-[36px] md:text-[44px] font-semibold -tracking-[0.03em] leading-[1.05] text-ink">{meta.title}</h1>
+                <p className="mt-2 text-[15px] text-ink-4">{meta.sub}</p>
               </div>
-              <h1 className="text-[36px] md:text-[44px] font-semibold -tracking-[0.03em] leading-[1.05] text-ink">{meta.title}</h1>
-              <p className="mt-2 text-[15px] text-ink-4">{meta.sub}</p>
+              <PageTools />
             </div>
-            <PageTools />
-          </div>
-          {!openMsg && <SectionTabs />}
+          )}
+          {!openMsg && !meta.bleed && <SectionTabs />}
           <div>
             <Suspense fallback={<div className="p-12 text-center text-ink-mute text-[13px]">Loading…</div>}>
               {openMsg ? <ThreadView /> : <Section />}

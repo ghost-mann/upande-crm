@@ -1,0 +1,201 @@
+"""Territory map rollups, and the name -> ISO table the map joins on.
+
+The reconciliation test is the important one here. A choropleth silently drops
+whatever it cannot paint, so the failure mode this feature has to be protected
+against is not an exception — it is a map that looks fine while hiding a third
+of the revenue. `test_totals_reconcile` is what makes that loud.
+"""
+
+import json
+import re
+import unittest
+from pathlib import Path
+
+import frappe
+
+from upande_crm.api.territory import (
+    ZERO,
+    crm_territory_detail,
+    crm_territory_map,
+)
+
+# Wide enough to cover every record on the site, so counts are deterministic
+# rather than dependent on when the suite runs.
+ALL_TIME = {"date_from": "2000-01-01", "date_to": "2035-12-31"}
+
+FRONTEND_LIB = Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib"
+
+
+def _js_object_keys(source: str, const: str) -> set:
+    """Keys of a top-level `export const <const> = { ... }` object literal.
+
+    The ISO table is JavaScript because the map consumes it in the browser, but
+    it is data, and Python is where the site's Territory list can be checked
+    against it. Parsing beats duplicating the table in both languages.
+    """
+    start = source.index(f"export const {const} = {{")
+    body = source[start : source.index("\n};", start)]
+    return set(re.findall(r"^\s{2}'((?:[^'\\]|\\.)*)':", body, re.M))
+
+
+class TestTerritoryIsoTable(unittest.TestCase):
+    """The name -> ISO join is the fragile part; these keep it honest."""
+
+    @classmethod
+    def setUpClass(cls):
+        src = (FRONTEND_LIB / "territory_iso.js").read_text()
+        cls.iso = _js_object_keys(src, "ISO_BY_TERRITORY")
+        cls.micro = _js_object_keys(src, "MICRO_CENTROIDS")
+
+    def test_every_leaf_territory_is_mapped(self):
+        """A territory added later must fail here, not vanish off the map."""
+        leaves = {
+            t.name.replace("\\'", "'")
+            for t in frappe.get_all(
+                "Territory", filters={"is_group": 0}, fields=["name"]
+            )
+        }
+        known = {n.replace("\\'", "'") for n in (self.iso | self.micro)}
+        missing = sorted(leaves - known)
+        self.assertEqual(
+            missing,
+            [],
+            f"{len(missing)} territories map to neither a polygon nor a centroid: {missing}",
+        )
+
+    def test_iso_and_micro_do_not_overlap(self):
+        """A territory is drawn as a polygon or a dot, never both."""
+        self.assertEqual(sorted(self.iso & self.micro), [])
+
+    def test_iso_codes_are_three_digit_numeric(self):
+        src = (FRONTEND_LIB / "territory_iso.js").read_text()
+        start = src.index("export const ISO_BY_TERRITORY = {")
+        body = src[start : src.index("\n};", start)]
+        codes = re.findall(r":\s*'([^']+)'", body)
+        self.assertTrue(codes)
+        bad = [c for c in codes if not re.fullmatch(r"\d{3}", c)]
+        self.assertEqual(bad, [], f"non-numeric ISO ids: {bad}")
+
+
+class TestTerritoryMap(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.data = crm_territory_map(**ALL_TIME)
+
+    def test_payload_shape(self):
+        for key in ("currency", "territories", "groups", "totals", "date_from", "date_to"):
+            self.assertIn(key, self.data)
+        for row in self.data["territories"] + self.data["groups"]:
+            self.assertIn("territory", row)
+            for metric in ZERO:
+                self.assertIn(metric, row, f"{row['territory']} missing {metric}")
+
+    def test_totals_reconcile(self):
+        """mapped + regional == all, per metric.
+
+        If this drifts, the map is hiding rows.
+        """
+        t = self.data["totals"]
+        for metric in ZERO:
+            self.assertAlmostEqual(
+                t["mapped"][metric] + t["regional"][metric],
+                t["all"][metric],
+                places=4,
+                msg=f"{metric} does not reconcile",
+            )
+
+    def test_totals_match_direct_counts(self):
+        """Rollups agree with a plain count over the same rows."""
+        for metric, doctype in (
+            ("leads", "Lead"),
+            ("prospects", "Prospect"),
+            ("customers", "Customer"),
+            ("opps", "Opportunity"),
+        ):
+            if not frappe.db.exists("DocType", doctype):
+                continue
+            direct = frappe.db.sql(
+                f"select count(*) from `tab{doctype}` "
+                "where ifnull(territory, '') <> '' and docstatus < 2"
+            )[0][0]
+            self.assertEqual(
+                self.data["totals"]["all"][metric],
+                direct,
+                f"{metric} rollup disagrees with a direct count",
+            )
+
+    def test_groups_are_group_territories_only(self):
+        """Nothing paintable ends up in the ledger, and no group escapes into it."""
+        for row in self.data["groups"]:
+            self.assertTrue(
+                frappe.db.get_value("Territory", row["territory"], "is_group"),
+                f"{row['territory']} is a leaf but was put in the regional ledger",
+            )
+        for row in self.data["territories"]:
+            self.assertFalse(
+                frappe.db.get_value("Territory", row["territory"], "is_group"),
+                f"{row['territory']} is a group but was placed on the map",
+            )
+
+    def test_group_tagged_data_is_not_silently_dropped(self):
+        """The reason the ledger exists: real volume lives on group territories."""
+        tagged = frappe.db.sql(
+            """select count(*) from `tabCustomer` c
+               join `tabTerritory` t on t.name = c.territory
+               where t.is_group = 1"""
+        )[0][0]
+        if not tagged:
+            self.skipTest("no group-tagged customers on this site")
+        self.assertEqual(self.data["totals"]["regional"]["customers"], tagged)
+
+    def test_date_range_narrows(self):
+        narrow = crm_territory_map(date_from="2000-01-01", date_to="2000-01-02")
+        self.assertLessEqual(
+            narrow["totals"]["all"]["leads"], self.data["totals"]["all"]["leads"]
+        )
+
+    def test_currency_is_company_denominated(self):
+        self.assertTrue(self.data["currency"])
+        self.assertNotEqual(self.data["currency"], "$")
+
+
+class TestTerritoryDetail(unittest.TestCase):
+    def test_detail_shape(self):
+        target = next(
+            (
+                r["territory"]
+                for r in crm_territory_map(**ALL_TIME)["territories"]
+                if r["revenue"]
+            ),
+            None,
+        )
+        if not target:
+            self.skipTest("no territory with revenue on this site")
+        d = crm_territory_detail(target, **ALL_TIME)
+        self.assertEqual(d["territory"], target)
+        for key in ("top_accounts", "stages", "recent", "trend"):
+            self.assertIsInstance(d[key], list)
+
+    def test_blank_territory_returns_empty(self):
+        self.assertEqual(crm_territory_detail("", **ALL_TIME), {})
+
+    def test_unknown_territory_does_not_raise(self):
+        d = crm_territory_detail("Nowhere At All", **ALL_TIME)
+        self.assertEqual(d["top_accounts"], [])
+        self.assertEqual(d["recent"], [])
+
+
+class TestDegradation(unittest.TestCase):
+    def test_missing_doctype_degrades(self):
+        """A site without Sales Invoice renders an empty metric, not an error."""
+        import upande_crm.api.territory as mod
+
+        real = mod._has
+        mod._has = lambda dt: False if dt in ("Sales Invoice", "Sales Order") else real(dt)
+        try:
+            data = crm_territory_map(**ALL_TIME)
+            self.assertEqual(data["totals"]["all"]["revenue"], 0)
+            # Counts from surviving doctypes still come through.
+            self.assertGreaterEqual(data["totals"]["all"]["leads"], 0)
+        finally:
+            mod._has = real

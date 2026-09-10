@@ -34,6 +34,25 @@ import frappe
 from frappe.utils import add_days, nowdate, getdate
 
 DEMO_TAG = "crm-demo"
+
+# The staff the whole demo belongs to — mail, account managers, task owners.
+#
+# Resolving "whoever holds a sales role" instead returns, on this site, a test
+# account, two gmail addresses and a user at another company's domain
+# (lokitelaorchards.com), so demo records were owned by "Koskey" and "Roletest
+# Crm User". These two are real, enabled staff who already appear as senders in
+# the genuine correspondence. Role-holders remain the fallback for a site where
+# neither exists.
+SALES_PEOPLE = [
+    ("Calvine Emadau", "calvine@karenroses.com"),
+    ("Juliana Tele", "juliana@karenroses.com"),
+]
+SALES_ROOT = "Sales Team"
+
+
+def sales_users():
+    """The demo's user emails: the named staff, else whoever has a sales role."""
+    return [email for _, email in SALES_PEOPLE if frappe.db.exists("User", email)]
 ITEM_CODE = "DEMO-ROSE-EXPORT"
 PRICE_LIST = "Demo KES Price List"
 
@@ -45,6 +64,9 @@ _TAGGED_DOCTYPES = [
     "Contact",
     "Communication", "ToDo", "Event", "Sales Order", "Quotation",
     "Opportunity", "Lead", "Prospect", "Customer",
+    # After Customer: `Customer.sales_team` rows link to Sales Person, so the
+    # person cannot go first.
+    "Sales Person",
 ]
 
 # ------------------------------------------------------------------ demo content
@@ -120,13 +142,16 @@ def _cfg():
     company = "Karen Roses" if frappe.db.exists("Company", "Karen Roses") else \
         frappe.db.get_value("Company", {"is_group": 0}, "name")
     currency = frappe.db.get_value("Company", company, "default_currency") or "KES"
-    users = [u.parent for u in frappe.get_all(
-        "Has Role",
-        filters={"role": ["in", ["Sales User", "Sales Manager", "CRM User", "System Manager"]],
-                 "parenttype": "User"},
-        fields=["parent"], distinct=True, limit=20)
-        if u.parent not in ("Administrator", "Guest") and "@" in (u.parent or "")]
-    users = users[:5] or [frappe.session.user]
+    users = sales_users()
+    if not users:
+        users = [u.parent for u in frappe.get_all(
+            "Has Role",
+            filters={"role": ["in", ["Sales User", "Sales Manager", "CRM User", "System Manager"]],
+                     "parenttype": "User"},
+            fields=["parent"], distinct=True, limit=20)
+            if u.parent not in ("Administrator", "Guest") and "@" in (u.parent or "")]
+        users = users[:5]
+    users = users or [frappe.session.user]
 
     # Site customizations make several custom fields mandatory on Lead / Sales
     # Order. Resolve real link targets so the demo docs validate.

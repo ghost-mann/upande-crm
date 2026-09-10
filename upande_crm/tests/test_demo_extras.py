@@ -72,6 +72,53 @@ class TestClaimVocabulary(unittest.TestCase):
             self.assertIn(reason, _REASONS_BY_CATEGORY[category])
 
 
+class TestDemoOwnership(unittest.TestCase):
+    """The demo belongs to named staff, not to whoever holds a sales role.
+
+    `_cfg()` used to return the first five users with a sales role, which on
+    this site meant a test account, two gmail addresses and a user at another
+    company's domain — so demo mail arrived from "Koskey" and "Roletest Crm
+    User". These check the preference holds and the fallback still exists.
+    """
+
+    def test_named_people_are_preferred_when_they_exist(self):
+        from upande_crm.demo_data import SALES_PEOPLE, sales_users
+
+        resolved = sales_users()
+        for _, email in SALES_PEOPLE:
+            if frappe.db.exists("User", email):
+                self.assertIn(email, resolved)
+
+    def test_cfg_uses_them(self):
+        from upande_crm.demo_data import SALES_PEOPLE, _cfg, sales_users
+
+        if not sales_users():
+            self.skipTest("neither named user exists on this site")
+        users = _cfg()["users"]
+        self.assertTrue(users)
+        expected = {e for _, e in SALES_PEOPLE if frappe.db.exists("User", e)}
+        self.assertEqual(set(users), expected, "demo owners drifted off the named staff")
+
+    def test_no_foreign_domain_owners(self):
+        """A demo owned by another company's user is a data-hygiene problem."""
+        from upande_crm.demo_data import sales_users
+
+        for email in sales_users():
+            self.assertNotIn("lokitelaorchards.com", email)
+            self.assertNotIn("example.com", email)
+
+    def test_fallback_survives_missing_users(self):
+        """A site without these two must still seed, not crash."""
+        import upande_crm.demo_data as mod
+
+        real = mod.sales_users
+        mod.sales_users = lambda: []
+        try:
+            self.assertTrue(mod._cfg()["users"], "fallback returned no owner at all")
+        finally:
+            mod.sales_users = real
+
+
 class TestTeardownCoverage(unittest.TestCase):
     def test_extras_doctypes_are_in_the_teardown_list(self):
         """Anything seeded must also be removable, or clear_demo leaves litter."""

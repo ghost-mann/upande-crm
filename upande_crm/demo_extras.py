@@ -34,11 +34,12 @@ import random
 import frappe
 from frappe.utils import add_days, nowdate
 
-from upande_crm.demo_data import DEMO_TAG, _cfg, _tag
+from upande_crm.demo_data import DEMO_TAG, SALES_PEOPLE, SALES_ROOT, _cfg, _tag
 
 # Doctypes seeded here, in delete-safe order. `demo_data.clear_demo` reads this.
 EXTRA_DOCTYPES = [
     "Customer Feedback",
+    "Sales Person",
     "Email Campaign",
     "Campaign",
     "Email Group Member",
@@ -47,6 +48,9 @@ EXTRA_DOCTYPES = [
 ]
 
 EMAIL_GROUP = "Demo Export Buyers"
+
+# Defined in `demo_data` so the base seeder and this one cannot disagree
+# about who the demo belongs to.
 
 # (title, description, [(days_after_start, template_subject)])
 _CAMPAIGNS = [
@@ -200,8 +204,9 @@ def seed_extras():
         return {}
 
     made = {}
+    people = _seed_sales_people(customers, made)
     contacts = _seed_contacts(customers, made)
-    _seed_recent_mail(cfg, contacts, made)
+    _seed_recent_mail(cfg, contacts, people, made)
     _seed_campaigns(cfg, contacts, made)
     _seed_claims(customers, made)
 
@@ -214,6 +219,69 @@ def seed_extras():
         for k, v in sorted(FAILURES.items()):
             print("    %-40s %d" % (k, v))
     return made
+
+
+# ------------------------------------------------------------------ sales people
+def _seed_sales_people(customers, made):
+    """Create the two demo sales people and give them the demo accounts.
+
+    Returns `[(sales_person, user_email)]` for whoever resolved — a site
+    without these users falls back to an empty list and the caller uses
+    `_cfg()["users"]` instead.
+
+    Worth doing beyond the email attribution: `Sales Team` on this site holds
+    28 rows that are all one person, so anything measuring per-salesperson
+    performance has nothing to compare. Two people across eight demo accounts
+    gives it a shape to render.
+    """
+    made["Sales Person"] = 0
+    if not _has("Sales Person"):
+        return []
+
+    people = []
+    for full_name, email in SALES_PEOPLE:
+        if not frappe.db.exists("User", email):
+            continue
+        if not frappe.db.exists("Sales Person", full_name):
+            try:
+                doc = frappe.get_doc(
+                    {
+                        "doctype": "Sales Person",
+                        "sales_person_name": full_name,
+                        "parent_sales_person": SALES_ROOT
+                        if frappe.db.exists("Sales Person", SALES_ROOT)
+                        else None,
+                        "is_group": 0,
+                        "enabled": 1,
+                    }
+                )
+                doc.insert(ignore_permissions=True)
+                _tag("Sales Person", doc.name)
+                made["Sales Person"] += 1
+            except Exception as e:
+                _failed("Sales Person", e)
+                continue
+        people.append((full_name, email))
+
+    if people and customers:
+        _assign_accounts(customers, people, made)
+    return people
+
+
+def _assign_accounts(customers, people, made):
+    """Split the demo customers between the demo sales people."""
+    made["Sales Team rows"] = 0
+    for i, cust in enumerate(customers):
+        person = people[i % len(people)][0]
+        try:
+            doc = frappe.get_doc("Customer", cust)
+            if any(r.sales_person == person for r in (doc.get("sales_team") or [])):
+                continue
+            doc.append("sales_team", {"sales_person": person, "allocated_percentage": 100})
+            doc.save(ignore_permissions=True)
+            made["Sales Team rows"] += 1
+        except Exception as e:
+            _failed("Sales Team", e)
 
 
 # ------------------------------------------------------------------ contacts
@@ -254,7 +322,7 @@ def _seed_contacts(customers, made):
 
 
 # ------------------------------------------------------------------ mail
-def _seed_recent_mail(cfg, contacts, made):
+def _seed_recent_mail(cfg, contacts, people, made):
     """Threaded mail weighted into the last three weeks.
 
     Weighted, not uniform: the point of this batch is that the dashboard's
@@ -264,7 +332,8 @@ def _seed_recent_mail(cfg, contacts, made):
     made["Communication"] = 0
     if not contacts:
         return
-    staff = cfg["users"] or [frappe.session.user]
+    # Prefer the named sales people; fall back only if neither user exists.
+    staff = [email for _, email in people] or cfg["users"] or [frappe.session.user]
 
     for i in range(180):
         c = contacts[i % len(contacts)]

@@ -96,19 +96,6 @@ export const NAV = [
     ],
   },
   {
-    label: 'Reports',
-    items: [
-      { type: 'group', section: 'rep', icon: 'lab_profile', label: 'Reports',
-        subs: [
-          { table: '', label: 'Pipeline' },
-          { table: 'leads', label: 'Leads' },
-          { table: 'customers', label: 'Customers' },
-          { table: 'sales', label: 'Sales' },
-          { table: 'all', label: 'All reports' },
-        ] },
-    ],
-  },
-  {
     label: 'Workspace',
     items: [
       { type: 'group', section: 'set', icon: 'settings', label: 'Settings',
@@ -124,6 +111,10 @@ export const NAV = [
     ],
   },
 ];
+
+// Reports is deliberately absent from NAV. The section is still registered in
+// App.jsx and SECTION_META, so `select('rep', ...)` and any saved deep link
+// still resolve — it is hidden from the sidebar, not removed from the app.
 
 // The nav an organisation's settings actually allow. Today only WhatsApp is
 // switchable; keep new toggles here rather than in the components, so the sidebar

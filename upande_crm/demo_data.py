@@ -8,7 +8,10 @@ tagged ``crm-demo`` so the whole set can be removed in one call.
 Usage (from the bench directory):
 
     bench --site <site> execute upande_crm.demo_data.seed_demo
+    bench --site <site> execute upande_crm.demo_extras.seed_extras  # mail, campaigns, claims
     bench --site <site> execute upande_crm.demo_data.clear_demo   # remove it all
+
+`seed_all` below runs both seeders in the order they depend on.
 
 ``seed_demo`` clears any previous demo batch first, so it is safe to re-run.
 
@@ -35,7 +38,11 @@ ITEM_CODE = "DEMO-ROSE-EXPORT"
 PRICE_LIST = "Demo KES Price List"
 
 # Doctypes that carry the demo tag, in delete-safe order (children/links first).
+# The second group is seeded by `demo_extras`; it is listed here so one
+# `clear_demo` still removes everything, whichever seeder created it.
 _TAGGED_DOCTYPES = [
+    "Customer Feedback", "Email Campaign", "Campaign", "Email Group",
+    "Contact",
     "Communication", "ToDo", "Event", "Sales Order", "Quotation",
     "Opportunity", "Lead", "Prospect", "Customer",
 ]
@@ -216,6 +223,9 @@ def seed_demo():
             frappe.db.get_value("Customer Group", {"is_group": 0}, "name"),
             "territory": terr(territory),
             "default_currency": cfg["currency"],
+            # Site customization made this mandatory after the seeder was
+            # written; the demo price list is created by _ensure_item above.
+            "default_price_list": PRICE_LIST,
         })
         cust.insert(ignore_permissions=True)
         _set_cols("Customer", cust.name, account_manager=cfg["users"][i % len(cfg["users"])])
@@ -448,6 +458,15 @@ def clear_demo():
             except Exception as e:
                 frappe.log_error(f"clear_demo {dt} {nm}: {e}", "crm demo teardown")
         removed[dt] = n
+    # Email Group Members are addressed by group, not tagged individually.
+    if frappe.db.exists("DocType", "Email Group") and not frappe.db.exists(
+        "Email Group", "Demo Export Buyers"
+    ):
+        try:
+            frappe.db.delete("Email Group Member", {"email_group": "Demo Export Buyers"})
+        except Exception:
+            frappe.clear_last_message()
+
     # Demo item + price list
     for dt, nm in [("Item", ITEM_CODE), ("Price List", PRICE_LIST)]:
         if frappe.db.exists(dt, nm):
@@ -460,3 +479,16 @@ def clear_demo():
     if any(removed.values()):
         print("Removed demo data:", {k: v for k, v in removed.items() if v})
     return removed
+
+
+def seed_all():
+    """Both seeders, in dependency order.
+
+    `demo_extras` attaches contacts and mail to the customers `seed_demo`
+    creates, so it cannot run first.
+    """
+    from upande_crm import demo_extras
+
+    base = seed_demo()
+    extra = demo_extras.seed_extras()
+    return {**base, **extra}

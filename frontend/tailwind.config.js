@@ -8,11 +8,12 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // Poppins everywhere (consistent with the other customer_portal sections).
-        sans: ['Poppins', 'system-ui', 'sans-serif'],
-        mono: ['Poppins', 'system-ui', 'sans-serif'],
-        // Fraunces display serif for mail-client headings (UFD-modern reference).
-        display: ['Fraunces', 'Georgia', 'serif'],
+        // Read from the theme variables (index.css :root; CRM Settings → Theme →
+        // Fonts), so a font choice reaches every Tailwind font-* class. Shipped:
+        // Poppins everywhere, Fraunces for display headings.
+        sans: ['var(--f)'],
+        mono: ['var(--mono)'],
+        display: ['var(--display)'],
       },
       boxShadow: {
         card: 'var(--shadow-card)',
@@ -53,6 +54,11 @@ export default {
       },
       borderRadius: {
         lg: 'var(--radius)',
+        card: 'var(--r-card)',
+        'card-in': 'var(--r-card-in)',
+        kpi: 'max(0px, calc(var(--r-card) - 4px))',
+        panel: 'var(--r-panel)',
+        dialog: 'max(0px, calc(var(--r-panel) - 8px))',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 3px)',
       },

@@ -36,7 +36,11 @@ DIVERGENCES = {
 }
 
 # Tokens in index.css that the theme layer intentionally leaves to the bundle.
-NOT_DERIVED = {"bio"}
+NOT_DERIVED = {
+    "bio",
+    # Only set when the accent drives the primary actions; the default is plain white.
+    "nav-active-fg",
+}
 
 SHIPPED_SEEDS = {
     "theme_accent": "#d9a514",
@@ -230,7 +234,7 @@ class TestThemeEndpoints(FrappeTestCase):
 
     def test_payload_shape(self):
         d = S.crm_theme()
-        for key in ("seeds", "tokens", "derived", "contrast", "fonts", "can_edit", "installed"):
+        for key in ("seeds", "tokens", "derived", "contrast", "fonts", "css", "font_link", "can_edit", "installed"):
             self.assertIn(key, d)
         self.assertEqual(set(d["seeds"]), set(T.THEME_FIELDS))
         self.assertNotIn("presets", d)
@@ -239,6 +243,12 @@ class TestThemeEndpoints(FrappeTestCase):
         d = S.crm_theme_save(frappe.as_json({"theme_accent": "#8c1d2e"}))
         self.assertEqual(d["seeds"]["theme_accent"], "#8c1d2e")
         self.assertEqual(d["tokens"]["on-accent"], "#ffffff")
+
+    def test_payload_css_is_what_the_page_renders(self):
+        d = S.crm_theme_save(frappe.as_json({"theme_accent": "#8c1d2e", "theme_custom_css": "--ink-4: #54586b;"}))
+        frappe.clear_document_cache(S.SETTINGS_DOCTYPE, S.SETTINGS_DOCTYPE)
+        self.assertEqual(d["css"], get_theme_css())
+        self.assertIn("--ink-4: #54586b;", d["css"])
 
     def test_save_is_idempotent(self):
         first = S.crm_theme_save(frappe.as_json(MAROON_SEEDS))

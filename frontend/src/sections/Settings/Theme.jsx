@@ -1,227 +1,332 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../../store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Icon from '../../components/Icon';
 import { cn } from '@/lib/utils';
-import { Panel, SaveBar } from './parts';
+import { Panel, Toggle, SELECT } from './parts';
+import ThemePreview from './ThemePreview';
 
-// The eight seeds, in the order they appear on screen. Everything else in the
-// palette is derived server-side, so this is the whole surface.
-const SEEDS = [
-  ['theme_accent', 'Accent', 'Buttons, active states, the primary chart series.'],
-  ['theme_ink', 'Ink', 'Darkest structural colour — drives text, hairlines and shadows.'],
-  ['theme_ink_muted', 'Ink muted', 'The most-visible grey. Seeded directly so its warmth is chosen.'],
-  ['theme_canvas', 'Canvas', 'Page background. Card surfaces and lines derive from it.'],
-  ['theme_success', 'Success', ''],
-  ['theme_warning', 'Warning', ''],
-  ['theme_danger', 'Danger', ''],
-  ['theme_info', 'Info', ''],
-];
+// The CRM's look, in plain words. Every field is optional: blank means the CRM
+// works the value out from the others, and with nothing set at all the CRM looks
+// exactly as shipped. Each row says what you will see change first, and what it
+// drives technically second, so a non-designer and a developer both get a
+// straight answer.
+//
+// The preview on the right is derived by the server (crm_theme_preview) from the
+// unsaved draft — the same code that renders the saved theme — so it cannot
+// promise something Save will not deliver.
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
-function ColorRow({ label, help, value, onChange, disabled }) {
-  const valid = !value || HEX.test(value);
+const COLOURS = {
+  brand: [
+    ['theme_accent', 'Accent', 'Your brand colour. Used for highlights, badges, charts and the focus ring.', '--gold family, chart series, focus ring', 'gold'],
+    ['theme_accent_dark', 'Accent dark', 'A deeper version of your brand colour, for brand-coloured text on white and the dark end of buttons.', '--gold-2, --gold-text, gradient deep stop', 'gold-2'],
+    ['theme_accent_soft', 'Accent soft', 'A very pale version, used behind highlighted badges and selected rows.', '--gold-soft, --selected', 'gold-soft'],
+  ],
+  neutral: [
+    ['theme_ink', 'Ink', 'The main text colour. It also tints every grey and every shadow, so this one choice changes the feel of the whole app.', 'text, 7-step grey scale, shadows', 'text'],
+    ['theme_ink_muted', 'Muted text', 'Secondary text like dates, labels and hints. Pick a warm or cool grey to set the mood.', '--ink-mute, --text-3', 'text-3'],
+    ['theme_canvas', 'Page canvas', 'The background behind all the cards.', '--bg; lighter surfaces derive from it', 'bg'],
+    ['theme_wash', 'Muted fill', 'Slightly darker patches: row hover, quiet panels, the search box.', '--surface-3, secondary/muted fills', 'surface-3'],
+    ['theme_border', 'Border', 'Thin lines around cards, inputs and between table rows.', '--line, --border, --input, hairlines', 'line'],
+    ['theme_border_strong', 'Border strong', 'Heavier dividers and the edge of outlined buttons.', '--line-2', 'line-2'],
+  ],
+  status: [
+    ['theme_success', 'Success', 'Good news: won deals, paid invoices, completed tasks.', '--good + its pale badge fill', 'good'],
+    ['theme_warning', 'Warning', 'Needs attention: overdue tasks, pending quotations.', '--warn + its pale badge fill', 'warn'],
+    ['theme_danger', 'Danger', 'Problems: lost deals, failed messages, errors.', '--bad, destructive buttons', 'bad'],
+    ['theme_info', 'Info', 'Neutral notes and secondary chart lines.', '--info + its pale badge fill', 'info'],
+  ],
+};
+
+const FONTS = [
+  ['sans', 'theme_font_sans', 'theme_font_sans_name', 'Body font', 'The font for almost everything — text, buttons, tables.', '--f'],
+  ['display', 'theme_font_display', 'theme_font_display_name', 'Headings font', 'Big page titles and panel headings.', '--display'],
+  ['mono', 'theme_font_mono', 'theme_font_mono_name', 'Numbers font', 'Figures in KPI tiles and codes like invoice numbers.', '--mono'],
+];
+
+const SHAPES = [
+  ['theme_radius', 'Small corners', 'How rounded buttons, inputs and badges are.', '--radius, --r-sm', 12],
+  ['theme_radius_card', 'Card corners', 'How rounded cards, KPI tiles and tables are.', '--r-card', 24],
+  ['theme_radius_panel', 'Panel corners', 'How rounded the sidebar, dialogs and large panels are.', '--r-panel', 24],
+];
+
+function Help({ plain, tech }) {
   return (
-    <div className="py-3 border-b border-hairline last:border-b-0 flex items-start justify-between gap-6">
-      <div className="min-w-0">
+    <>
+      <div className="text-[12.5px] text-ink-3 mt-0.5 max-w-[52ch]">{plain}</div>
+      {tech && <div className="text-[11px] text-ink-mute mt-0.5">Technically: {tech}</div>}
+    </>
+  );
+}
+
+function FieldRow({ label, plain, tech, children }) {
+  return (
+    <div className="py-3.5 border-b border-hairline last:border-b-0 flex items-start justify-between gap-6 flex-wrap">
+      <div className="min-w-0 flex-1">
         <div className="text-[13px] text-ink font-medium">{label}</div>
-        {help && <div className="text-[11.5px] text-ink-mute mt-0.5 max-w-[46ch]">{help}</div>}
-        {!valid && <div className="text-[11.5px] text-bad mt-1">Needs a full six-digit hex, e.g. #d9a514</div>}
+        <Help plain={plain} tech={tech} />
       </div>
-      <div className="shrink-0 flex items-center gap-2">
-        <input
-          type="color"
-          value={HEX.test(value) ? value : '#000000'}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={`${label} colour picker`}
-          className="h-9 w-9 rounded-md border border-input bg-transparent p-0.5 cursor-pointer disabled:opacity-40"
-        />
-        <Input
-          value={value || ''}
-          disabled={disabled}
-          placeholder="not set"
-          onChange={(e) => onChange(e.target.value)}
-          className={cn('w-[122px] h-9 font-mono text-[12.5px]', !valid && 'border-bad')}
-        />
-      </div>
+      <div className="shrink-0 flex items-center gap-2">{children}</div>
     </div>
   );
 }
 
-function PresetCard({ preset, applied, disabled, onApply }) {
-  const s = preset.seeds || {};
-  const swatches = [s.theme_accent, s.theme_ink, s.theme_canvas].filter(Boolean);
-  const on = applied === preset.name;
+function ColourRow({ spec, value, derived, onChange, disabled }) {
+  const [field, label, plain, tech, token] = spec;
+  const valid = !value || HEX.test(value);
+  const fallback = derived?.[token];
   return (
-    <button
-      onClick={() => onApply(preset.name)}
-      disabled={disabled}
-      className={cn(
-        'text-left rounded-2xl border p-3.5 transition-all min-w-[170px]',
-        on ? 'border-gold bg-gold-soft' : 'border-hairline hover:border-line-2 hover:bg-hover',
-        disabled && 'opacity-50 cursor-not-allowed',
+    <FieldRow label={label} plain={plain} tech={tech}>
+      {!value && fallback && HEX.test(fallback) && (
+        <span className="text-[11px] text-ink-mute flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-full border border-hairline opacity-60" style={{ background: fallback }} />
+          worked out for you
+        </span>
       )}
-    >
-      <div className="flex items-center gap-1.5 mb-2.5">
-        {swatches.map((c, i) => (
-          <span key={i} className="w-6 h-6 rounded-full border border-hairline" style={{ background: c }} />
-        ))}
-      </div>
-      <div className="text-[12.5px] font-medium text-ink flex items-center gap-1.5">
-        {preset.label}
-        {on && <Icon name="check_circle" className="text-[14px] text-gold-text" />}
-      </div>
-      <div className="text-[10.5px] text-ink-mute mt-0.5">{on ? 'applied' : 'apply'}</div>
-    </button>
+      <input
+        type="color"
+        value={HEX.test(value) ? value : (HEX.test(fallback || '') ? fallback : '#000000')}
+        disabled={disabled}
+        onChange={(e) => onChange(field, e.target.value)}
+        aria-label={`${label} colour picker`}
+        className="h-9 w-9 rounded-md border border-input bg-transparent p-0.5 cursor-pointer disabled:opacity-40"
+      />
+      <Input
+        value={value || ''}
+        disabled={disabled}
+        placeholder="blank"
+        onChange={(e) => onChange(field, e.target.value.trim())}
+        className={cn('w-[112px] h-9 font-mono text-[12.5px]', !valid && 'border-bad')}
+        aria-invalid={!valid}
+      />
+      {value && !disabled && (
+        <button type="button" onClick={() => onChange(field, '')} className="text-[12px] text-ink-3 hover:text-ink">Clear</button>
+      )}
+      {!valid && <span className="basis-full text-right text-[11.5px] text-bad">Needs a six-digit colour code, e.g. #d9a514</span>}
+    </FieldRow>
   );
 }
 
-// A miniature of the shell, so the effect of a change is visible without hunting
-// through the app. Uses the live CSS variables, which the store has already
-// written onto :root after a save.
-function Preview() {
+function ShapeRow({ spec, value, onChange, disabled }) {
+  const [field, label, plain, tech, shipped] = spec;
+  const px = value === '0' ? 0 : /^\d+(\.\d+)?px$/.test(value || '') ? parseFloat(value) : null;
+  const shown = px ?? shipped;
   return (
-    <div className="rounded-2xl border border-hairline overflow-hidden">
-      <div className="bg-grad-ink px-4 py-3 flex items-center gap-2">
-        <span className="text-white text-[12.5px] font-semibold">CRM</span>
-        <span className="text-white/60 text-[10px] uppercase tracking-[0.16em]">preview</span>
-      </div>
-      <div className="bg-canvas p-4 grid gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <button className="bg-gold text-[var(--on-accent)] rounded-2xl h-9 px-4 text-[12.5px] font-semibold shadow-none">
-            Compose
-          </button>
-          <span className="bdg bdg-good">Converted</span>
-          <span className="bdg bdg-warn">Quotation</span>
-          <span className="bdg bdg-bad">Lost</span>
-        </div>
-        <div className="rounded-[20px] bg-surface-2 border border-hairline px-5 py-4 shadow-card">
-          <div className="text-[10px] text-ink-mute uppercase tracking-[0.16em] font-medium mb-2">Revenue</div>
-          <div className="text-[26px] leading-none font-semibold text-ink tabular-nums">KES 83.3M</div>
-          <div className="k-trend gold mt-2">1,429 orders</div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="bg-grad-ink text-white text-[11.5px] font-medium rounded-full px-3.5 py-1.5">Overview</span>
-          <span className="text-ink-4 text-[11.5px] px-3.5 py-1.5">Leads</span>
-          <span className="bg-gold-soft text-gold-text text-[11.5px] font-medium rounded-full px-3.5 py-1.5">Selected</span>
-        </div>
-      </div>
+    <FieldRow label={label} plain={plain} tech={tech}>
+      <input type="range" min={0} max={32} step={1} value={shown} disabled={disabled}
+        onChange={(e) => onChange(field, e.target.value === '0' ? '0' : `${e.target.value}px`)}
+        className="w-[130px] accent-[var(--gold)]" aria-label={`${label} size`} />
+      <Input value={value || ''} disabled={disabled} placeholder={`${shipped}px`}
+        onChange={(e) => onChange(field, e.target.value.trim())} className="w-[84px] h-9 font-mono text-[12.5px]" />
+      <label className="text-[12px] text-ink-3 flex items-center gap-1.5">
+        <input type="checkbox" className="accent-[var(--gold)]" checked={value === '0'} disabled={disabled}
+          onChange={(e) => onChange(field, e.target.checked ? '0' : '')} />
+        Square
+      </label>
+      {value && value !== '0' && px == null && (
+        <span className="basis-full text-right text-[11.5px] text-ink-mute">Sizes like 8px, 0.5rem or 0 are accepted.</span>
+      )}
+    </FieldRow>
+  );
+}
+
+const LEVEL = {
+  ok: { icon: 'check_circle', cls: 'text-good', text: 'Readable' },
+  warn: { icon: 'warning', cls: 'text-warn', text: 'Hard to read for small text' },
+  bad: { icon: 'error', cls: 'text-bad', text: 'Hard to read' },
+};
+
+function Contrast({ report }) {
+  if (!report?.length) return null;
+  return (
+    <div className="rounded-card border border-hairline bg-surface-2 p-4 mt-4">
+      <div className="text-[13px] text-ink font-medium">Can people read it?</div>
+      <div className="text-[11.5px] text-ink-mute mb-2">Checked against the WCAG contrast guideline. A warning never stops you saving.</div>
+      {report.map((r) => {
+        const L = LEVEL[r.level] || LEVEL.ok;
+        return (
+          <div key={r.key} className="flex items-center gap-2.5 py-1.5 text-[12px]">
+            <span className="w-7 h-5 rounded-[4px] border border-hairline grid place-items-center text-[10px] font-semibold shrink-0"
+              style={{ background: r.bg, color: r.fg }}>Aa</span>
+            <span className="flex-1 min-w-0 text-ink-2 truncate">{r.label}</span>
+            <span className="tabular-nums text-ink-mute">{r.ratio.toFixed(1)}:1</span>
+            <span className={cn('flex items-center gap-1 shrink-0', L.cls)} title={L.text}>
+              <Icon name={L.icon} className="text-[15px]" />
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
+}
+
+function pickSeeds(theme) {
+  return { ...(theme?.seeds || {}) };
 }
 
 export default function Theme() {
   const theme = useStore((s) => s.theme);
   const loadTheme = useStore((s) => s.loadTheme);
   const saveTheme = useStore((s) => s.saveTheme);
-  const applyPreset = useStore((s) => s.applyThemePreset);
   const resetTheme = useStore((s) => s.resetTheme);
+  const previewTheme = useStore((s) => s.previewTheme);
 
   const [draft, setDraft] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
   const [ok, setOk] = useState('');
+  const seq = useRef(0);
 
   useEffect(() => { if (!theme) loadTheme(); }, [theme, loadTheme]);
-  // Re-seed the draft whenever the server's copy changes (save, preset, reset).
-  useEffect(() => { if (theme?.seeds) setDraft({ ...theme.seeds }); }, [theme]);
+  useEffect(() => { if (theme?.seeds) { setDraft(pickSeeds(theme)); setPreview(theme); } }, [theme]);
 
-  if (!theme || !draft) {
-    return <Panel title="Theme" sub="Loading…"><div className="crm-empty">Loading theme…</div></Panel>;
-  }
+  const dirty = useMemo(() => {
+    if (!draft || !theme?.seeds) return false;
+    return Object.keys(draft).some((k) => String(draft[k] ?? '') !== String(theme.seeds[k] ?? ''));
+  }, [draft, theme]);
 
-  const canEdit = !!theme.can_edit;
-  const disabled = !canEdit || !theme.installed;
-  const dirty = SEEDS.some(([k]) => (draft[k] || '') !== (theme.seeds?.[k] || ''));
-  const anyInvalid = SEEDS.some(([k]) => draft[k] && !HEX.test(draft[k]));
+  // Re-derive the preview 250ms after the last change. Late answers from an
+  // older draft are dropped, so fast typing cannot leave a stale preview.
+  useEffect(() => {
+    if (!draft || !dirty) { if (theme) setPreview(theme); return undefined; }
+    const n = ++seq.current;
+    const t = setTimeout(() => {
+      previewTheme(draft).then((p) => { if (n === seq.current) setPreview(p); }).catch(() => {});
+    }, 250);
+    return () => clearTimeout(t);
+  }, [draft, dirty, theme, previewTheme]);
 
-  const form = {
-    dirty, saving, err, ok, canEdit, installed: theme.installed,
-    reset: () => { setDraft({ ...theme.seeds }); setErr(''); setOk(''); },
-    save: async () => {
-      if (anyInvalid) { setErr('Fix the highlighted colour first.'); return; }
-      setSaving(true); setErr(''); setOk('');
-      try {
-        await saveTheme(draft);
-        setOk('Applied');
-      } catch (e) {
-        setErr(e.message || 'Could not save the theme.');
-      } finally {
-        setSaving(false);
-      }
-    },
+  if (!theme || !draft) return <div className="p-12 text-center text-ink-mute text-[13px]">Loading theme…</div>;
+  if (theme.error) return <div className="crm-empty">Could not load the theme settings.</div>;
+
+  const disabled = !theme.can_edit || !theme.installed;
+  const set = (field, value) => { setDraft((d) => ({ ...d, [field]: value })); setOk(''); setErr(''); };
+  const fonts = theme.fonts || {};
+  const anyCustom = FONTS.some(([, f]) => draft[f] === 'Custom');
+
+  const save = async () => {
+    setSaving(true); setErr(''); setOk('');
+    try {
+      await saveTheme(draft);
+      setOk('Saved — the whole CRM now uses this theme.');
+    } catch (e) {
+      setErr(e.message || 'Could not save the theme.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const reset = async () => {
+    if (!window.confirm('Put the CRM back to its shipped look? Every theme setting will be cleared.')) return;
+    setSaving(true); setErr(''); setOk('');
+    try {
+      await resetTheme();
+      setOk('Back to the shipped look.');
+    } catch (e) {
+      setErr(e.message || 'Could not reset the theme.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  async function run(label, fn) {
-    setBusy(label); setErr(''); setOk('');
-    try {
-      await fn();
-      setOk(label === 'reset' ? 'Reset to Upande gold' : 'Preset applied');
-    } catch (e) {
-      setErr(e.message || 'Could not apply that theme.');
-    } finally {
-      setBusy('');
-    }
-  }
+  const colourPanel = (title, sub, list) => (
+    <Panel title={title} sub={sub}>
+      {list.map((spec) => (
+        <ColourRow key={spec[0]} spec={spec} value={draft[spec[0]]} derived={preview?.derived || theme.derived}
+          onChange={set} disabled={disabled} />
+      ))}
+    </Panel>
+  );
 
   return (
-    <div>
-      <Panel
-        title="Presets"
-        sub="A whole palette in one click · applied immediately, no reload"
-        aside={
-          <Button
-            size="sm" variant="outline" disabled={disabled || !!busy}
-            onClick={() => run('reset', resetTheme)}
-            className="rounded-full h-9"
-          >
-            <Icon name="restart_alt" className="text-[16px]" />
-            {busy === 'reset' ? 'Resetting…' : 'Reset to Upande gold'}
-          </Button>
-        }
-      >
-        <div className="flex flex-wrap gap-2.5 pt-1">
-          {(theme.presets || []).map((p) => (
-            <PresetCard
-              key={p.name} preset={p} applied={theme.applied}
-              disabled={disabled || !!busy}
-              onApply={(name) => run(name, () => applyPreset(name))}
-            />
-          ))}
-          {!theme.presets?.length && <div className="crm-empty">No shipped presets found</div>}
-        </div>
-      </Panel>
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] gap-[18px] items-start">
+      <div className="min-w-0 order-2 xl:order-1">
+        {colourPanel('Brand colours', 'The colour people recognise as yours', COLOURS.brand)}
+        <Panel title="Main buttons" sub="Where your brand colour shows up">
+          <FieldRow label="Use accent for main buttons"
+            plain="Off: main buttons are near-black and your brand colour is just trim. On: buttons, the focus ring and the active menu item use your brand colour."
+            tech="--primary, --ring, active nav item">
+            <Toggle on={!!Number(draft.theme_accent_primary)} disabled={disabled || !draft.theme_accent}
+              onClick={() => set('theme_accent_primary', Number(draft.theme_accent_primary) ? 0 : 1)} />
+          </FieldRow>
+          {!draft.theme_accent && <div className="text-[11.5px] text-ink-mute pt-2">Set an Accent colour first.</div>}
+        </Panel>
+        {colourPanel('Neutral colours', 'Text, backgrounds and lines — most of what you see', COLOURS.neutral)}
+        {colourPanel('Status colours', 'Each one also makes its own pale badge background', COLOURS.status)}
 
-      <Panel
-        title="Colours"
-        sub="Eight seeds. The ink scale, surfaces, hairlines, shadows, gradients, button and input colours are all derived from them."
-      >
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-7">
-          <div>
-            {SEEDS.map(([key, label, help]) => (
-              <ColorRow
-                key={key} label={label} help={help} value={draft[key]} disabled={disabled}
-                onChange={(v) => { setDraft((d) => ({ ...d, [key]: v })); setOk(''); setErr(''); }}
-              />
-            ))}
-            <SaveBar form={form} />
+        <Panel title="Fonts" sub="Bundled fonts need no internet connection">
+          {FONTS.map(([role, field, nameField, label, plain, tech]) => (
+            <FieldRow key={field} label={label} plain={plain} tech={tech}>
+              <select className={cn(SELECT, 'w-[170px]')} disabled={disabled} value={draft[field] || ''}
+                onChange={(e) => set(field, e.target.value)}>
+                {(fonts[role] || ['']).map((o) => <option key={o} value={o}>{o || 'As shipped'}</option>)}
+              </select>
+              {draft[field] === 'Custom' && (
+                <Input value={draft[nameField] || ''} disabled={disabled} placeholder="Family, e.g. Lora"
+                  onChange={(e) => set(nameField, e.target.value)} className="w-[150px] h-9 text-[12.5px]" />
+              )}
+            </FieldRow>
+          ))}
+          {anyCustom && (
+            <FieldRow label="Google Fonts link"
+              plain="Custom fonts load from Google. Pick the font on fonts.google.com, copy its stylesheet link, and paste it here."
+              tech="must start https://fonts.googleapis.com — any other address is refused">
+              <Input value={draft.theme_google_fonts_url || ''} disabled={disabled}
+                placeholder="https://fonts.googleapis.com/css2?family=…"
+                onChange={(e) => set('theme_google_fonts_url', e.target.value.trim())} className="w-[300px] h-9 text-[12px] font-mono" />
+            </FieldRow>
+          )}
+          {anyCustom && <div className="text-[11.5px] text-ink-mute pt-2">Custom fonts show in the preview after you save.</div>}
+        </Panel>
+
+        <Panel title="Corners" sub="How rounded things are — drag to 0 for a square, crisp look">
+          {SHAPES.map((spec) => (
+            <ShapeRow key={spec[0]} spec={spec} value={draft[spec[0]]} onChange={set} disabled={disabled} />
+          ))}
+        </Panel>
+
+        <details className="mb-[18px] rounded-card border border-hairline bg-surface-2 px-6 py-4">
+          <summary className="cursor-pointer text-[13px] text-ink font-medium">Advanced — for developers</summary>
+          <div className="text-[12px] text-ink-3 mt-2 mb-2">
+            CSS custom properties applied last, overriding everything above. One per line, e.g. <code>--ink-4: #54586b;</code>
           </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.14em] text-ink-mute font-medium mb-2">
-              Live preview
-            </div>
-            <Preview />
-            <div className="text-[11px] text-ink-mute mt-2.5">
-              Reflects what is saved. Text on the accent fill is chosen automatically for
-              contrast, so a dark accent gets white text and a bright one gets ink.
-            </div>
-          </div>
+          <textarea value={draft.theme_custom_css || ''} disabled={disabled} rows={5}
+            onChange={(e) => set('theme_custom_css', e.target.value)}
+            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-[12px] font-mono outline-none focus:ring-1 focus:ring-ring" />
+        </details>
+
+        <div className="flex items-center gap-3 flex-wrap mb-8">
+          {disabled ? (
+            <span className="text-[12px] text-ink-mute flex items-center gap-2">
+              <Icon name="lock" className="text-[15px]" />
+              {theme.installed ? 'Only a Sales Manager or System Manager can change the theme.' : 'Run bench migrate to enable theme settings.'}
+            </span>
+          ) : (
+            <>
+              <Button size="sm" onClick={save} disabled={saving || !dirty}
+                className="rounded-full bg-gold text-[var(--on-accent)] hover:bg-gold-2 hover:text-white shadow-none px-5 disabled:opacity-40">
+                <Icon name="check" className="text-[16px]" />{saving ? 'Saving…' : 'Save theme'}
+              </Button>
+              {dirty && !saving && (
+                <button type="button" onClick={() => { setDraft(pickSeeds(theme)); setErr(''); }} className="text-[13px] text-ink-3 hover:text-ink">Discard changes</button>
+              )}
+              <button type="button" onClick={reset} disabled={saving} className="text-[13px] text-ink-3 hover:text-bad ml-auto">
+                Reset to the shipped look
+              </button>
+            </>
+          )}
+          {err && <span className="basis-full text-[12px] text-bad">{err}</span>}
+          {!err && ok && <span className="basis-full text-[12px] text-good flex items-center gap-1"><Icon name="check_circle" className="text-[14px]" />{ok}</span>}
         </div>
-      </Panel>
+      </div>
+
+      <div className="order-1 xl:order-2 xl:sticky xl:top-[96px]">
+        <ThemePreview tokens={preview?.tokens || {}} />
+        <Contrast report={preview?.contrast || theme.contrast} />
+      </div>
     </div>
   );
 }

@@ -70,7 +70,7 @@ export default function ComposeDialog() {
     ? 'fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4'
     : 'fixed bottom-0 right-5 z-[60]';
   const panel = maximized
-    ? 'flex flex-col w-[760px] max-w-[95vw] h-[88vh] rounded-2xl shadow-2xl border border-hairline bg-surface overflow-hidden'
+    ? 'flex flex-col w-[760px] max-w-[95vw] h-[88vh] rounded-dialog shadow-2xl border border-hairline bg-surface overflow-hidden'
     : cn(
         'flex flex-col w-[480px] max-w-[calc(100vw-1.5rem)] rounded-t-2xl shadow-2xl border border-hairline bg-surface overflow-hidden',
         minimized ? 'h-11' : 'h-[560px] max-h-[calc(100vh-72px)]',

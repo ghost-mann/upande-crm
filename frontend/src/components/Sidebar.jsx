@@ -24,7 +24,7 @@ function groupCount(section, data, mailCounts, waUnread) {
   }
 }
 
-const ITEM_ON = 'bg-grad-ink text-white font-medium shadow-[0_4px_14px_rgba(10,10,10,0.18)]';
+const ITEM_ON = 'bg-[image:var(--nav-active)] bg-[color:var(--nav-active)] text-[color:var(--nav-active-fg)] font-medium shadow-[0_4px_14px_rgba(10,10,10,0.18)]';
 const ITEM_OFF = 'text-ink-4 hover:bg-hover hover:text-ink';
 
 export default function Sidebar({ onCompose, onSettings, collapsed, onToggleCollapse }) {
@@ -38,7 +38,7 @@ export default function Sidebar({ onCompose, onSettings, collapsed, onToggleColl
   const NAV = visibleNav(org, modules);
 
   return (
-    <aside className="sticky top-[84px] max-[900px]:static max-h-[calc(100vh-104px)] max-[900px]:max-h-none bg-surface border border-hairline rounded-[24px] shadow-card flex flex-col overflow-hidden">
+    <aside className="sticky top-[84px] max-[900px]:static max-h-[calc(100vh-104px)] max-[900px]:max-h-none bg-surface border border-hairline rounded-panel shadow-card flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto crm-scroll pt-4 pb-2">
         {(!modules || modules.mail !== false) && <div className={cn('pb-2', collapsed ? 'px-2' : 'px-3.5')}>
           <button

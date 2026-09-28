@@ -31,6 +31,17 @@
     --input: 42 16% 87%;
     --ring: 60 6% 10%;
     --radius: 12px;
+    /* Corner sizes, set from CRM Settings → Theme → Corners. Inner shapes are
+       derived from these, so one setting reshapes the whole family, and 0
+       squares everything off. Pills (999px) and avatars (50%) stay round. */
+    --r-sm: var(--radius);
+    --r-card: 24px;
+    --r-panel: 24px;
+    --r-card-in: max(0px, calc(var(--r-card) - 10px));
+    --r-ctl: max(0px, calc(var(--radius) - 3px));
+    /* The active sidebar item. Theme → "Use accent for main buttons" repaints it. */
+    --nav-active: var(--grad-ink);
+    --nav-active-fg: #ffffff;
 
     /* CRM raw palette — UFD-modern. Shades of black from the Upande logo. */
     --ink: #0a0a0a;
@@ -116,7 +127,7 @@
  * reskinned to the UFD-modern reference: rounded, hairline-bordered, cream
  * hovers, gold accent. Scoped to the crm bundle. */
 @layer components {
-  .tbl-wrap { max-height: calc(100vh - 260px); overflow-y: auto; border-radius: 14px; }
+  .tbl-wrap { max-height: calc(100vh - 260px); overflow-y: auto; border-radius: var(--r-card-in); }
   .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
   .tbl th {
     text-align: left; padding: 12px 16px; font-family: var(--f); font-size: 10.5px;
@@ -131,7 +142,7 @@
   .cell-num { font-family: var(--mono); text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
 
   .stages { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; }
-  .stage { flex: 1; min-width: 138px; background: var(--surface-2); border-radius: 14px; padding: 14px 16px; border: 1px solid var(--hairline); }
+  .stage { flex: 1; min-width: 138px; background: var(--surface-2); border-radius: var(--r-card-in); padding: 14px 16px; border: 1px solid var(--hairline); }
   .stage-name { font-family: var(--f); font-size: 10px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; margin-bottom: 6px; }
   .stage-cnt { font-family: var(--f); font-size: 24px; font-weight: 600; color: var(--ink); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
   .stage-pct { font-family: var(--f); font-size: 10.5px; color: var(--ink-mute); margin-top: 2px; }
@@ -141,10 +152,11 @@
   .bdg-good { background: var(--good-soft); color: var(--good); }
   .bdg-bad { background: var(--bad-soft); color: var(--bad); }
   .bdg-warn { background: var(--warn-soft); color: var(--warn); }
+  .bdg-info { background: var(--info-soft); color: var(--info); }
   .bdg-other { background: var(--surface-3); color: var(--ink-4); }
 
   /* Mail rows — roomy, rounded hover, gold accent for unread. */
-  .mail-row { display: grid; grid-template-columns: 30px 24px 200px 1fr 88px; align-items: center; gap: 4px; padding: 0 12px; height: 56px; border-bottom: 1px solid var(--hairline); cursor: pointer; font-size: 13px; position: relative; border-radius: 14px; transition: background .18s, box-shadow .18s; }
+  .mail-row { display: grid; grid-template-columns: 30px 24px 200px 1fr 88px; align-items: center; gap: 4px; padding: 0 12px; height: 56px; border-bottom: 1px solid var(--hairline); cursor: pointer; font-size: 13px; position: relative; border-radius: var(--r-card-in); transition: background .18s, box-shadow .18s; }
   .mail-row:hover { background: var(--hover); }
   .mail-row.unread { font-weight: 600; }
   .mail-row:last-child { border-bottom: 0; }
@@ -166,17 +178,17 @@
   .m-actions { position: absolute; right: 10px; top: 0; bottom: 0; display: flex; align-items: center; gap: 1px; opacity: 0; pointer-events: none; transition: opacity .12s; }
   .mail-row:hover .m-actions { opacity: 1; pointer-events: auto; }
   .mail-row:hover .m-time { opacity: 0; }
-  .m-actions button { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-4); transition: background .12s, color .12s; }
+  .m-actions button { width: 32px; height: 32px; border-radius: var(--r-ctl); display: grid; place-items: center; color: var(--ink-4); transition: background .12s, color .12s; }
   .m-actions button:hover { background: rgba(10,10,10,0.07); color: var(--ink); }
 
   /* Mail toolbar (Gmail-style) */
   .mailbar { display: flex; align-items: center; gap: 2px; padding: 6px 10px; border-bottom: 1px solid var(--hairline); }
-  .mailbar button { height: 36px; min-width: 36px; padding: 0 8px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--ink-4); font: 500 12px var(--f); transition: background .12s, color .12s; }
+  .mailbar button { height: 36px; min-width: 36px; padding: 0 8px; border-radius: var(--r-ctl); display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--ink-4); font: 500 12px var(--f); transition: background .12s, color .12s; }
   .mailbar button:hover { background: var(--hover); color: var(--ink); }
   .mailbar button:disabled { opacity: .4; pointer-events: none; }
 
   /* Big rounded, soft-shadowed card used by the mail views */
-  .mail-card { border-radius: 24px !important; border-color: var(--hairline) !important; box-shadow: var(--shadow-card); }
+  .mail-card { border-radius: var(--r-card) !important; border-color: var(--hairline) !important; box-shadow: var(--shadow-card); }
   /* Mail titles use Poppins (not the display serif) to match the reference. */
   .mail-display { font-family: var(--f); letter-spacing: -.02em; }
   /* Selected mail row */
@@ -201,7 +213,7 @@
 
   /* Ranked list */
   .list { display: flex; flex-direction: column; }
-  .list__row { display: grid; grid-template-columns: 30px 1fr auto; gap: 14px; padding: 13px 8px; border-bottom: 1px solid var(--hairline); align-items: center; cursor: pointer; transition: background .2s; border-radius: 12px; }
+  .list__row { display: grid; grid-template-columns: 30px 1fr auto; gap: 14px; padding: 13px 8px; border-bottom: 1px solid var(--hairline); align-items: center; cursor: pointer; transition: background .2s; border-radius: var(--r-sm); }
   .list__row:hover { background: var(--hover); }
   .list__row:last-child { border-bottom: 0; }
   .list__rank { font: 600 12px var(--f); color: var(--ink-mute); width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: rgba(10,10,10,0.05); font-variant-numeric: tabular-nums; }

@@ -53,7 +53,7 @@ export const healthApi          = () => api(S + 'crm_integration_status', {});
 // values from the server-rendered <style> block.
 export const themeApi           = () => api(S + 'crm_theme', {});
 export const themeSaveApi       = (seeds) => api(S + 'crm_theme_save', { seeds: JSON.stringify(seeds) });
-export const themePresetApi     = (name) => api(S + 'crm_theme_apply_preset', { name });
+export const themePreviewApi    = (seeds) => api(S + 'crm_theme_preview', { seeds: JSON.stringify(seeds) });
 export const themeResetApi      = () => api(S + 'crm_theme_reset', {});
 
 // ---------------------------------------------------------------- campaigns

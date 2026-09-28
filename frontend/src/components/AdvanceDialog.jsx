@@ -301,7 +301,7 @@ export default function AdvanceDialog() {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4">
-      <div className="flex flex-col w-[700px] max-w-[96vw] max-h-[92vh] rounded-2xl shadow-2xl border border-hairline bg-surface overflow-hidden">
+      <div className="flex flex-col w-[700px] max-w-[96vw] max-h-[92vh] rounded-dialog shadow-2xl border border-hairline bg-surface overflow-hidden">
         <div className="h-11 shrink-0 bg-grad-ink text-white flex items-center gap-1 pl-4 pr-1.5">
           <span className="text-[14px] font-semibold truncate flex-1">Advance · {subject}</span>
           <button className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/15"

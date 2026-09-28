@@ -6,7 +6,7 @@ import {
   assignApi, unassignApi, calendarApi,
   waConversationsApi, waThreadApi, waSendApi, waSendTemplateApi, waMarkReadApi,
   orgSettingsApi, orgSettingsSaveApi, healthApi,
-  themeApi, themeSaveApi, themePresetApi, themeResetApi,
+  themeApi, themeSaveApi, themePreviewApi, themeResetApi,
   reportsApi, reportCatalogueApi,
   saveCallApi, deleteCallApi,
   ANALYTICS_LOADERS, moverDetailApi,
@@ -222,7 +222,7 @@ export const useStore = create((set, get) => ({
   orgLoaded: false,
   health: null,
   healthLoading: false,
-  // theme: {seeds, tokens, presets, applied, can_edit} — loaded by the Theme tab.
+  // theme: {seeds, tokens, derived, contrast, fonts, css, can_edit} — loaded by the Theme tab.
   theme: null,
   // reports registry + catalogue, both loaded lazily by the Reports section.
   reports: null,
@@ -593,14 +593,36 @@ export const useStore = create((set, get) => ({
   },
 
   // ---------------------------------------------------------------- theme
-  // Tokens are written onto the document element, which is enough to reskin the
-  // whole app: every Tailwind colour here resolves a CSS variable at runtime.
-  applyTokens(tokens) {
-    if (!tokens || typeof document === 'undefined') return;
-    const root = document.documentElement;
-    Object.entries(tokens).forEach(([name, value]) => {
-      root.style.setProperty(`--${name}`, String(value));
-    });
+  // A saved theme replaces the page's server-rendered <style id="crm-theme">
+  // (and the Custom-font <link>) with the payload's, so a blanked colour or a
+  // reset takes effect at once. Every Tailwind colour here resolves a CSS
+  // variable at runtime, so this reskins the whole app without a reload.
+  applyTheme(t) {
+    if (!t || typeof document === 'undefined') return;
+    let style = document.getElementById('crm-theme');
+    if (t.css) {
+      if (!style) {
+        style = document.createElement('style');
+        style.id = 'crm-theme';
+        document.head.appendChild(style);
+      }
+      style.textContent = t.css;
+    } else if (style) {
+      style.remove();
+    }
+    let link = document.getElementById('crm-theme-font');
+    if (!link) link = document.querySelector('link[rel="stylesheet"][href^="https://fonts.googleapis.com/css2"]:not([href*="Material"])');
+    if (t.font_link) {
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+      }
+      link.id = 'crm-theme-font';
+      if (link.href !== t.font_link) link.href = t.font_link;
+    } else if (link) {
+      link.remove();
+    }
   },
 
   async loadTheme() {
@@ -609,30 +631,28 @@ export const useStore = create((set, get) => ({
       set({ theme: t });
       return t;
     } catch {
-      set({ theme: { seeds: {}, tokens: {}, presets: [], applied: '', error: true } });
+      set({ theme: { seeds: {}, tokens: {}, derived: {}, contrast: [], fonts: {}, error: true } });
       return null;
     }
   },
 
-  // Throws so the Theme tab can show which colour the server refused.
+  // A draft's payload, derived by the server without saving — for the preview.
+  previewTheme(seeds) {
+    return themePreviewApi(seeds);
+  },
+
+  // Throws so the Theme tab can show which value the server refused.
   async saveTheme(seeds) {
     const t = await themeSaveApi(seeds);
     set({ theme: t });
-    get().applyTokens(t?.tokens);
-    return t;
-  },
-
-  async applyThemePreset(name) {
-    const t = await themePresetApi(name);
-    set({ theme: t });
-    get().applyTokens(t?.tokens);
+    get().applyTheme(t);
     return t;
   },
 
   async resetTheme() {
     const t = await themeResetApi();
     set({ theme: t });
-    get().applyTokens(t?.tokens);
+    get().applyTheme(t);
     return t;
   },
 

@@ -218,6 +218,9 @@ def _theme_payload(settings=None):
         "contrast": T.contrast_report(tokens),
         "fonts": fonts.options(),
         "font_link": T.get_font_link(s),
+        # Exactly what the page's <style id="crm-theme"> holds, so the SPA can
+        # swap it in place after a save instead of layering inline overrides.
+        "css": T.get_theme_css(s),
         "can_edit": _can_edit(),
         "installed": _installed(),
     }

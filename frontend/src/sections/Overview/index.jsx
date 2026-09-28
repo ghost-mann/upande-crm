@@ -57,6 +57,9 @@ function CaptureBar() {
 // Revenue used to lead this page. It now sits where it belongs: after the work.
 export default function Overview() {
   const { data, status } = useStore();
+  // Cards owned by a switched-off module go with it (upande_crm/modules.py).
+  const on = useStore((s) => s.moduleOn);
+  useStore((s) => s.orgMeta.modules);
   const OV = data.overview;
   const C = data.command;
 
@@ -72,11 +75,11 @@ export default function Overview() {
 
   return (
     <div>
-      <CaptureBar />
+      {on('leads') && <CaptureBar />}
       <Kpis />
 
       <BandHead title="The day" note="from now forward, independent of the date range" />
-      <div className="mb-[18px]"><Upcoming /></div>
+      {on('evt') && <div className="mb-[18px]"><Upcoming /></div>}
       <FollowUps />
 
       <BandHead title="Track record"
@@ -98,9 +101,9 @@ export default function Overview() {
       <SalesBand />
 
       {/* FUNNEL + LEAD STATUS */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-[18px] mb-[18px]">
+      <div className={`grid grid-cols-1 ${on('leads') ? 'lg:grid-cols-[1.4fr_1fr]' : ''} gap-[18px] mb-[18px]`}>
         <Funnel />
-        <Card>
+        {on('leads') && <Card>
           <CardHeader><div><CardTitle>Lead Status</CardTitle><CardSub>Distribution</CardSub></div></CardHeader>
           <CardContent>
             <div className="h-[220px] relative"><DoughnutStat items={leadStatus} centerLabel="leads" /></div>
@@ -110,20 +113,20 @@ export default function Overview() {
               ))}
             </div>
           </CardContent>
-        </Card>
+        </Card>}
       </div>
 
       {/* SECONDARY CHARTS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-[18px] mb-[18px]">
-        <ChartCard title="Lead Trend" sub="In selected range" height="h-[240px]">
+        {on('leads') && <ChartCard title="Lead Trend" sub="In selected range" height="h-[240px]">
           <AreaTrendChart labels={(OV?.lead_trend || []).map((r) => r.label)} data={(OV?.lead_trend || []).map((r) => r.count)} />
-        </ChartCard>
+        </ChartCard>}
         <ChartCard title="Top Territories" height="h-[240px]">
           <HBarsChart labels={(OV?.top_territories || []).map((r) => r.label)} data={(OV?.top_territories || []).map((r) => r.count)} />
         </ChartCard>
-        <ChartCard title="Sales Stages" height="h-[240px]">
+        {on('opps') && <ChartCard title="Sales Stages" height="h-[240px]">
           <BarsChart labels={(OV?.sales_stages || []).map((r) => r.label)} data={(OV?.sales_stages || []).map((r) => r.count)} />
-        </ChartCard>
+        </ChartCard>}
       </div>
 
       <MoverDrill />

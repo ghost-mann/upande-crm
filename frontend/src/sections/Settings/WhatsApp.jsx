@@ -3,9 +3,10 @@ import { fmt } from '@shared/utils';
 import { useStore } from '../../store';
 import { waTemplatesApi } from '../../api';
 import Icon from '../../components/Icon';
-import { Panel, Row, Toggle, NumberBox, SaveBar, useOrgForm, SELECT } from './parts';
+import { Panel, Row, NumberBox, SaveBar, useOrgForm, SELECT } from './parts';
 
-const KEYS = ['whatsapp_enabled', 'default_whatsapp_template', 'whatsapp_fail_rate_alert'];
+// The on/off switch lives on the Modules tab with every other module.
+const KEYS = ['default_whatsapp_template', 'whatsapp_fail_rate_alert'];
 
 export default function WhatsAppSettings() {
   const form = useOrgForm(KEYS);
@@ -20,7 +21,9 @@ export default function WhatsAppSettings() {
     return () => { dead = true; };
   }, []);
 
-  const enabled = !!form.draft.whatsapp_enabled;
+  const enabled = useStore((s) => s.moduleOn('wa'));
+  useStore((s) => s.orgMeta.modules);
+  const select = useStore((s) => s.select);
   const failRate = wa?.kpis?.fail_rate;
   const threshold = Number(form.draft.whatsapp_fail_rate_alert);
   const over = failRate != null && Number.isFinite(threshold) && failRate > threshold;
@@ -33,13 +36,13 @@ export default function WhatsAppSettings() {
         sub="A surface over frappe_whatsapp — credentials, webhooks and templates stay in desk"
       >
         <Row
-          label="Show the WhatsApp section"
-          help="Off removes it from the sidebar and stops the CRM querying WhatsApp on refresh."
+          label="WhatsApp section"
+          help="Switched on and off on the Modules tab, with the rest of the CRM's modules."
         >
-          <Toggle
-            on={enabled} disabled={form.disabled}
-            onClick={() => form.set({ whatsapp_enabled: enabled ? 0 : 1 })}
-          />
+          <span className={`bdg ${enabled ? 'bdg-good' : 'bdg-bad'}`}>{enabled ? 'On' : 'Off'}</span>
+          <button type="button" onClick={() => select('set', 'modules')} className="text-[12.5px] text-gold-text underline hover:no-underline">
+            Modules
+          </button>
         </Row>
         <Row
           label="Default template"

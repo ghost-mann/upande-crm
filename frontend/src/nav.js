@@ -101,6 +101,7 @@ export const NAV = [
       { type: 'group', section: 'set', icon: 'settings', label: 'Settings',
         subs: [
           { table: '', label: 'General' },
+          { table: 'modules', label: 'Modules' },
           { table: 'targets', label: 'Targets' },
           { table: 'pipeline', label: 'Pipeline' },
           { table: 'activity', label: 'Events & Tasks' },
@@ -116,13 +117,31 @@ export const NAV = [
 // App.jsx and SECTION_META, so `select('rep', ...)` and any saved deep link
 // still resolve — it is hidden from the sidebar, not removed from the app.
 
-// The nav an organisation's settings actually allow. Today only WhatsApp is
-// switchable; keep new toggles here rather than in the components, so the sidebar
-// and the tab strip cannot disagree about what exists.
-export function visibleNav(org) {
-  const waOff = org && !org.whatsapp_enabled;
-  if (!waOff) return NAV;
+// Which module switch (upande_crm/modules.py) owns each section. Sections not
+// listed — Overview, Customers, Settings — cannot be switched off.
+export const SECTION_MODULE = {
+  custpage: 'customer_page', leads: 'leads', opps: 'opps', prosp: 'prosp',
+  mail: 'mail', wa: 'wa', calls: 'calls', evt: 'evt', act: 'act', camp: 'camp',
+  anl: 'anl', rep: 'rep', terr: 'terr', corr: 'corr',
+};
+
+// True unless `modules` says this section's module is off. `modules` is null
+// until the server answers; everything shows until then, and the endpoints
+// refuse anything switched off regardless.
+export function sectionOn(section, modules) {
+  const key = SECTION_MODULE[section];
+  return !key || !modules || modules[key] !== false;
+}
+
+// The nav an organisation's settings actually allow. Keep switch handling here
+// rather than in the components, so the sidebar and the tab strip cannot
+// disagree about what exists. Falls back to the legacy WhatsApp flag while the
+// module map has not loaded.
+export function visibleNav(org, modules) {
+  const on = (section) => (modules
+    ? sectionOn(section, modules)
+    : section !== 'wa' || !org || !!org.whatsapp_enabled);
   return NAV
-    .map((grp) => ({ ...grp, items: grp.items.filter((it) => it.section !== 'wa') }))
+    .map((grp) => ({ ...grp, items: grp.items.filter((it) => on(it.section)) }))
     .filter((grp) => grp.items.length);
 }

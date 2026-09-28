@@ -16,18 +16,23 @@ export default function CaptureBar({ primary, advance = [], note }) {
   const openLead = useStore((s) => s.openLeadDialog);
   const openAdvance = useStore((s) => s.openAdvanceDialog);
   const routes = useStore((s) => s.advanceRoutes);
+  const moduleOn = useStore((s) => s.moduleOn);
+  useStore((s) => s.orgMeta.modules); // subscribe: re-render when switches load
 
   // Hide a hop this user cannot take, rather than offering a button whose
   // endpoint would refuse. `routes` is null until loaded — show them then, since
   // the dialog itself re-checks.
   const allowed = (a) => !routes || ((routes[a.doctype] || []).includes(a.mode));
-  const hops = advance.filter(allowed);
+  // ...and a hop out of, or into, a pipeline stage that is switched off.
+  const live = (a) => [a.doctype, a.mode].every((d) => !DOC_MODULE[d] || moduleOn(DOC_MODULE[d]));
+  const hops = advance.filter((a) => allowed(a) && live(a));
+  const showPrimary = primary && moduleOn('leads');
 
-  if (!primary && !hops.length) return null;
+  if (!showPrimary && !hops.length) return null;
 
   return (
     <div className="flex items-center gap-2.5 flex-wrap mb-[18px]">
-      {primary && (
+      {showPrimary && (
         <Button size="sm" onClick={() => openLead({})}
           className="rounded-full bg-gold text-[var(--on-accent)] hover:bg-gold-2 hover:text-white shadow-none px-4">
           <Icon name="person_add" className="text-[16px]" />{primary}
@@ -43,6 +48,9 @@ export default function CaptureBar({ primary, advance = [], note }) {
     </div>
   );
 }
+
+// Pipeline doctypes whose module switch hides the hops that touch them.
+const DOC_MODULE = { Lead: 'leads', Opportunity: 'opps', Prospect: 'prosp' };
 
 // The bars each section shows, kept together so the vocabulary stays consistent.
 export const BARS = {

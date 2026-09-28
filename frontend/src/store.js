@@ -16,6 +16,13 @@ import {
 } from './api';
 
 const SETTINGS_KEY = 'crm_settings';
+
+// Loader key (api.js SECTION_LOADERS) -> the module switch that owns it.
+// Loaders not listed feed the Overview and always run.
+const LOADER_MODULE = {
+  leads: 'leads', opps: 'opps', prosp: 'prosp', evt: 'evt', act: 'act',
+  wa: 'wa', calls: 'calls', campaigns: 'camp',
+};
 const M = 'upande_crm.api.crm.';
 
 // Per-device view preferences. These are the last layer of a three-deep merge:
@@ -184,7 +191,14 @@ export const useStore = create((set, get) => ({
   waLoading: false,
   // org settings (server) + integration health
   org: { ...DEFAULT_ORG },
-  orgMeta: { can_edit: false, installed: false, currency: 'KES', options: {} },
+  orgMeta: { can_edit: false, installed: false, currency: 'KES', options: {}, modules: null, moduleMeta: [] },
+
+  // Is module `key` (upande_crm/modules.py) switched on? True until the map
+  // loads, so nothing flickers away on boot.
+  moduleOn(key) {
+    const m = get().orgMeta?.modules;
+    return !m || m[key] !== false;
+  },
   orgLoaded: false,
   health: null,
   healthLoading: false,
@@ -282,6 +296,10 @@ export const useStore = create((set, get) => ({
         installed: !!payload?.installed,
         currency: payload?.currency || 'KES',
         options: payload?.options || {},
+        // null until the server answers: everything shows, and the endpoints
+        // refuse whatever is switched off regardless.
+        modules: payload?.modules || null,
+        moduleMeta: payload?.module_meta || [],
       },
     };
     // Re-resolve the header range against the org default, unless the user has
@@ -299,6 +317,12 @@ export const useStore = create((set, get) => ({
     const r = await orgSettingsSaveApi(patch);
     const org = { ...DEFAULT_ORG, ...(r?.settings || {}) };
     set({ org, settings: { ...DEFAULT_SETTINGS, ...orgPrefLayer(org), ...storedSettings() } });
+    // A module switch may have changed: re-read the map so the sidebar follows
+    // at once. A failure here only leaves the old map until the next load.
+    try {
+      const fresh = await orgSettingsApi();
+      if (fresh?.modules) set({ orgMeta: { ...get().orgMeta, modules: fresh.modules } });
+    } catch {}
     // Several settings change what the dashboards count, so re-read them.
     get().loadAll({ silent: true });
     if (get().health) get().loadHealth();
@@ -590,9 +614,10 @@ export const useStore = create((set, get) => ({
     if (!silent) set({ status: 'loading' });
     const args = { date_from: get().dateFrom, date_to: get().dateTo };
     if (get().customerFilter) args.customer = get().customerFilter;
-    // A disabled WhatsApp section should not cost a query on every refresh.
+    // A switched-off module should not cost a query on every refresh (and its
+    // endpoint would refuse anyway, marking the load partial).
     const keys = Object.keys(SECTION_LOADERS)
-      .filter((k) => k !== 'wa' || !!get().org?.whatsapp_enabled);
+      .filter((k) => !LOADER_MODULE[k] || get().moduleOn(LOADER_MODULE[k]));
     const results = await Promise.allSettled(keys.map((k) => SECTION_LOADERS[k](args)));
     const data = { ...get().data };
     let failed = 0;

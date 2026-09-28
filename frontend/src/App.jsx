@@ -5,6 +5,7 @@ import SectionTabs from './components/SectionTabs';
 import PageTools from './components/PageTools';
 import Overview from './sections/Overview/index.jsx';
 import { useStore, setupAutoRefresh, SECTION_META } from './store';
+import { sectionOn } from './nav';
 import { getBoot } from '@shared/api';
 
 // Overview is the default view (eager). Everything else is code-split so the
@@ -54,7 +55,7 @@ export default function App() {
   const openMsg = useStore((s) => s.openMsg);
   const loadOrg = useStore((s) => s.loadOrg);
   const select = useStore((s) => s.select);
-  const waEnabled = useStore((s) => !!s.org?.whatsapp_enabled);
+  const modules = useStore((s) => s.orgMeta.modules);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -69,8 +70,8 @@ export default function App() {
 
   // A section that settings have just switched off must not stay on screen.
   useEffect(() => {
-    if (section === 'wa' && !waEnabled) select('overview');
-  }, [section, waEnabled, select]);
+    if (!sectionOn(section, modules)) select('overview');
+  }, [section, modules, select]);
 
   const meta = SECTION_META[section] || SECTION_META.overview;
   const updated = lastUpdated ? fmtTime(lastUpdated) : '—';

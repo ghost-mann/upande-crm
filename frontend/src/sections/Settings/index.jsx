@@ -1,5 +1,6 @@
 import { useStore } from '../../store';
 import General from './General';
+import Modules from './Modules';
 import Targets from './Targets';
 import Pipeline from './Pipeline';
 import Activity from './Activity';
@@ -11,6 +12,7 @@ import Integrations from './Integrations';
 // the app uses, so the sidebar sub-nav and the tab strip stay in sync.
 const TABS = {
   '': General,
+  modules: Modules,
   targets: Targets,
   pipeline: Pipeline,
   activity: Activity,

@@ -34,12 +34,13 @@ export default function Sidebar({ onCompose, onSettings, collapsed, onToggleColl
   const mailCounts = useStore((s) => s.mailFolder?.counts);
   const waUnread = useStore((s) => s.waConvos?.unread_total);
   const org = useStore((s) => s.org);
-  const NAV = visibleNav(org);
+  const modules = useStore((s) => s.orgMeta.modules);
+  const NAV = visibleNav(org, modules);
 
   return (
     <aside className="sticky top-[84px] max-[900px]:static max-h-[calc(100vh-104px)] max-[900px]:max-h-none bg-surface border border-hairline rounded-[24px] shadow-card flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto crm-scroll pt-4 pb-2">
-        <div className={cn('pb-2', collapsed ? 'px-2' : 'px-3.5')}>
+        {(!modules || modules.mail !== false) && <div className={cn('pb-2', collapsed ? 'px-2' : 'px-3.5')}>
           <button
             onClick={onCompose}
             title="Compose"
@@ -50,7 +51,7 @@ export default function Sidebar({ onCompose, onSettings, collapsed, onToggleColl
           >
             <Icon name="edit_square" className="text-[18px]" />{!collapsed && 'Compose'}
           </button>
-        </div>
+        </div>}
         {NAV.map((grp) => (
           <div key={grp.label} className="px-2">
             {!collapsed && <div className="text-[9.5px] font-semibold text-ink-mute uppercase tracking-[0.16em] px-2 pt-4 pb-2">{grp.label}</div>}

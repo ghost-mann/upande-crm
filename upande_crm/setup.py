@@ -203,6 +203,55 @@ def hide_workspaces():
     frappe.db.commit()
 
 
+DESKTOP_ICON = "Upande CRM"
+DESKTOP_WORKSPACE = "Upande CRM"
+DESKTOP_LOGO = "/assets/upande_crm/images/upande-logo.png"
+
+
+def ensure_desktop_icon():
+    """Make the desk grid tile open the CRM workspace and its sidebar.
+
+    Frappe's install creates an "External" App icon from `add_to_apps_screen`
+    whenever an app has no App icon of its own; that one opens the React
+    dashboard in a new tab, with no workspace and no sidebar. Owning a standard
+    App icon of type Workspace Sidebar stops that, and replaces the External one
+    where an earlier install already made it. The /apps launcher still routes to
+    the dashboard: it reads `add_to_apps_screen`, not this record.
+
+    Same shape as upande_irrigation's tile. `hidden` is left as the user set it.
+    """
+    if not frappe.db.exists("DocType", "Desktop Icon"):
+        return
+    if frappe.db.exists("Desktop Icon", DESKTOP_ICON):
+        doc = frappe.get_doc("Desktop Icon", DESKTOP_ICON)
+    else:
+        doc = frappe.new_doc("Desktop Icon")
+        doc.name = DESKTOP_ICON
+        doc.hidden = 0
+    wanted = {
+        "label": DESKTOP_ICON,
+        "standard": 1,
+        "app": "upande_crm",
+        "icon_type": "App",
+        # Opens the sidebar's first link in the same tab. An External link is
+        # origin-prefixed, so the desk treats it as http and opens a new tab.
+        "link_type": "Workspace Sidebar",
+        "link_to": DESKTOP_WORKSPACE,
+        # Not used for navigation (link_type wins), but Frappe's
+        # create_desktop_icons_from_workspace() calls .startswith() on an App
+        # icon's `link`; None there aborts icon generation for later workspaces.
+        "link": "/desk/upande-crm",
+        "logo_url": DESKTOP_LOGO,
+    }
+    # Save only on a real change: in developer mode every save of a standard
+    # Desktop Icon re-exports desktop_icon/upande_crm.json.
+    if not doc.is_new() and all(doc.get(k) == v for k, v in wanted.items()):
+        return
+    doc.update(wanted)
+    doc.save(ignore_permissions=True)
+    frappe.cache.delete_value("desktop_icons")
+
+
 def setup():
     from upande_crm.patches.backfill_module_switches import execute as backfill_module_switches
 
@@ -211,3 +260,4 @@ def setup():
     ensure_crm_role_permissions()
     ensure_nav_block()
     hide_workspaces()
+    ensure_desktop_icon()

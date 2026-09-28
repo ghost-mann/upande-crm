@@ -40,13 +40,45 @@ class CRMVisit(Document):
             if not row.action:
                 frappe.throw(_("Follow-up {0} needs a description.").format(row.idx))
 
+    def _description(self, row):
+        return _("{0} — follow-up from visit {1} ({2})").format(row.action, self.name, self.party)
+
     def _sync_todos(self):
+        """Keep each follow-up and its ToDo in agreement.
+
+        - a new follow-up gets a ToDo (unless the visit is cancelled);
+        - an open ToDo follows its row: owner, due date, wording;
+        - a cancelled visit, or a follow-up removed from it, cancels its open
+          ToDo — a done one stays as history.
+        """
+        before = self.get_doc_before_save()
+        kept = {row.todo for row in self.actions or [] if row.todo}
+        dropped = {row.todo for row in (before.actions if before else []) if row.todo} - kept
+        cancelled = self.status == "Cancelled"
+
+        for todo in dropped:
+            self._cancel(todo)
         for row in self.actions or []:
             if row.todo and frappe.db.exists("ToDo", row.todo):
+                if cancelled:
+                    self._cancel(row.todo)
+                    continue
+                current = frappe.db.get_value("ToDo", row.todo, ["status", "allocated_to", "date", "description"],
+                                              as_dict=True)
+                if current.status != "Open":
+                    continue
+                wanted = {"allocated_to": row.assigned_to or current.allocated_to,
+                          "date": row.due_date or None, "description": self._description(row)}
+                if any(str(current.get(k) or "") != str(v or "") for k, v in wanted.items()):
+                    todo = frappe.get_doc("ToDo", row.todo)
+                    todo.update(wanted)
+                    todo.save(ignore_permissions=True)
+                continue
+            if cancelled:
                 continue
             todo = frappe.get_doc({
                 "doctype": "ToDo",
-                "description": _("{0} — follow-up from visit {1} ({2})").format(row.action, self.name, self.party),
+                "description": self._description(row),
                 "reference_type": "CRM Visit",
                 "reference_name": self.name,
                 "allocated_to": row.assigned_to or frappe.session.user,
@@ -55,3 +87,10 @@ class CRMVisit(Document):
                 "status": "Open",
             }).insert(ignore_permissions=True)
             row.db_set("todo", todo.name, update_modified=False)
+
+    @staticmethod
+    def _cancel(todo):
+        if frappe.db.get_value("ToDo", todo, "status") == "Open":
+            doc = frappe.get_doc("ToDo", todo)
+            doc.status = "Cancelled"
+            doc.save(ignore_permissions=True)

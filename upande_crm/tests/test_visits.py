@@ -125,3 +125,44 @@ class TestDeletingAVisit(VisitCase):
         todo = v["actions"][0]["todo"]
         frappe.delete_doc("CRM Visit", v["name"])
         self.assertNotEqual(frappe.db.get_value("ToDo", todo, "status"), "Open")
+
+
+class TestTasksFollowTheVisit(VisitCase):
+    """A follow-up and its ToDo must agree: whoever the visit says owns it is who
+    has the task, due when the visit says, and a cancelled visit or a dropped
+    follow-up leaves no open task behind."""
+
+    def _other_user(self):
+        u = frappe.db.get_value("User", {"name": ["not in", ["Administrator", "Guest"]], "enabled": 1}, "name")
+        if not u:
+            self.skipTest("no second user")
+        return u
+
+    def _todo(self, v):
+        return frappe.get_doc("ToDo", v["actions"][0]["todo"])
+
+    def test_reassigning_moves_the_task(self):
+        v = self._visit(actions=[{"action": "Send samples", "assigned_to": "Administrator"}])
+        other = self._other_user()
+        acts = [{**v["actions"][0], "assigned_to": other}]
+        V.crm_visit_save(frappe.as_json({"name": v["name"], "actions": acts}))
+        self.assertEqual(self._todo(v).allocated_to, other)
+
+    def test_new_due_date_reaches_the_task(self):
+        v = self._visit(actions=[{"action": "Send samples", "assigned_to": "Administrator"}])
+        due = add_days(nowdate(), 5)
+        V.crm_visit_save(frappe.as_json({"name": v["name"], "actions": [{**v["actions"][0], "due_date": due}]}))
+        self.assertEqual(str(self._todo(v).date), due)
+
+    def test_cancelling_the_visit_cancels_open_tasks(self):
+        v = self._visit(actions=[{"action": "Send samples", "assigned_to": "Administrator"}])
+        V.crm_visit_save(frappe.as_json({"name": v["name"], "status": "Cancelled"}))
+        self.assertEqual(self._todo(v).status, "Cancelled")
+
+    def test_dropping_a_follow_up_cancels_its_task(self):
+        v = self._visit(actions=[{"action": "A", "assigned_to": "Administrator"},
+                                 {"action": "B", "assigned_to": "Administrator"}])
+        dropped = v["actions"][1]["todo"]
+        V.crm_visit_save(frappe.as_json({"name": v["name"], "actions": [v["actions"][0]]}))
+        self.assertEqual(frappe.db.get_value("ToDo", dropped, "status"), "Cancelled")
+        self.assertEqual(self._todo(v).status, "Open")

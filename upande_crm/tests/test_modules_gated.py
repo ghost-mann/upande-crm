@@ -8,6 +8,13 @@ are deliberately absent.
 """
 
 GATED = {
+    "customer_page": [
+        "upande_crm.api.customer.crm_customer_header",
+        "upande_crm.api.customer.crm_customer_overview",
+        "upande_crm.api.customer.crm_customer_orders",
+        "upande_crm.api.customer.crm_customer_pricing",
+        "upande_crm.api.customer.crm_customer_contracts",
+    ],
     "leads": ["upande_crm.api.crm.crm_dashboard_leads", "upande_crm.api.leads.crm_lead_save"],
     "opps": ["upande_crm.api.crm.crm_dashboard_opportunities"],
     "prosp": ["upande_crm.api.crm.crm_dashboard_prospects"],

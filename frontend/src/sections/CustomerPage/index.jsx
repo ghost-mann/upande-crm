@@ -8,6 +8,9 @@ import Timeline from './Timeline';
 import Orders from './Orders';
 import Pricing from './Pricing';
 import Contracts from './Contracts';
+import Quotations from './Quotations';
+import Claims from './Claims';
+import Visits from './Visits';
 
 // One customer's page. The customer's name rides in the store's `table` slot
 // (`#custpage/<name>`), so it is bookmarkable and Back returns to the list.
@@ -17,7 +20,10 @@ const TABS = {
   overview: { label: 'Overview', Comp: Overview },
   timeline: { label: 'Timeline', Comp: Timeline },
   orders: { label: 'Orders', Comp: Orders },
+  quotations: { label: 'Quotations', Comp: Quotations },
   pricing: { label: 'Pricing', Comp: Pricing },
+  claims: { label: 'Claims', Comp: Claims },
+  visits: { label: 'Visits', Comp: Visits },
   contracts: { label: 'Contracts', Comp: Contracts },
 };
 

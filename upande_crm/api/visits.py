@@ -49,7 +49,7 @@ def _with_actions(rows):
         return rows
     names = [r.name for r in rows]
     acts = frappe.get_all("CRM Visit Action", filters={"parent": ["in", names], "parenttype": DOCTYPE},
-                          fields=["parent", "action", "assigned_to", "due_date", "todo"], order_by="idx asc",
+                          fields=["name", "parent", "action", "assigned_to", "due_date", "todo"], order_by="idx asc",
                           limit=0)
     todos = [a.todo for a in acts if a.todo]
     status = dict(frappe.get_all("ToDo", filters={"name": ["in", todos]}, fields=["name", "status"],

@@ -153,3 +153,17 @@ class TestRangeIncludesItsLastDay(BoardCase):
 
         self._lead()
         self.assertGreaterEqual(frappe.db.count("Lead", _df("Lead", "creation", nowdate(), nowdate())), 1)
+
+
+class TestSetupCreatesRecords(BoardCase):
+    """Nobody may ever save Settings on a site, so the defaults must exist after
+    install/migrate too — or moving a card to "Sample Dispatch" fails its Link check."""
+
+    def test_setup_creates_configured_stages_and_channels(self):
+        from upande_crm.setup import setup
+
+        frappe.db.delete("Sales Stage", {"name": "Sample Dispatch"})
+        frappe.db.delete("UTM Source", {"name": "Referral"})
+        setup()
+        self.assertTrue(frappe.db.exists("Sales Stage", "Sample Dispatch"))
+        self.assertTrue(frappe.db.exists("UTM Source", "Referral"))

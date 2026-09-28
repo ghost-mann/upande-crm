@@ -6,18 +6,20 @@ import { Panel, Row, Toggle, SaveBar, SelectBox, useOrgForm } from './parts';
 // Organisation-wide module switches. The list, labels and help text all come
 // from upande_crm/modules.py via crm_settings, so this tab never drifts from
 // what the server enforces.
-const GROUP_ORDER = ['Customers', 'Pipeline', 'Communication', 'Marketing', 'Insight', 'Coming soon'];
+const GROUP_ORDER = ['Customers', 'Pipeline', 'Communication', 'Service', 'Marketing', 'Insight', 'Coming soon'];
 const GROUP_NOTE = {
   Customers: 'How a single customer is shown',
   Pipeline: 'Moving an enquiry towards a sale',
   Communication: 'Talking to customers, and keeping track of it',
+  Service: 'Looking after customers once they buy',
   Marketing: 'Reaching many customers at once',
   Insight: 'Reports, maps and analysis',
   'Coming soon': 'Being built — these switch on once they exist',
 };
 
 const TAB_LABELS = {
-  overview: 'Overview', timeline: 'Timeline', orders: 'Orders', pricing: 'Pricing', contracts: 'Contracts',
+  overview: 'Overview', timeline: 'Timeline', orders: 'Orders', quotations: 'Quotations', pricing: 'Pricing',
+  claims: 'Claims', visits: 'Visits', contracts: 'Contracts',
 };
 const TAB_KEYS = Object.keys(TAB_LABELS);
 const CUSTPAGE_KEYS = ['custpage_tabs', 'custpage_default_tab'];

@@ -1,4 +1,5 @@
 import { useStore } from '../store';
+import Board from './Board/index.jsx';
 import CaptureBar, { BARS } from '../components/CaptureBar';
 import { fmt, fmtDate } from '@shared/utils';
 import { KpiRow } from '../components/Kpi';
@@ -31,6 +32,7 @@ const COLUMNS = [
 
 export default function Opportunities() {
   const { data, table } = useStore();
+  if (table === 'board') return <Board />;
   const O = data.opps;
   if (!O) return <div className="crm-empty">No opportunities data</div>;
   if (table === 'rows' || table === 'mine') {

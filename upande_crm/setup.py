@@ -269,3 +269,6 @@ def setup():
     ensure_nav_block()
     hide_workspaces()
     ensure_desktop_icon()
+    from upande_crm.api.board import ensure_pipeline_records
+
+    ensure_pipeline_records()

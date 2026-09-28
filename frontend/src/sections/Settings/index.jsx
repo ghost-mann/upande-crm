@@ -1,6 +1,7 @@
 import { useStore } from '../../store';
 import General from './General';
 import Modules from './Modules';
+import Lists from './Lists';
 import Targets from './Targets';
 import Pipeline from './Pipeline';
 import Activity from './Activity';
@@ -13,6 +14,7 @@ import Integrations from './Integrations';
 const TABS = {
   '': General,
   modules: Modules,
+  lists: Lists,
   targets: Targets,
   pipeline: Pipeline,
   activity: Activity,

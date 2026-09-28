@@ -45,7 +45,9 @@ export const NAV = [
       { type: 'group', section: 'leads', icon: 'person_add', label: 'Leads',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'mine', label: 'My leads', mine: true }, { table: 'rows', label: 'All Leads' }, { table: 'emails', label: 'Emails' }] },
       { type: 'group', section: 'opps', icon: 'trending_up', label: 'Opportunities',
-        subs: [{ table: '', label: 'Dashboard' }, { table: 'mine', label: 'My opportunities', mine: true }, { table: 'rows', label: 'All Opportunities' }, { table: 'emails', label: 'Emails' }] },
+        subs: [{ table: '', label: 'Dashboard' }, { table: 'board', label: 'Pipeline board' }, { table: 'mine', label: 'My opportunities', mine: true }, { table: 'rows', label: 'All Opportunities' }, { table: 'emails', label: 'Emails' }] },
+      { type: 'group', section: 'quotes', icon: 'request_quote', label: 'Quotations',
+        subs: [{ table: '', label: 'Dashboard' }, { table: 'followup', label: 'Needs follow-up' }, { table: 'rows', label: 'All Quotations' }] },
       { type: 'group', section: 'prosp', icon: 'travel_explore', label: 'Prospects',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'mine', label: 'My prospects', mine: true }, { table: 'rows', label: 'All Prospects' }, { table: 'emails', label: 'Emails' }] },
       { type: 'group', section: 'cust', icon: 'storefront', label: 'Customers',
@@ -57,10 +59,19 @@ export const NAV = [
     items: [
       { type: 'group', section: 'evt', icon: 'event', label: 'Events & Tasks',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'calendar', label: 'Calendar' }, { table: 'mine_events', label: 'My events', mine: true }, { table: 'mine_todos', label: 'My tasks', mine: true }, { table: 'events', label: 'All Events' }, { table: 'todos', label: 'CRM Tasks' }, { table: 'emails', label: 'All Emails' }] },
+      { type: 'group', section: 'visits', icon: 'handshake', label: 'Visits',
+        subs: [{ table: '', label: 'Dashboard' }, { table: 'rows', label: 'All Visits' }] },
       { type: 'group', section: 'calls', icon: 'call', label: 'Calls',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'rows', label: 'Call log' }, { table: 'mine', label: 'My calls', mine: true }] },
       { type: 'group', section: 'act', icon: 'bolt', label: 'Activity Log',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'rows', label: 'Recent (500)' }] },
+    ],
+  },
+  {
+    label: 'Service',
+    items: [
+      { type: 'group', section: 'claims', icon: 'report', label: 'Claims',
+        subs: [{ table: '', label: 'Dashboard' }, { table: 'open', label: 'Open claims' }, { table: 'rows', label: 'All Claims' }] },
     ],
   },
   {
@@ -102,6 +113,7 @@ export const NAV = [
         subs: [
           { table: '', label: 'General' },
           { table: 'modules', label: 'Modules' },
+          { table: 'lists', label: 'Stages & lists' },
           { table: 'targets', label: 'Targets' },
           { table: 'pipeline', label: 'Pipeline' },
           { table: 'activity', label: 'Events & Tasks' },
@@ -123,6 +135,7 @@ export const SECTION_MODULE = {
   custpage: 'customer_page', leads: 'leads', opps: 'opps', prosp: 'prosp',
   mail: 'mail', wa: 'wa', calls: 'calls', evt: 'evt', act: 'act', camp: 'camp',
   anl: 'anl', rep: 'rep', terr: 'terr', corr: 'corr',
+  quotes: 'quotations', claims: 'claims', visits: 'visits',
 };
 
 // True unless `modules` says this section's module is off. `modules` is null

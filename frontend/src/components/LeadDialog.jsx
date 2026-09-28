@@ -16,7 +16,7 @@ import { Field, NameSelect, L } from './LeadFields';
 // the conversion card spends its time complaining about, so the natural next step
 // is offered immediately.
 
-const OPTIONAL_FIELDS = ['source', 'industry', 'website', 'no_of_employees'];
+const OPTIONAL_FIELDS = ['industry', 'website', 'no_of_employees'];
 
 export default function LeadDialog() {
   const ctx = useStore((s) => s.leadDialog);
@@ -139,16 +139,31 @@ export default function LeadDialog() {
                 </div>
               )}
 
+              {/* Captured at first contact: how they reached us, and how serious they
+                  look. Channels come from CRM Settings → Lead Channels, first. */}
+              <div className="border-t border-hairline pt-4">
+                <div className="text-[11px] text-ink-mute mb-2.5">First contact</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {!requiredNames.has('utm_source') && (
+                    <NameSelect label="Channel" value={form.utm_source}
+                      onChange={(v) => set('utm_source', v)} options={options?.sources || []}
+                      placeholder="— how did they reach us? —" />
+                  )}
+                  {!requiredNames.has('qualification_status') && (
+                    <NameSelect label="Qualification" value={form.qualification_status}
+                      onChange={(v) => set('qualification_status', v)}
+                      options={options?.qualification_statuses || ['Unqualified', 'In Process', 'Qualified']}
+                      placeholder="— not assessed yet —" />
+                  )}
+                </div>
+              </div>
+
               <div className="border-t border-hairline pt-4">
                 <div className="text-[11px] text-ink-mute mb-2.5">Optional</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {!requiredNames.has('lead_name') && (
                     <Field field={{ fieldname: 'lead_name', label: 'Contact name', fieldtype: 'Data' }}
                       value={form.lead_name} onChange={set} />
-                  )}
-                  {!requiredNames.has('source') && (
-                    <NameSelect label="Source" value={form.source}
-                      onChange={(v) => set('source', v)} options={options?.sources || []} />
                   )}
                   {!requiredNames.has('industry') && (
                     <NameSelect label="Industry" value={form.industry}
@@ -158,7 +173,7 @@ export default function LeadDialog() {
                     onChange={(v) => set('lead_owner', v)}
                     options={(options?.users || []).map((u) => ({ value: u.name, label: u.full_name }))}
                     placeholder="— unassigned —" />
-                  {OPTIONAL_FIELDS.filter((n) => !requiredNames.has(n) && n !== 'source' && n !== 'industry')
+                  {OPTIONAL_FIELDS.filter((n) => !requiredNames.has(n) && n !== 'industry')
                     .map((n) => (
                       <Field key={n}
                         field={{ fieldname: n, label: n === 'no_of_employees' ? 'Employees' : 'Website',

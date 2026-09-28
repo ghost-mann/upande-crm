@@ -107,3 +107,21 @@ class TestVisitViews(VisitCase):
             doc = frappe.get_single(S.SETTINGS_DOCTYPE)
             doc.module_visits = 1
             doc.save(ignore_permissions=True)
+
+
+class TestEditFromTheList(VisitCase):
+    def test_saving_a_visit_as_listed_keeps_its_tasks(self):
+        v = self._visit(actions=[{"action": "Quote new reds", "assigned_to": "Administrator"}])
+        listed = next(r for r in V.crm_customer_visits(self.customer)["rows"] if r["name"] == v["name"])
+        V.crm_visit_save(frappe.as_json({"name": v["name"], "actions": listed["actions"]}))
+        self.assertEqual(frappe.db.count("ToDo", {"reference_type": "CRM Visit", "reference_name": v["name"]}), 1)
+
+
+class TestDeletingAVisit(VisitCase):
+    def test_deleting_a_visit_leaves_no_open_task(self):
+        # Frappe removes ToDos that reference a deleted document; this pins that
+        # a deleted visit cannot leave follow-ups in someone's task list.
+        v = self._visit(actions=[{"action": "Chase samples", "assigned_to": "Administrator"}])
+        todo = v["actions"][0]["todo"]
+        frappe.delete_doc("CRM Visit", v["name"])
+        self.assertNotEqual(frappe.db.get_value("ToDo", todo, "status"), "Open")

@@ -27,6 +27,28 @@ def _stages():
     return parse_lines(get_settings().get("opportunity_stages")) or parse_lines(DEFAULTS["opportunity_stages"])
 
 
+def ensure_pipeline_records(settings=None):
+    """Create any configured opportunity stage or lead channel that does not
+    exist yet. Runs when Settings are saved and on install/migrate — a site where
+    nobody ever saved Settings still needs the default stages, or moving a card
+    to one fails its Link check. Never deletes: a stage still used by old
+    opportunities must survive being unlisted."""
+    from upande_crm.api.settings import DEFAULTS, get_settings, parse_lines
+
+    s = settings if settings is not None else get_settings()
+    for field, doctype, key in (("opportunity_stages", "Sales Stage", "stage_name"),
+                                ("lead_channels", "UTM Source", "name")):
+        if not frappe.db.exists("DocType", doctype):
+            continue
+        for value in parse_lines(s.get(field) or DEFAULTS[field]):
+            if frappe.db.exists(doctype, value):
+                continue
+            if key == "name":  # UTM Source is prompt-named
+                frappe.new_doc(doctype).insert(ignore_permissions=True, set_name=value)
+            else:
+                frappe.get_doc({"doctype": doctype, key: value}).insert(ignore_permissions=True)
+
+
 def lead_source_sql(alias=""):
     """SQL for a lead's channel: v16's `utm_source`, falling back to the v15
     `source` column restored sites still carry, so old and new leads both count."""

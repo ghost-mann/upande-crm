@@ -17,6 +17,8 @@ const KINDS = [
   { key: 'event', label: 'Events', icon: 'event', module: 'evt' },
   { key: 'task', label: 'Tasks', icon: 'task_alt', module: 'evt' },
   { key: 'note', label: 'Notes', icon: 'edit_note' },
+  { key: 'claim', label: 'Claims', icon: 'report', module: 'claims' },
+  { key: 'visit', label: 'Visits', icon: 'handshake', module: 'visits' },
 ];
 const ICON = Object.fromEntries(KINDS.map((k) => [k.key, k.icon]));
 

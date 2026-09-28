@@ -75,6 +75,8 @@ export default function Header({ header, onAddNote }) {
         { lbl: 'Last order', val: f.last_order_date ? fmtDate(f.last_order_date) : 'Never',
           sub: f.days_since_last_order != null ? `${fmt(f.days_since_last_order)} days ago` : null, compact: true },
         { lbl: 'Open quotations', val: fmt(f.open_quotations), compact: true },
+        ...(f.open_claims != null ? [{ lbl: 'Open claims', val: fmt(f.open_claims), compact: true,
+          chip: f.open_claims ? 'see Claims tab' : null, chipTone: f.open_claims ? 'down' : '' }] : []),
       ]} />
     </>
   );

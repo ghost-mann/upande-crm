@@ -28,6 +28,9 @@ const Campaigns = lazy(() => import('./sections/Campaigns/index.jsx'));
 const Territories = lazy(() => import('./sections/Territories/index.jsx'));
 const Correspondence = lazy(() => import('./sections/Correspondence/index.jsx'));
 const CustomerPage = lazy(() => import('./sections/CustomerPage/index.jsx'));
+const Quotations = lazy(() => import('./sections/Quotations/index.jsx'));
+const Claims = lazy(() => import('./sections/Claims/index.jsx'));
+const Visits = lazy(() => import('./sections/Visits/index.jsx'));
 const ThreadView = lazy(() => import('./components/ThreadView'));
 const ComposeDialog = lazy(() => import('./components/ComposeDialog'));
 const EventDialog = lazy(() => import('./components/EventDialog'));
@@ -42,7 +45,7 @@ const SECTIONS = {
   overview: Overview, mail: Mail, wa: WhatsApp, leads: Leads, opps: Opportunities,
   prosp: Prospects, cust: Customers, evt: Events, act: Activity, set: Settings,
   rep: Reports, calls: Calls, anl: Analytics, camp: Campaigns, terr: Territories,
-  corr: Correspondence, custpage: CustomerPage,
+  corr: Correspondence, custpage: CustomerPage, quotes: Quotations, claims: Claims, visits: Visits,
 };
 
 function fmtTime(d) {

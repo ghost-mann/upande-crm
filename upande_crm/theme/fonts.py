@@ -43,15 +43,27 @@ def options():
     return {role: [""] + BUNDLED[role] + [CUSTOM] for role in BUNDLED}
 
 
+# The URL is written into <link href="…"> on every CRM page. Only the characters
+# a Google Fonts stylesheet URL actually uses are allowed, so nothing in it can
+# close the attribute or the tag: no quotes, angle brackets, spaces or backslashes.
+URL_CHARS_RE = re.compile(r"^[A-Za-z0-9:/?&=+,;@.%_~\-]+$")
+ALLOWED_PATHS = ("/css", "/css2")
+
+
 def is_allowed_url(url):
-    """True only for an https URL whose host is exactly fonts.googleapis.com."""
+    """True only for an https fonts.googleapis.com stylesheet URL with no
+    character that could break out of an HTML attribute."""
     if not isinstance(url, str) or not url.strip():
         return False
+    url = url.strip()
+    if not URL_CHARS_RE.match(url):
+        return False
     try:
-        parsed = urlparse(url.strip())
+        parsed = urlparse(url)
     except ValueError:
         return False
-    return parsed.scheme == "https" and parsed.netloc == ALLOWED_FONT_HOST
+    return (parsed.scheme == "https" and parsed.netloc == ALLOWED_FONT_HOST
+            and parsed.path in ALLOWED_PATHS)
 
 
 def _family(role, choice, custom_name):

@@ -450,3 +450,42 @@ class TestThemeValidation(FrappeTestCase):
     def test_theme_preset_field_is_gone(self):
         self.assertFalse(frappe.get_meta(S.SETTINGS_DOCTYPE).has_field("theme_preset"))
         self.assertFalse(hasattr(S, "crm_theme_apply_preset"))
+
+
+class TestFontUrlCannotBreakOut(FrappeTestCase):
+    """The URL is written into <link href="…"> on every page, so a quote in it
+    would add attributes (onload=…) — stored XSS reachable by a Sales Manager."""
+
+    BAD = (
+        'https://fonts.googleapis.com/css2?family=A" onload="alert(1)',
+        "https://fonts.googleapis.com/css2?family=A' onload='alert(1)",
+        "https://fonts.googleapis.com/css2?family=A><script>alert(1)</script>",
+        "https://fonts.googleapis.com/css2?family=A b",
+        "https://fonts.googleapis.com/css2?family=A\\b",
+        "https://fonts.googleapis.com/evil.css",
+    )
+
+    def tearDown(self):
+        frappe.clear_document_cache(S.SETTINGS_DOCTYPE, S.SETTINGS_DOCTYPE)
+
+    def test_resolve_drops_a_url_that_could_break_the_attribute(self):
+        from upande_crm.theme import fonts
+        for url in self.BAD:
+            self.assertIsNone(fonts.resolve({"theme_google_fonts_url": url})["link"], url)
+
+    def test_save_refuses_it(self):
+        for url in self.BAD:
+            doc = frappe.get_single(S.SETTINGS_DOCTYPE)
+            doc.update({"theme_font_sans": "Custom", "theme_font_sans_name": "Lato", "theme_google_fonts_url": url})
+            with self.assertRaises(frappe.ValidationError, msg=url):
+                doc.save(ignore_permissions=True)
+
+    def test_a_normal_google_fonts_link_still_works(self):
+        from upande_crm.theme import fonts
+        ok = "https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700&family=Open+Sans&display=swap"
+        self.assertEqual(fonts.resolve({"theme_google_fonts_url": ok})["link"], ok)
+
+    def test_template_escapes_the_link(self):
+        path = os.path.join(frappe.get_app_path("upande_crm"), "..", "frontend", "scripts", "build-html.mjs")
+        with open(os.path.normpath(path), encoding="utf-8") as handle:
+            self.assertIn("{{ theme_font_link | e }}", handle.read())

@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="Upande CRM">
+  <!--
+    Upande CRM mark. Plays once on load: a closed envelope opens its flap, the
+    Upande arrow rises out of it and grows to full size, and the envelope falls
+    away — messages that move a deal forward. It comes to rest as the plain
+    Upande arrow badge (the same artwork as upande-logo.png), so a tile that has
+    finished animating is indistinguishable from the static brand mark.
+
+    Pure CSS, no script: the desk draws this through <img>, where scripts never
+    run anyway, and it is served to every desk user. With reduced motion set,
+    only the resting mark is shown.
+  -->
+  <style>
+    .arrow  { transform-box: view-box; transform-origin: 50px 50px;
+              animation: rise 2s cubic-bezier(.3,.7,.2,1) both; }
+    .flap   { transform-box: view-box; transform-origin: 50px 38px;
+              animation: open 2s ease-in-out both; }
+    .env    { animation: away 2s ease-in both; }
+    @keyframes open {
+      0%, 18%   { transform: scaleY(1); }
+      40%, 100% { transform: scaleY(-1); }
+    }
+    @keyframes rise {
+      /* small and hidden in the envelope, up out of the opening, then home */
+      0%, 30%   { transform: translate(0, 16px) scale(.3); opacity: 0; }
+      36%       { opacity: 1; }
+      56%, 64%  { transform: translate(0, -17px) scale(.36); opacity: 1; }
+      92%, 100% { transform: translate(0, 0) scale(1); opacity: 1; }
+    }
+    @keyframes away {
+      0%, 54%   { opacity: 1; transform: translate(0, 0); }
+      74%, 100% { opacity: 0; transform: translate(0, 10px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .arrow, .flap { animation: none; }
+      .env { display: none; }
+    }
+  </style>
+
+  <circle cx="50" cy="50" r="49.3" fill="#ffffff" stroke="#1c1b19" stroke-width="0.7"/>
+
+  <g class="env">
+    <!-- back of the envelope -->
+    <rect x="22" y="38" width="56" height="37" rx="3" fill="#efedea" stroke="#45433f" stroke-width="2"/>
+    <!-- the flap: closed over the top, then swings up and open. Drawn behind
+         the arrow — an open flap sits behind the letter, and the arrow is
+         invisible while the flap is still closed. -->
+    <polygon class="flap" points="22,38 78,38 50,60" fill="#dcd8d2" stroke="#45433f" stroke-width="2" stroke-linejoin="round"/>
+  </g>
+
+  <!-- the Upande arrow, traced from upande-logo.png -->
+  <g class="arrow">
+    <polygon points="24.4,23.8 64,23.8 64,36.3 24.4,36.3" fill="#635e59"/>
+    <polygon points="59.2,23.8 64,23.8 64,36.3 59.2,36.3" fill="#5a5752"/>
+    <polygon points="64,23.8 76.5,23.8 76.5,76.2 64,76.2" fill="#45433f"/>
+    <polygon points="24.4,64.6 50.5,38.5 64,36.3 64,47.9 35.8,76.2 24.4,76.2" fill="#45433f"/>
+    <polygon points="50,39.2 64,36.3 64,47.9 60.4,51.4 60.4,40.6" fill="#1c1b19"/>
+  </g>
+
+  <g class="env">
+    <!-- front pocket, in front of the arrow until the envelope falls away -->
+    <polygon points="22,52 50,66 78,52 78,72 Q78,75 75,75 L25,75 Q22,75 22,72 Z"
+             fill="#f6f4f1" stroke="#45433f" stroke-width="2" stroke-linejoin="round"/>
+    <line x1="22.8" y1="74" x2="43" y2="60" stroke="#45433f" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="77.2" y1="74" x2="57" y2="60" stroke="#45433f" stroke-width="1.4" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -205,7 +205,11 @@ def hide_workspaces():
 
 DESKTOP_ICON = "Upande CRM"
 DESKTOP_WORKSPACE = "Upande CRM"
-DESKTOP_LOGO = "/assets/upande_crm/images/upande-logo.png"
+# Animated SVG: an envelope opens and the Upande arrow rises out, once, then
+# rests as the plain Upande badge. The desk and the sidebar header both draw it
+# through <img>, where its CSS animation plays. The /apps launcher keeps the
+# wordmark PNG from add_to_apps_screen.
+DESKTOP_LOGO = "/assets/upande_crm/images/upande-crm-logo.svg"
 
 
 def ensure_desktop_icon():

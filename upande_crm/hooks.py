@@ -21,9 +21,11 @@ app_license = "mit"
 #
 # The two surfaces carry two logos on purpose. The launcher tile is wide enough for
 # the wordmark (`images/logo.png`, 237x213). The desk grid tile is small and square,
-# so `desktop_icon/upande_crm.json` points at the square badge instead — the same
-# 689x689 `upande-logo.png` the IT Operations tile uses, so the two sit level on the
-# apps screen. It is copied in rather than read across from `/assets/upande_core/`
+# so `desktop_icon/upande_crm.json` points at `images/upande-crm-logo.svg`: an
+# envelope opens and the Upande arrow rises out of it, once, then rests as the
+# square badge — the same artwork as the 689x689 `upande-logo.png` the IT
+# Operations tile uses, so the two sit level on the apps screen. The sidebar
+# header draws the same SVG. It is copied in rather than read across from `/assets/upande_core/`
 # so the icon does not break on a site that has the CRM without upande_core. Keep
 # the two files byte-identical; a smaller copy of the same artwork upscales soft at
 # tile size, which is what the earlier 180x180 version got wrong.

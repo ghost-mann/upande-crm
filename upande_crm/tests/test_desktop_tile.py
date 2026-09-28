@@ -58,3 +58,44 @@ class TestDesktopTile(FrappeTestCase):
 
     def test_the_workspace_sidebar_exists(self):
         self.assertTrue(frappe.db.exists("Workspace Sidebar", "Upande CRM"))
+
+
+class TestAnimatedLogo(FrappeTestCase):
+    """The desk tile and sidebar header draw the tile's logo as an <img>, so an
+    SVG with its own CSS animation plays there. It is served to every desk user,
+    so it must carry no script, and it must honour reduced motion."""
+
+    PATH = ("public", "images", "upande-crm-logo.svg")
+
+    def setUp(self):
+        frappe.flags.in_import = True
+
+    def tearDown(self):
+        frappe.flags.in_import = False
+
+    def _svg(self):
+        with open(os.path.join(frappe.get_app_path("upande_crm"), *self.PATH), encoding="utf-8") as handle:
+            return handle.read()
+
+    def test_tile_uses_the_animated_logo(self):
+        setup.ensure_desktop_icon()
+        self.assertEqual(frappe.db.get_value("Desktop Icon", setup.DESKTOP_ICON, "logo_url"),
+                         "/assets/upande_crm/images/upande-crm-logo.svg")
+
+    def test_shipped_tile_uses_the_animated_logo(self):
+        path = os.path.join(frappe.get_app_path("upande_crm"), "desktop_icon", "upande_crm.json")
+        with open(path, encoding="utf-8") as handle:
+            self.assertEqual(json.load(handle)["logo_url"], "/assets/upande_crm/images/upande-crm-logo.svg")
+
+    def test_svg_carries_no_script_or_external_reference(self):
+        svg = self._svg().lower()
+        for bad in ("<script", "javascript:", "onload", "onclick", "href=\"http", "@import", "url(http"):
+            self.assertNotIn(bad, svg, bad)
+
+    def test_svg_honours_reduced_motion(self):
+        self.assertIn("prefers-reduced-motion", self._svg())
+
+    def test_svg_plays_once(self):
+        svg = self._svg()
+        self.assertIn("@keyframes", svg)
+        self.assertNotIn("infinite", svg)

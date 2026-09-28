@@ -5,9 +5,10 @@ import { openFrappe } from '@/lib/crm';
 // columns: [{ key, label, cls?, thStyle?, render?(row) }]
 // doctype: string | (row) => string   (omit to make rows non-clickable)
 // rowName: (row) => string            (defaults to row.name)
+// onRowClick: (row) => void           (takes precedence over the desk link)
 export default function DataTable({
-  title, columns, rows = [], searchFields = [], doctype, rowName,
-  emptyText = 'No records', subOverride,
+  title, columns, rows = [], searchFields = [], doctype, rowName, onRowClick,
+  emptyText = 'No records', subOverride, footer,
 }) {
   const search = useStore((s) => s.search);
   const newTab = useStore((s) => s.settings.openInNewTab);
@@ -36,8 +37,8 @@ export default function DataTable({
               return (
                 <tr
                   key={nm || i}
-                  className={dt ? 'clickable' : ''}
-                  onClick={dt ? () => openFrappe(dt, nm, newTab) : undefined}
+                  className={onRowClick || dt ? 'clickable' : ''}
+                  onClick={onRowClick ? () => onRowClick(r) : dt ? () => openFrappe(dt, nm, newTab) : undefined}
                 >
                   {columns.map((c) => (
                     <td key={c.key} className={c.cls}>{c.render ? c.render(r) : (r[c.key] ?? '—')}</td>
@@ -50,6 +51,7 @@ export default function DataTable({
           </tbody>
         </table>
       </div>
+      {footer}
     </Card>
   );
 }

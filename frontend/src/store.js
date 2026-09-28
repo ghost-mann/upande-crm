@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api } from '@shared/api';
+import { openFrappe } from './lib/crm';
 import {
   SECTION_LOADERS, saveEventApi, eventStatusApi, saveTaskApi, taskStatusApi,
   assignApi, unassignApi, calendarApi,
@@ -123,8 +124,27 @@ export function dateRangePreset(preset) {
 const _settings = loadSettings(null);
 const _initialRange = dateRangePreset(_settings.defaultDateRange === 'custom' ? '30d' : _settings.defaultDateRange);
 
+// `#<section>[/<table>]`, the table URI-encoded — a customer's name can hold
+// '/', '&' or anything else. pushState, unlike assigning location.hash, does not
+// fire hashchange, so writing the hash never re-enters syncFromHash.
+export function parseHash(hash) {
+  const raw = String(hash || '').replace(/^#/, '');
+  if (!raw) return { section: '', table: '' };
+  const i = raw.indexOf('/');
+  const section = i < 0 ? raw : raw.slice(0, i);
+  let table = i < 0 ? '' : raw.slice(i + 1);
+  try { table = decodeURIComponent(table); } catch {}
+  return { section, table };
+}
+
+function writeHash(section, table) {
+  const h = '#' + section + (table ? '/' + encodeURIComponent(table) : '');
+  if (window.location.hash !== h) window.history.pushState(null, '', h);
+}
+
 export const SECTION_META = {
   overview: { title: 'CRM Command Center', sub: 'Pipeline · activity · revenue' },
+  custpage: { title: 'Customer', sub: 'Orders · prices · contracts · every conversation' },
   mail:     { title: 'Inbox',              sub: 'Email · folders · threads' },
   wa:       { title: 'WhatsApp',            sub: 'Conversations · templates · delivery' },
   leads:    { title: 'Leads',              sub: 'Inbound · qualification · conversion' },
@@ -234,12 +254,30 @@ export const useStore = create((set, get) => ({
   moverDetail: null,
   moverLoading: false,
 
-  select(section, table = '') {
+  // `push: false` when the navigation came from the address bar (Back/Forward,
+  // or the hash the page was opened with) and must not add another entry.
+  select(section, table = '', { push = true } = {}) {
     set({ section, table, openMsg: null });
+    if (push) writeHash(section, table);
     if (section === 'mail') get().loadMail(table || 'unread');
     if (section === 'wa' && table !== 'dash') get().loadWaConversations();
     // The Integrations tab fetches its own health on mount — doing it here too
     // would fire two requests for one navigation.
+  },
+
+  // Open one customer's page, or their desk form if the page is switched off.
+  openCustomer(name, newTab) {
+    if (!name) return;
+    if (get().moduleOn('customer_page')) get().select('custpage', name);
+    else openFrappe('Customer', name, newTab ?? get().settings.openInNewTab);
+  },
+
+  // Follow the address bar: called once after boot, and on every hashchange.
+  syncFromHash() {
+    const { section, table } = parseHash(window.location.hash);
+    if (!section || !SECTION_META[section]) return;
+    if (section === get().section && table === get().table) return;
+    get().select(section, table, { push: false });
   },
 
   setSearch(search) {

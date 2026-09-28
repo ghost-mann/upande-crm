@@ -13,7 +13,12 @@ import { isMine, MINE_FIELDS, currentUser } from '@/lib/crm';
 
 const COLUMNS = [
   { key: 'name', label: 'ID', cls: 'cell-id' },
-  { key: 'customer', label: 'Customer', render: (r) => r.customer_name || r.party_name || '—' },
+  { key: 'customer', label: 'Customer', render: (r) => (r.opportunity_from === 'Customer' && r.party_name ? (
+    <button type="button" className="text-left underline decoration-hairline underline-offset-2 hover:decoration-current"
+      onClick={(e) => { e.stopPropagation(); useStore.getState().openCustomer(r.party_name); }}>
+      {r.customer_name || r.party_name}
+    </button>
+  ) : (r.customer_name || r.party_name || '—')) },
   { key: 'opportunity_from', label: 'From', render: (r) => r.opportunity_from || '—' },
   { key: 'status', label: 'Status', render: (r) => <StatusBadge value={r.status} /> },
   { key: 'sales_stage', label: 'Stage', render: (r) => r.sales_stage || '—' },

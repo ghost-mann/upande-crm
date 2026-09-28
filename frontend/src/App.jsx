@@ -27,6 +27,7 @@ const Campaigns = lazy(() => import('./sections/Campaigns/index.jsx'));
 // the bundle for everyone who never opens the map.
 const Territories = lazy(() => import('./sections/Territories/index.jsx'));
 const Correspondence = lazy(() => import('./sections/Correspondence/index.jsx'));
+const CustomerPage = lazy(() => import('./sections/CustomerPage/index.jsx'));
 const ThreadView = lazy(() => import('./components/ThreadView'));
 const ComposeDialog = lazy(() => import('./components/ComposeDialog'));
 const EventDialog = lazy(() => import('./components/EventDialog'));
@@ -41,7 +42,7 @@ const SECTIONS = {
   overview: Overview, mail: Mail, wa: WhatsApp, leads: Leads, opps: Opportunities,
   prosp: Prospects, cust: Customers, evt: Events, act: Activity, set: Settings,
   rep: Reports, calls: Calls, anl: Analytics, camp: Campaigns, terr: Territories,
-  corr: Correspondence,
+  corr: Correspondence, custpage: CustomerPage,
 };
 
 function fmtTime(d) {
@@ -50,7 +51,8 @@ function fmtTime(d) {
 }
 
 export default function App() {
-  const { section, loadAll, lastUpdated, customerFilter } = useStore();
+  const { section, table, loadAll, lastUpdated, customerFilter } = useStore();
+  const syncFromHash = useStore((s) => s.syncFromHash);
   const openCompose = useStore((s) => s.openCompose);
   const openMsg = useStore((s) => s.openMsg);
   const loadOrg = useStore((s) => s.loadOrg);
@@ -63,10 +65,19 @@ export default function App() {
     // sections exist, so resolving them after the fetch would load twice.
     (async () => {
       await loadOrg();
+      // After the module map: a bookmarked section that is switched off must
+      // land on the Overview, not flash open.
+      syncFromHash();
       loadAll();
       setupAutoRefresh();
     })();
-  }, [loadOrg, loadAll]);
+    window.addEventListener('hashchange', syncFromHash);
+    window.addEventListener('popstate', syncFromHash);
+    return () => {
+      window.removeEventListener('hashchange', syncFromHash);
+      window.removeEventListener('popstate', syncFromHash);
+    };
+  }, [loadOrg, loadAll, syncFromHash]);
 
   // A section that settings have just switched off must not stay on screen.
   useEffect(() => {
@@ -89,7 +100,7 @@ export default function App() {
                 <div className="text-[11px] text-ink-mute uppercase tracking-[0.2em] font-medium mb-2.5 flex items-center gap-2.5 before:content-[''] before:w-[18px] before:h-px before:bg-ink-3">
                   {getBoot().brandName}{customerFilter ? ` · ${customerFilter}` : ''}
                 </div>
-                <h1 className="text-[36px] md:text-[44px] font-semibold -tracking-[0.03em] leading-[1.05] text-ink">{meta.title}</h1>
+                <h1 className="text-[36px] md:text-[44px] font-semibold -tracking-[0.03em] leading-[1.05] text-ink break-words">{section === 'custpage' && table ? table : meta.title}</h1>
                 <p className="mt-2 text-[15px] text-ink-4">{meta.sub}</p>
               </div>
               <PageTools />

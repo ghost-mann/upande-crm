@@ -30,6 +30,7 @@ const topColumns = (ccy) => [
 
 export default function Customers() {
   const { data, table } = useStore();
+  const openCustomer = useStore((s) => s.openCustomer);
   const C = data.cust;
   if (!C) return <div className="crm-empty">No customers data</div>;
 
@@ -38,6 +39,7 @@ export default function Customers() {
     const mine = table === 'mine';
     const rows = mine ? (C.rows || []).filter((r) => isMine(r, u, MINE_FIELDS.cust)) : (C.rows || []);
     return <DataTable title={mine ? 'My Customers' : 'All Customers'} columns={COLUMNS} rows={rows} doctype="Customer"
+      onRowClick={(r) => openCustomer(r.name)}
       searchFields={['name', 'customer_name', 'customer_type', 'customer_group', 'territory']}
       emptyText={mine ? (u ? 'No customers owned by or assigned to you' : 'Sign in to see your customers') : 'No customers'} />;
   }
@@ -45,7 +47,8 @@ export default function Customers() {
     const ccy = C.currency || 'KES';
     const rows = (C.top_revenue || []).map((r, i) => ({ ...r, _rank: String(i + 1).padStart(2, '0') }));
     return <DataTable title="Top Customers by Revenue" subOverride={`In selected range · ${ccy}`} columns={topColumns(ccy)}
-      rows={rows} doctype="Customer" rowName={(r) => r.customer} emptyText="No invoice data in range" />;
+      rows={rows} doctype="Customer" rowName={(r) => r.customer} onRowClick={(r) => openCustomer(r.customer)}
+      emptyText="No invoice data in range" />;
   }
   if (table === 'emails') return <EmailsTable refType="Customer" />;
 

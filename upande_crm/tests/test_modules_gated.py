@@ -77,6 +77,10 @@ GATED = {
         "upande_crm.api.logistics.crm_delivery_point_detail",
     ],
     "corr": ["upande_crm.api.correspondence.crm_correspondence"],
+    "quotations": [
+        "upande_crm.api.quotations.crm_dashboard_quotations",
+        "upande_crm.api.quotations.crm_customer_quotations",
+    ],
     "claims": [
         "upande_crm.api.claims.crm_dashboard_claims",
         "upande_crm.api.claims.crm_claim_save",

@@ -88,6 +88,10 @@ LEAD_FIELDS = {
     "phone",
     "website",
     "source",
+    # v16's channel field (the v15 `source` column is not in the v16 meta, so
+    # saving it did nothing), and qualification.
+    "utm_source",
+    "qualification_status",
     "territory",
     "industry",
     "market_segment",
@@ -173,14 +177,21 @@ def crm_lead_save(lead):
     if not name and not any(fields.get(k) for k in ("lead_name", "first_name", "company_name")):
         frappe.throw(_("A lead needs a name or a company"))
 
+    from upande_crm.api.board import apply_qualification
+
+    qualification = fields.pop("qualification_status", None)
     if name:
         _require("Lead", "write", name)
         doc = frappe.get_doc("Lead", name)
         doc.update(fields)
+        if qualification:
+            apply_qualification(doc, qualification)
         doc.save()
     else:
         _require("Lead", "create")
         doc = frappe.get_doc({"doctype": "Lead", **fields})
+        if qualification:
+            apply_qualification(doc, qualification)
         doc.insert()
 
     return {
@@ -208,6 +219,18 @@ def _select_options(doctype, fieldname):
         return []
 
 
+def _channel_options():
+    """Lead channels: the ones configured in Settings first, in their order, then
+    every other UTM Source. v16 renamed Lead Source to UTM Source; asking for the
+    old name returned nothing, so the lead form's source list was always empty."""
+    from upande_crm.api.settings import DEFAULTS, get_settings, parse_lines
+
+    configured = parse_lines(get_settings().get("lead_channels")) or parse_lines(DEFAULTS["lead_channels"])
+    doctype = "UTM Source" if frappe.db.exists("DocType", "UTM Source") else "Lead Source"
+    rest = [s for s in _link_options(doctype, limit=200) if s not in configured]
+    return configured + rest
+
+
 @frappe.whitelist()
 def crm_lead_form_options():
     """Everything the lead and convert dialogs need to render their selects.
@@ -224,7 +247,8 @@ def crm_lead_form_options():
         users = []
 
     return {
-        "sources": _link_options("Lead Source"),
+        "sources": _channel_options(),
+        "qualification_statuses": _select_options("Lead", "qualification_status"),
         "territories": _link_options("Territory", limit=200),
         "industries": _link_options("Industry Type"),
         "market_segments": _link_options("Market Segment"),

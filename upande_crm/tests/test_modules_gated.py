@@ -17,8 +17,11 @@ GATED = {
         "upande_crm.api.customer.crm_customer_timeline",
         "upande_crm.api.customer.crm_customer_add_note",
     ],
-    "leads": ["upande_crm.api.crm.crm_dashboard_leads", "upande_crm.api.leads.crm_lead_save"],
-    "opps": ["upande_crm.api.crm.crm_dashboard_opportunities"],
+    "leads": ["upande_crm.api.crm.crm_dashboard_leads", "upande_crm.api.leads.crm_lead_save",
+              "upande_crm.api.board.crm_lead_qualify"],
+    "opps": ["upande_crm.api.crm.crm_dashboard_opportunities",
+             "upande_crm.api.board.crm_pipeline_board",
+             "upande_crm.api.board.crm_opportunity_set_stage"],
     "prosp": ["upande_crm.api.crm.crm_dashboard_prospects"],
     "mail": [
         "upande_crm.api.crm.crm_mail_data",

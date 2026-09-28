@@ -85,7 +85,10 @@ def _dw(doctype, field, frm, to, base=""):
     if base:
         parts.append(f"({base})")
     if _hascol(doctype, field):
-        parts.append(f"`{field}` between '{frm}' and '{to}'")
+        # End of the last day, not its midnight: `creation` is a datetime, and a
+        # bare date end dropped every record made on the range's final day
+        # (today, in the default view). Harmless for Date columns.
+        parts.append(f"`{field}` between '{frm}' and '{to} 23:59:59.999999'")
     return ("where " + " and ".join(parts)) if parts else ""
 
 
@@ -139,6 +142,27 @@ def _top_n():
     from upande_crm.api.settings import top_n
 
     return top_n()
+
+
+def _lead_source():
+    from upande_crm.api.board import lead_source_sql
+
+    return lead_source_sql()
+
+
+def _group_sql(doctype, expr, where_sql="", limit=None):
+    """Like `_group`, over a SQL expression (already 'Unknown'-defaulted)."""
+    if limit is None:
+        limit = _top_n()
+    if not _has(doctype):
+        return []
+    try:
+        rows = frappe.db.sql(
+            f"""select {expr} as label, count(*) as count from `tab{doctype}` {where_sql}
+                group by label order by count desc limit {int(limit)}""", as_dict=True)
+        return [{"label": r.label, "count": r.count} for r in rows]
+    except Exception:
+        return []
 
 
 def _group(doctype, field, where_sql="", limit=None):
@@ -302,7 +326,7 @@ def crm_dashboard_overview(date_from=None, date_to=None, customer=None):
         "lead_trend": _trend_in_range("Lead", "creation", frm, to, where=_sw(scope, "Lead")),
         "so_trend": _trend_in_range("Sales Order", "transaction_date", frm, to,
                                     where=_customer_sql(customer)),
-        "top_sources": _group("Lead", "source", _dw("Lead", "creation", frm, to, base=_sw(scope, "Lead"))),
+        "top_sources": _group_sql("Lead", _lead_source(), _dw("Lead", "creation", frm, to, base=_sw(scope, "Lead"))),
         "top_territories": _group("Lead", "territory", _dw("Lead", "creation", frm, to, base=_sw(scope, "Lead"))),
         "sales_stages": _group("Opportunity", "sales_stage",
                                _dw("Opportunity", "transaction_date", frm, to,

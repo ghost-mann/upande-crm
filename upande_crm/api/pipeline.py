@@ -75,6 +75,7 @@ from upande_crm.api.crm import (
     _range,
 )
 from upande_crm.api.funnel import cohort
+from upande_crm.api.board import lead_source_sql
 from upande_crm.modules import requires_module
 
 # Age buckets for open records, in days.
@@ -282,15 +283,17 @@ def crm_analytics_leads(date_from=None, date_to=None, customer=None):
     # opportunity. `source` is 79% populated, so this is worth charting; campaign
     # (3%) is not, and is deliberately absent.
     by_source = []
-    if _has("Lead") and _hascol("Lead", "source"):
+    if _has("Lead") and (_hascol("Lead", "source") or _hascol("Lead", "utm_source")):
         # Every column is alias-qualified: `_dw` emits an unaliased `creation`,
         # which is ambiguous once the join is present and made this return nothing.
-        lw = f"l.creation between '{frm}' and '{to}'"
+        # `creation` is a datetime: the bare end date is midnight, which dropped
+        # every lead created on the last day of the range.
+        lw = f"l.creation between '{frm} 00:00:00' and '{to} 23:59:59.999999'"
         if scope is not None:
             inner = _sw(scope, "Lead")
             lw += " and " + (inner.replace("`name`", "l.`name`") if inner else "1=1")
         rows = _rows(
-            f"""select coalesce(nullif(l.source,''),'Unknown') label, count(*) leads,
+            f"""select {lead_source_sql("l")} label, count(*) leads,
                        coalesce(sum(case when o.party_name is not null then 1 else 0 end),0) converted
                 from `tabLead` l
                 left join (select distinct party_name from `tabOpportunity`
@@ -313,7 +316,7 @@ def crm_analytics_leads(date_from=None, date_to=None, customer=None):
             "converted": _count("Lead", {**ld, "status": "Converted"}),
             "lost": _count("Lead", {**ld, "status": "Lost"}),
             "with_source": _one(
-                f"select count(*) from tabLead {w}{' and ' if w else ' where '}coalesce(source,'') != ''"),
+                f"select count(*) from tabLead {w}{' and ' if w else ' where '}{lead_source_sql()} != 'Unknown'"),
             "conv_rate": _pct(_count("Lead", {**ld, "status": "Converted"}), total),
         },
         "by_source": by_source,

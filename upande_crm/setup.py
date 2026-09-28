@@ -204,6 +204,9 @@ def hide_workspaces():
 
 
 def setup():
+    from upande_crm.patches.backfill_module_switches import execute as backfill_module_switches
+
+    backfill_module_switches()
     ensure_crm_roles()
     ensure_crm_role_permissions()
     ensure_nav_block()

@@ -50,6 +50,26 @@ class UpandeCRMSettings(Document):
         self._validate_statuses()
         self._validate_whatsapp_template()
         self._validate_theme_seeds()
+        self._validate_custpage()
+
+    def _validate_custpage(self):
+        from upande_crm.modules import CUSTPAGE_TABS
+
+        # Blank means "never filled in" and reads as the default (every tab), as
+        # it does for every other field here — a Single saved before these
+        # fields existed has them blank.
+        tabs = [t.strip() for t in str(self.custpage_tabs or "").replace(",", "\n").splitlines() if t.strip()]
+        if not tabs:
+            tabs = list(CUSTPAGE_TABS)
+        unknown = [t for t in tabs if t not in CUSTPAGE_TABS]
+        if unknown:
+            frappe.throw(
+                _("Unknown customer page tab: {0}. Choose from {1}.").format(
+                    ", ".join(unknown), ", ".join(CUSTPAGE_TABS)
+                )
+            )
+        if self.custpage_default_tab and self.custpage_default_tab not in tabs:
+            frappe.throw(_("The tab the customer page opens on must be one of its shown tabs."))
 
     def _validate_bounds(self):
         for field, label, low, high in BOUNDS:

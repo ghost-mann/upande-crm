@@ -30,6 +30,28 @@
   "default_whatsapp_template",
   "cb_whatsapp",
   "whatsapp_fail_rate_alert",
+  "sb_modules",
+  "module_customer_page",
+  "module_leads",
+  "module_opps",
+  "module_prosp",
+  "module_mail",
+  "module_calls",
+  "module_events",
+  "module_activity_log",
+  "cb_modules",
+  "module_campaigns",
+  "module_analytics",
+  "module_reports",
+  "module_territories",
+  "module_correspondence",
+  "module_claims",
+  "module_quotations",
+  "module_visits",
+  "sb_custpage",
+  "custpage_tabs",
+  "cb_custpage",
+  "custpage_default_tab",
   "sb_theme",
   "theme_preset",
   "theme_accent",
@@ -197,7 +219,152 @@
    "label": "WhatsApp Failure Rate Alert (%)"
   },
   {
-   "description": "Seed colours for the CRM's appearance. Blank means \"not themed\" \u2014 the compiled palette is used. Everything else (the ink scale, surfaces, hairlines, shadows, gradients, button and input colours) is derived from these.",
+   "fieldname": "sb_modules",
+   "fieldtype": "Section Break",
+   "label": "Modules",
+   "description": "Switch whole areas of the CRM on or off for everyone. A switched-off module disappears from the menu and its data stops being served."
+  },
+  {
+   "fieldname": "module_customer_page",
+   "fieldtype": "Check",
+   "label": "Customer page",
+   "default": "1",
+   "description": "One page per customer: their orders, prices, contracts and every conversation, in one place."
+  },
+  {
+   "fieldname": "module_leads",
+   "fieldtype": "Check",
+   "label": "Leads",
+   "default": "1",
+   "description": "Capture new enquiries and follow them until they become opportunities or customers."
+  },
+  {
+   "fieldname": "module_opps",
+   "fieldtype": "Check",
+   "label": "Opportunities",
+   "default": "1",
+   "description": "Track deals being worked on, and what stage each one has reached."
+  },
+  {
+   "fieldname": "module_prosp",
+   "fieldtype": "Check",
+   "label": "Prospects",
+   "default": "1",
+   "description": "Group the leads and opportunities that belong to one potential customer company."
+  },
+  {
+   "fieldname": "module_mail",
+   "fieldtype": "Check",
+   "label": "Mail",
+   "default": "1",
+   "description": "Read and send email from inside the CRM, filed against leads and customers."
+  },
+  {
+   "fieldname": "module_calls",
+   "fieldtype": "Check",
+   "label": "Calls",
+   "default": "1",
+   "description": "Log phone calls against leads and customers, and see who called whom."
+  },
+  {
+   "fieldname": "module_events",
+   "fieldtype": "Check",
+   "label": "Events & Tasks",
+   "default": "1",
+   "description": "Meetings, visits, calendars and follow-up tasks."
+  },
+  {
+   "fieldname": "module_activity_log",
+   "fieldtype": "Check",
+   "label": "Activity log",
+   "default": "1",
+   "description": "A running list of everything that changed across the CRM."
+  },
+  {
+   "fieldname": "cb_modules",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "module_campaigns",
+   "fieldtype": "Check",
+   "label": "Campaigns",
+   "default": "1",
+   "description": "Email campaigns: who is enrolled, what was sent, and how it went."
+  },
+  {
+   "fieldname": "module_analytics",
+   "fieldtype": "Check",
+   "label": "Sales analytics",
+   "default": "1",
+   "description": "Funnel, conversion and revenue charts for sales management."
+  },
+  {
+   "fieldname": "module_reports",
+   "fieldtype": "Check",
+   "label": "Reports",
+   "default": "1",
+   "description": "Ready-made reports you can run, filter and export."
+  },
+  {
+   "fieldname": "module_territories",
+   "fieldtype": "Check",
+   "label": "Territories",
+   "default": "1",
+   "description": "A world map of where customers, claims and sales are."
+  },
+  {
+   "fieldname": "module_correspondence",
+   "fieldtype": "Check",
+   "label": "Correspondence",
+   "default": "1",
+   "description": "Which staff member is in touch with which customer, from real email traffic."
+  },
+  {
+   "fieldname": "module_claims",
+   "fieldtype": "Check",
+   "label": "Claims",
+   "default": "0",
+   "description": "Log complaints and quality claims against customers and orders, and track them to resolution. (Coming soon.)"
+  },
+  {
+   "fieldname": "module_quotations",
+   "fieldtype": "Check",
+   "label": "Quotations",
+   "default": "0",
+   "description": "Quotations sent to customers and prospects, and which ones turned into orders. (Coming soon.)"
+  },
+  {
+   "fieldname": "module_visits",
+   "fieldtype": "Check",
+   "label": "Visits",
+   "default": "0",
+   "description": "Farm visits by customers and customer visits by sales staff, with outcomes and follow-ups. (Coming soon.)"
+  },
+  {
+   "fieldname": "sb_custpage",
+   "fieldtype": "Section Break",
+   "label": "Customer Page"
+  },
+  {
+   "fieldname": "custpage_tabs",
+   "fieldtype": "Small Text",
+   "label": "Customer Page Tabs",
+   "default": "overview\ntimeline\norders\npricing\ncontracts",
+   "description": "One per line, in the order shown. Any of: overview, timeline, orders, pricing, contracts."
+  },
+  {
+   "fieldname": "cb_custpage",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "custpage_default_tab",
+   "fieldtype": "Select",
+   "label": "Opens On Tab",
+   "options": "overview\ntimeline\norders\npricing\ncontracts",
+   "default": "overview"
+  },
+  {
+   "description": "Seed colours for the CRM's appearance. Blank means \"not themed\" — the compiled palette is used. Everything else (the ink scale, surfaces, hairlines, shadows, gradients, button and input colours) is derived from these.",
    "fieldname": "sb_theme",
    "fieldtype": "Section Break",
    "label": "Theme"
@@ -210,7 +377,7 @@
    "read_only": 1
   },
   {
-   "description": "The single signal colour \u2014 buttons, active states, primary chart series.",
+   "description": "The single signal colour — buttons, active states, primary chart series.",
    "fieldname": "theme_accent",
    "fieldtype": "Color",
    "label": "Accent"
@@ -261,7 +428,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-07-29 09:00:00.000000",
+ "modified": "2026-09-28 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Upande CRM",
  "name": "Upande CRM Settings",

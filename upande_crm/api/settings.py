@@ -22,6 +22,7 @@ from frappe.utils import add_days, cint, flt, nowdate
 
 from upande_crm.api.activity import _load
 from upande_crm.api.crm import _company_currency, _count, _guard, _has, _hascol
+from upande_crm.modules import CUSTPAGE_TABS, MODULES, enabled_map, module_meta
 
 SETTINGS_DOCTYPE = "Upande CRM Settings"
 
@@ -50,6 +51,10 @@ DEFAULTS = {
     "whatsapp_enabled": 1,
     "default_whatsapp_template": "",
     "whatsapp_fail_rate_alert": 20.0,
+    # Module switches (see upande_crm/modules.py). WhatsApp's is `whatsapp_enabled`
+    # above; the rest are added from the registry below.
+    "custpage_tabs": "\n".join(CUSTPAGE_TABS),
+    "custpage_default_tab": "overview",
     # Theme seeds. Blank means "not themed" — the compiled palette is used and no
     # <style> block is emitted at all. See upande_crm/theme/.
     "theme_preset": "",
@@ -63,6 +68,8 @@ DEFAULTS = {
     "theme_info": "",
 }
 
+DEFAULTS.update({m.field: int(m.available) for m in MODULES if m.field not in DEFAULTS})
+
 # Select vocabularies, so the UI does not have to hardcode them and still works
 # when the doctype is absent.
 OPTIONS = {
@@ -70,6 +77,7 @@ OPTIONS = {
     "default_date_range": ["7d", "30d", "60d", "90d", "6m", "ytd", "1y", "all"],
     "default_task_priority": ["High", "Medium", "Low"],
     "default_event_category": ["Event", "Meeting", "Call", "Sent/Received Email", "Other"],
+    "custpage_default_tab": list(CUSTPAGE_TABS),
 }
 
 # How far back the WhatsApp failure-rate health check looks.
@@ -123,6 +131,11 @@ def parse_list(text):
     return [p.strip() for p in str(text or "").split(",") if p.strip()]
 
 
+def parse_lines(text):
+    """Newline- or comma-separated text -> trimmed, non-empty values."""
+    return [p.strip() for p in str(text or "").replace(",", "\n").splitlines() if p.strip()]
+
+
 def open_statuses(key, settings=None):
     """The configured open-status list for `key`, falling back to the default.
 
@@ -147,8 +160,11 @@ def _can_edit(user=None):
 @frappe.whitelist()
 def crm_settings():
     _guard()
+    settings = get_settings()
     return {
-        "settings": get_settings(),
+        "settings": settings,
+        "modules": enabled_map(settings),
+        "module_meta": module_meta(),
         "can_edit": _can_edit(),
         "installed": _installed(),
         "currency": _company_currency(),

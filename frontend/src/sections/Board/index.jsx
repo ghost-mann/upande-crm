@@ -90,7 +90,7 @@ export default function Board() {
               <span className="text-[13px] font-semibold text-ink truncate">{col.label}</span>
               <span className="text-[12px] tabular-nums text-ink-3">{fmt(col.count)}</span>
             </div>
-            {col.value > 0 && <div className="text-[11.5px] text-ink-3 mb-1">{fmtMoneyCompact(col.value)} in play</div>}
+            {col.value > 0 && <div className="text-[11.5px] text-ink-3 mb-1" title="Summed in company currency">{fmtMoneyCompact(col.value, data.currency)} in play</div>}
             {col.note && <div className="text-[11px] text-ink-mute mb-2">{col.note}</div>}
             <div className="grid gap-2 mt-2 max-h-[calc(100vh-330px)] overflow-y-auto crm-scroll pr-0.5">
               {col.cards.map((c) => (

@@ -81,8 +81,11 @@ def _opportunity_cards(stages):
 
     statuses = tuple(open_statuses("opportunity_open_statuses"))
     amount = "opportunity_amount" if _hascol("Opportunity", "opportunity_amount") else "0"
+    # Column totals add base amounts: opportunities here are in several currencies.
+    base = "base_opportunity_amount" if _hascol("Opportunity", "base_opportunity_amount") else amount
     rows = frappe.db.sql(
         f"""select name, party_name, customer_name, opportunity_from, sales_stage, {amount} as amount,
+                   {base} as base_amount,
                    probability, expected_closing, creation, opportunity_owner, status, currency
             from `tabOpportunity` where status in %(st)s order by creation desc""",
         {"st": statuses}, as_dict=True)
@@ -92,7 +95,8 @@ def _opportunity_cards(stages):
     for r in rows:
         card = {"doctype": "Opportunity", "name": r.name, "title": r.customer_name or r.party_name or r.name,
                 "party_type": r.opportunity_from, "party": r.party_name, "stage": r.sales_stage or "",
-                "amount": flt(r.amount), "currency": r.currency, "probability": cint(r.probability),
+                "amount": flt(r.amount), "base_amount": flt(r.base_amount), "currency": r.currency,
+                "probability": cint(r.probability),
                 "expected_closing": str(r.expected_closing) if r.expected_closing else None,
                 "owner": r.opportunity_owner, "age_days": date_diff(today, r.creation), "status": r.status}
         (by_stage[r.sales_stage] if r.sales_stage in by_stage else other).append(card)
@@ -124,16 +128,19 @@ def crm_pipeline_board(date_from=None, date_to=None):
         for s in stages:
             cards = by_stage[s]
             columns.append({"key": s, "label": s, "kind": "opportunity", "count": len(cards), "cards": cards[:CARD_LIMIT],
-                            "value": sum(c["amount"] for c in cards)})
+                            "value": sum(c["base_amount"] for c in cards)})
         if other:
             columns.append({"key": "other", "label": "Other stages", "kind": "opportunity", "count": len(other),
-                            "cards": other[:CARD_LIMIT], "value": sum(c["amount"] for c in other),
+                            "cards": other[:CARD_LIMIT], "value": sum(c["base_amount"] for c in other),
                             "note": "Open opportunities in a stage not listed in CRM Settings."})
     if frappe.has_permission("Customer", "read"):
         total, cards = _customer_cards(frm, to)
         columns.append({"key": "customers", "label": "Confirmed customers", "kind": "customer",
                         "count": total, "cards": cards, "note": "Created in the selected range."})
+    from upande_crm.api.crm import _company_currency
+
     return {"columns": columns, "stages": stages, "qualification": list(QUALIFICATION),
+            "currency": _company_currency(),
             "range": {"from": frm, "to": to}}
 
 

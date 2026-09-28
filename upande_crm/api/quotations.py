@@ -57,6 +57,23 @@ def _flag(rows, orders, followup_days):
     return rows
 
 
+def _price_history(items):
+    """Quoted rates per item *and currency*, oldest first. A rose quoted at 0.35
+    USD and at 30 KES is two histories, not a range from 0.35 to 30."""
+    history = {}
+    for it in items:
+        key = (it.item_code, it.currency)
+        h = history.setdefault(key, {"item_code": it.item_code, "item_name": it.item_name, "uom": it.uom,
+                                     "currency": it.currency, "points": []})
+        h["points"].append({"date": str(it.transaction_date), "rate": flt(it.rate), "quotation": it.name,
+                            "currency": it.currency, "draft": cint(it.docstatus) == 0})
+    for h in history.values():
+        rates = [p["rate"] for p in h["points"]]
+        h["latest"] = rates[-1]
+        h["low"], h["high"] = min(rates), max(rates)
+    return sorted(history.values(), key=lambda h: (-len(h["points"]), h["item_code"] or "", h["currency"] or ""))
+
+
 def _median(values):
     values = sorted(v for v in values if v is not None)
     if not values:
@@ -108,21 +125,27 @@ def crm_dashboard_quotations(date_from=None, date_to=None, customer=None):
         label = "Draft" if cint(r.docstatus) == 0 else r.status
         by_status[label] = by_status.get(label, 0) + 1
 
+    # Its own query: the chart says "last 12 months", whatever range the page is on.
     first = get_first_day(getdate(to))
     months = [str(add_months(first, -i))[:7] for i in range(11, -1, -1)]
     trend = {m: {"label": m, "count": 0, "value": 0.0, "converted": 0} for m in months}
-    for r in submitted:
+    tfilters = {"docstatus": 1, "transaction_date": ["between", [months[0] + "-01", to]]}
+    if customer:
+        tfilters.update({"quotation_to": "Customer", "party_name": customer})
+    trows = frappe.get_all("Quotation", filters=tfilters, fields=["name", "transaction_date", "base_grand_total"], limit=0)
+    torders = _orders_for([r.name for r in trows])
+    for r in trows:
         m = str(r.transaction_date)[:7]
         if m in trend:
             trend[m]["count"] += 1
             trend[m]["value"] += flt(r.base_grand_total)
-            trend[m]["converted"] += 1 if r["orders"] else 0
+            trend[m]["converted"] += 1 if torders.get(r.name) else 0
 
     top_items = []
     if rows:
         top_items = frappe.db.sql(
             """select qi.item_code, max(qi.item_name) item_name, count(distinct qi.parent) quotes,
-                      sum(qi.base_net_amount) value, avg(qi.rate) avg_rate
+                      sum(qi.base_net_amount) value, avg(qi.base_rate) avg_base_rate
                from `tabQuotation Item` qi where qi.parent in %s and ifnull(qi.item_code,'') != ''
                group by qi.item_code order by value desc limit 10""",
             (tuple(r.name for r in rows),), as_dict=True)
@@ -169,23 +192,16 @@ def crm_customer_quotations(name):
                           fields=ROW_FIELDS, order_by="transaction_date desc", limit=200)
     orders = _orders_for([r.name for r in rows])
     _flag(rows, orders, days)
-    history = {}
+    items = []
     if rows:
-        for it in frappe.db.sql(
+        items = frappe.db.sql(
             """select qi.item_code, qi.item_name, qi.rate, qi.uom, q.transaction_date, q.name, q.currency, q.docstatus
                from `tabQuotation Item` qi join `tabQuotation` q on q.name = qi.parent
                where q.name in %s and ifnull(qi.item_code,'') != ''
-               order by q.transaction_date asc""", (tuple(r.name for r in rows),), as_dict=True):
-            h = history.setdefault(it.item_code, {"item_code": it.item_code, "item_name": it.item_name,
-                                                  "uom": it.uom, "points": []})
-            h["points"].append({"date": str(it.transaction_date), "rate": flt(it.rate), "quotation": it.name,
-                                "currency": it.currency, "draft": cint(it.docstatus) == 0})
-    for h in history.values():
-        rates = [p["rate"] for p in h["points"]]
-        h["latest"] = rates[-1]
-        h["low"], h["high"] = min(rates), max(rates)
+               order by q.transaction_date asc""", (tuple(r.name for r in rows),), as_dict=True)
+    history = _price_history(items)
     for r in rows:
         r["transaction_date"] = str(r.transaction_date) if r.transaction_date else None
         r["valid_till"] = str(r.valid_till) if r.valid_till else None
     return {"rows": rows, "available": True, "currency": _company_currency(), "followup_days": days,
-            "price_history": sorted(history.values(), key=lambda h: -len(h["points"]))}
+            "price_history": history}

@@ -167,3 +167,21 @@ class TestSetupCreatesRecords(BoardCase):
         setup()
         self.assertTrue(frappe.db.exists("Sales Stage", "Sample Dispatch"))
         self.assertTrue(frappe.db.exists("UTM Source", "Referral"))
+
+
+class TestBoardMoney(BoardCase):
+    """Opportunities here are in USD, KES and EUR: a column total must be in the
+    company currency, from base amounts, never raw amounts added across currencies."""
+
+    def test_column_value_is_the_sum_of_base_amounts(self):
+        b = B.crm_pipeline_board(add_days(nowdate(), -3650), nowdate())
+        self.assertTrue(b["currency"])
+        for col in b["columns"]:
+            if col["kind"] != "opportunity" or col["count"] > len(col["cards"]):
+                continue
+            names = [c["name"] for c in col["cards"]]
+            if not names:
+                continue
+            base = frappe.db.sql("select coalesce(sum(base_opportunity_amount),0) from tabOpportunity where name in %s",
+                                 (tuple(names),))[0][0]
+            self.assertAlmostEqual(col["value"], float(base), places=2, msg=col["key"])

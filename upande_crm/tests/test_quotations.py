@@ -84,3 +84,28 @@ class TestQuotationsDashboard(FrappeTestCase):
             doc = frappe.get_single(S.SETTINGS_DOCTYPE)
             doc.module_quotations = 1
             doc.save(ignore_permissions=True)
+
+
+class TestQuotationFiguresAreHonest(FrappeTestCase):
+    def setUp(self):
+        frappe.set_user("Administrator")
+
+    def test_price_history_never_mixes_currencies(self):
+        rows = [
+            frappe._dict(item_code="ROSE", item_name="Rose", rate=0.35, uom="Stem", transaction_date="2026-01-01",
+                         name="Q1", currency="USD", docstatus=1),
+            frappe._dict(item_code="ROSE", item_name="Rose", rate=30, uom="Stem", transaction_date="2026-02-01",
+                         name="Q2", currency="KES", docstatus=1),
+        ]
+        hist = Q._price_history(rows)
+        self.assertEqual(len(hist), 2)
+        for h in hist:
+            self.assertEqual(len({p["currency"] for p in h["points"]}), 1)
+            self.assertEqual(h["low"], h["high"])
+
+    def test_trend_covers_twelve_months_whatever_the_range(self):
+        d = Q.crm_dashboard_quotations(add_days(nowdate(), -1), nowdate())
+        self.assertEqual(len(d["trend"]), 12)
+        first = d["trend"][0]["label"] + "-01"
+        expected = frappe.db.count("Quotation", {"docstatus": 1, "transaction_date": ["between", [first, nowdate()]]})
+        self.assertEqual(sum(t["count"] for t in d["trend"]), expected)

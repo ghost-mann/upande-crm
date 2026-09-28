@@ -18,7 +18,8 @@ never implies a per-customer agreement that does not exist.
 
 import frappe
 from frappe import _
-from frappe.utils import add_months, cint, date_diff, flt, get_first_day, getdate, nowdate
+from frappe.utils import add_months, cint, date_diff, flt, get_datetime, get_first_day, nowdate, strip_html
+from frappe.utils.html_utils import sanitize_html
 
 from upande_crm.api.crm import _company_currency, _guard, _has, _hascol
 from upande_crm.modules import CUSTPAGE_TABS, requires_module
@@ -271,3 +272,198 @@ def crm_customer_contracts(name):
     rows = frappe.get_all("Contract", filters={"party_type": "Customer", "party_name": name},
                           fields=fields, order_by="start_date desc", limit=200)
     return {"rows": rows, "available": True}
+
+
+# ---------------------------------------------------------------- timeline
+TIMELINE_KINDS = ("email", "call", "whatsapp", "event", "task", "note")
+SNIPPET = 160
+FAR_FUTURE = "9999-12-31 23:59:59.999999"
+
+
+def _when(value):
+    """One sortable string form for every source's timestamp."""
+    return get_datetime(value).strftime("%Y-%m-%d %H:%M:%S.%f") if value else ""
+
+
+def _snip(html, n=SNIPPET):
+    text = " ".join(strip_html(html or "").split())
+    return text if len(text) <= n else text[: n - 1] + "…"
+
+
+def _item(kind, when, title, snippet, who, ref_doctype, ref_name):
+    return {"kind": kind, "when": _when(when), "title": title or "", "snippet": snippet or "",
+            "who": who or "", "ref_doctype": ref_doctype, "ref_name": ref_name}
+
+
+def _parse_kinds(kinds):
+    if not kinds:
+        return list(TIMELINE_KINDS)
+    if isinstance(kinds, str):
+        kinds = frappe.parse_json(kinds) if kinds.strip().startswith("[") else kinds.split(",")
+    picked = [str(k).strip() for k in kinds if str(k).strip()]
+    unknown = [k for k in picked if k not in TIMELINE_KINDS]
+    if unknown:
+        frappe.throw(_("Unknown timeline kind: {0}").format(", ".join(unknown)), frappe.ValidationError)
+    return picked
+
+
+def _emails(name, scope, before, limit):
+    """Emails linked to the customer, or referencing one of its pipeline records.
+
+    Three indexed branches, each walked newest-first and cut at `limit`, then
+    merged — an OR across them in one query stops MariaDB using the
+    (link_doctype, link_name, communication_date) index and costs over a second
+    for a customer with a few thousand emails.
+    """
+    cols = "c.name, c.communication_date, c.subject, c.sender, c.content"
+    args = {"c": name, "before": before, "limit": limit}
+    rows = frappe.db.sql(
+        f"""select {cols} from `tabCommunication Link` l
+            straight_join `tabCommunication` c on c.name = l.parent
+            where l.link_doctype = 'Customer' and l.link_name = %(c)s
+              and l.communication_date < %(before)s and c.communication_medium = 'Email'
+            order by l.communication_date desc limit %(limit)s""", args, as_dict=True)
+    refs = [("Customer", [name])] + [(dt, scope.get(dt) or []) for dt in ("Lead", "Opportunity", "Quotation", "Prospect")]
+    for dt, names in refs:
+        if not names:
+            continue
+        rows += frappe.db.sql(
+            f"""select {cols} from `tabCommunication` c
+                where c.reference_doctype = %(dt)s and c.reference_name in %(names)s
+                  and c.communication_medium = 'Email' and c.communication_date < %(before)s
+                order by c.communication_date desc limit %(limit)s""",
+            {**args, "dt": dt, "names": tuple(names)}, as_dict=True)
+    seen, out = set(), []
+    for r in sorted(rows, key=lambda r: r.communication_date, reverse=True):
+        if r.name in seen:
+            continue
+        seen.add(r.name)
+        out.append(_item("email", r.communication_date, r.subject, _snip(r.content), r.sender,
+                         "Communication", r.name))
+    return out[:limit]
+
+
+def _calls(name, before, limit):
+    if not _has("Call Log"):
+        return []
+    cust = "customer = %(c)s or " if _hascol("Call Log", "customer") else ""
+    rows = frappe.db.sql(
+        f"""select name, creation, type, summary, owner, duration from `tabCall Log`
+            where creation < %(before)s and ({cust}name in (
+                select parent from `tabDynamic Link` where parenttype = 'Call Log'
+                and link_doctype = 'Customer' and link_name = %(c)s))
+            order by creation desc limit %(limit)s""",
+        {"c": name, "before": before, "limit": limit}, as_dict=True)
+    return [_item("call", r.creation, f"{r.type or 'Phone'} call", _snip(r.summary), r.owner,
+                  "Call Log", r.name) for r in rows]
+
+
+def _whatsapp(name, before, limit):
+    from upande_crm.modules import is_enabled
+
+    if not is_enabled("wa") or not _has("WhatsApp Message"):
+        return []
+    rows = frappe.db.sql(
+        """select name, creation, type, message, owner from `tabWhatsApp Message`
+           where reference_doctype = 'Customer' and reference_name = %(c)s and creation < %(before)s
+           order by creation desc limit %(limit)s""",
+        {"c": name, "before": before, "limit": limit}, as_dict=True)
+    return [_item("whatsapp", r.creation, f"WhatsApp · {r.type or 'message'}", _snip(r.message),
+                  r.owner, "WhatsApp Message", r.name) for r in rows]
+
+
+def _events(scope, before, limit):
+    from upande_crm.api import scope as scope_mod
+
+    names = scope_mod.event_names(scope)
+    if not names:
+        return []
+    rows = frappe.get_all("Event", filters={"name": ["in", names], "starts_on": ["<", before]},
+                          fields=["name", "starts_on", "subject", "description", "owner"],
+                          order_by="starts_on desc", limit=limit)
+    return [_item("event", r.starts_on, r.subject, _snip(r.description), r.owner, "Event", r.name)
+            for r in rows]
+
+
+def _tasks(scope, before, limit):
+    from upande_crm.api import scope as scope_mod
+
+    names = scope_mod.todo_names(scope)
+    if not names:
+        return []
+    rows = frappe.get_all("ToDo", filters={"name": ["in", names], "creation": ["<", before]},
+                          fields=["name", "creation", "description", "status", "allocated_to"],
+                          order_by="creation desc", limit=limit)
+    return [_item("task", r.creation, _snip(r.description, 80), r.status, r.allocated_to, "ToDo", r.name)
+            for r in rows]
+
+
+def _notes(name, before, limit):
+    rows = frappe.get_all(
+        "Comment",
+        filters={"comment_type": "Comment", "reference_doctype": "Customer",
+                 "reference_name": name, "creation": ["<", before]},
+        fields=["name", "creation", "content", "comment_email", "comment_by"],
+        order_by="creation desc", limit=limit)
+    return [_item("note", r.creation, "Note", _snip(r.content, 400), r.comment_by or r.comment_email,
+                  "Customer", name) for r in rows]
+
+
+@frappe.whitelist()
+@requires_module("customer_page")
+def crm_customer_timeline(name, kinds=None, before=None, limit=50):
+    """Everything said or done with this customer, newest first.
+
+    Keyset-paged on `when`: pass the previous page's `next_before` as `before`.
+    Each source is asked for at most `limit` rows older than `before`, then the
+    union is sorted and cut — so a page is exact however the sources interleave.
+    """
+    from upande_crm.api import scope as scope_mod
+
+    _customer(name)
+    picked = _parse_kinds(kinds)
+    limit = max(1, min(MAX_PAGE, cint(limit) or 50))
+    before = _when(before) if before else FAR_FUTURE
+    scope = scope_mod.customer_scope(name) if {"email", "event", "task"} & set(picked) else {}
+
+    items = []
+    if "email" in picked:
+        items += _emails(name, scope, before, limit)
+    if "call" in picked:
+        items += _calls(name, before, limit)
+    if "whatsapp" in picked:
+        items += _whatsapp(name, before, limit)
+    if "event" in picked:
+        items += _events(scope, before, limit)
+    if "task" in picked:
+        items += _tasks(scope, before, limit)
+    if "note" in picked:
+        items += _notes(name, before, limit)
+
+    items.sort(key=lambda i: i["when"], reverse=True)
+    items = items[:limit]
+    return {"items": items, "next_before": items[-1]["when"] if len(items) == limit else None}
+
+
+@frappe.whitelist(methods=["POST"])
+@requires_module("customer_page")
+def crm_customer_add_note(name, content):
+    """A meeting note or call note, stored as a standard Comment on the Customer
+    so the desk's own timeline shows it too."""
+    _customer(name)
+    if not strip_html(content or "").strip():
+        frappe.throw(_("A note needs some text."), frappe.ValidationError)
+    doc = frappe.get_doc({
+        "doctype": "Comment",
+        "comment_type": "Comment",
+        "reference_doctype": "Customer",
+        "reference_name": name,
+        "content": sanitize_html(content),
+        "comment_email": frappe.session.user,
+        "comment_by": frappe.utils.get_fullname(frappe.session.user),
+    })
+    # The Customer read check above is the gate; Comment's own DocPerms are not
+    # granted to CRM roles on every site.
+    doc.insert(ignore_permissions=True)
+    return {"item": _item("note", doc.creation, "Note", _snip(doc.content, 400), doc.comment_by,
+                          "Customer", name)}

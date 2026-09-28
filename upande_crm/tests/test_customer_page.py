@@ -63,7 +63,12 @@ class CustomerPageCase(FrappeTestCase):
         frappe.set_user("Administrator")
 
     def tearDown(self):
+        # The class shares one transaction, so a switched-off module would leak
+        # into the next test: put it back.
+        frappe.set_user("Administrator")
         _clear()
+        if not frappe.db.get_single_value(S.SETTINGS_DOCTYPE, "module_customer_page"):
+            _save(module_customer_page=1)
 
 
 class TestHeader(CustomerPageCase):
@@ -173,3 +178,71 @@ class TestAccess(CustomerPageCase):
         frappe.set_user("Guest")
         with self.assertRaises(frappe.PermissionError):
             C.crm_customer_header(self.busy)
+
+
+class TestTimeline(CustomerPageCase):
+    def test_note_round_trips_into_the_timeline(self):
+        C.crm_customer_add_note(self.empty, "<p>Met at IFTF, wants samples</p>")
+        t = C.crm_customer_timeline(self.empty)
+        self.assertEqual(t["items"][0]["kind"], "note")
+        self.assertIn("samples", t["items"][0]["snippet"])
+        self.assertNotIn("<p>", t["items"][0]["snippet"])
+
+    def test_note_is_a_standard_comment(self):
+        C.crm_customer_add_note(self.empty, "desk can see this")
+        self.assertTrue(frappe.db.exists("Comment", {
+            "reference_doctype": "Customer", "reference_name": self.empty,
+            "comment_type": "Comment", "content": ["like", "%desk can see this%"]}))
+
+    def test_blank_note_is_refused(self):
+        with self.assertRaises(frappe.ValidationError):
+            C.crm_customer_add_note(self.empty, "<p> </p>")
+
+    def test_timeline_filters_by_kind(self):
+        C.crm_customer_add_note(self.empty, "a note")
+        self.assertEqual(C.crm_customer_timeline(self.empty, kinds="email")["items"], [])
+        notes = C.crm_customer_timeline(self.empty, kinds='["note"]')["items"]
+        self.assertTrue(notes)
+        self.assertEqual({i["kind"] for i in notes}, {"note"})
+
+    def test_unknown_kind_is_refused(self):
+        with self.assertRaises(frappe.ValidationError):
+            C.crm_customer_timeline(self.busy, kinds="sms")
+
+    def test_timeline_is_newest_first(self):
+        whens = [i["when"] for i in C.crm_customer_timeline(self.busy, limit=30)["items"]]
+        self.assertEqual(whens, sorted(whens, reverse=True))
+
+    def test_timeline_pages_by_keyset(self):
+        t1 = C.crm_customer_timeline(self.busy, limit=5)
+        self.assertLessEqual(len(t1["items"]), 5)
+        if t1["next_before"]:
+            t2 = C.crm_customer_timeline(self.busy, limit=5, before=t1["next_before"])
+            self.assertTrue(all(i["when"] < t1["next_before"] for i in t2["items"]))
+
+    def test_timeline_limit_is_clamped(self):
+        self.assertLessEqual(len(C.crm_customer_timeline(self.busy, limit=5000)["items"]), 100)
+
+    def test_busy_customer_has_email(self):
+        # The customer with the most linked emails, whoever that is on this site.
+        row = frappe.db.sql(
+            """select l.link_name from `tabCommunication Link` l
+               join `tabCommunication` c on c.name = l.parent
+               where l.link_doctype='Customer' and c.communication_medium='Email'
+               group by l.link_name order by count(*) desc limit 1""")
+        if not row:
+            self.skipTest("no customer on this site has a linked email")
+        items = C.crm_customer_timeline(row[0][0], kinds="email", limit=5)["items"]
+        self.assertTrue(items)
+        self.assertEqual({i["kind"] for i in items}, {"email"})
+
+    def test_items_carry_their_shape(self):
+        C.crm_customer_add_note(self.empty, "shape")
+        item = C.crm_customer_timeline(self.empty)["items"][0]
+        self.assertEqual(set(item), {"kind", "when", "title", "snippet", "who", "ref_doctype", "ref_name"})
+
+    def test_timeline_module_off_refuses(self):
+        _save(module_customer_page=0)
+        for fn in (C.crm_customer_timeline, C.crm_customer_add_note):
+            with self.assertRaises(frappe.PermissionError):
+                fn(self.empty, "x") if fn is C.crm_customer_add_note else fn(self.empty)

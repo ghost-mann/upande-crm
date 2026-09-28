@@ -75,9 +75,9 @@ def crm_dashboard_claims(date_from=None, date_to=None, customer=None):
 
     # Everything still open, whenever it was raised, plus whatever was raised in
     # the range: an old open claim is exactly what this page must not hide.
-    open_rows = frappe.get_all(DOCTYPE, filters={**filters, "status": ["in", ["Open", "Under Review"]]},
+    open_rows = frappe.get_list(DOCTYPE, filters={**filters, "status": ["in", ["Open", "Under Review"]]},
                                fields=ROW_FIELDS, order_by="raised_on asc", limit=500)
-    range_rows = frappe.get_all(DOCTYPE, filters={**filters, "raised_on": ["between", [frm, to]]},
+    range_rows = frappe.get_list(DOCTYPE, filters={**filters, "raised_on": ["between", [frm, to]]},
                                 fields=ROW_FIELDS, order_by="raised_on desc", limit=500)
     seen, rows = set(), []
     for r in open_rows + range_rows:
@@ -86,7 +86,7 @@ def crm_dashboard_claims(date_from=None, date_to=None, customer=None):
             rows.append(r)
     _decorate(rows, cfg["sla_days"])
 
-    resolved = frappe.get_all(DOCTYPE, filters={**filters, "resolved_on": ["between", [frm, to]]},
+    resolved = frappe.get_list(DOCTYPE, filters={**filters, "resolved_on": ["between", [frm, to]]},
                               fields=["raised_on", "resolved_on", "status"], limit=0)
     in_range = [r for r in rows if r["raised_on"] and frm <= r["raised_on"] <= to]
     by_type, by_status = {}, {}
@@ -180,7 +180,7 @@ def crm_customer_claims(name):
     cfg = _settings()
     if not _available():
         return {"rows": [], "available": False, "types": cfg["types"], "sla_days": cfg["sla_days"]}
-    rows = frappe.get_all(DOCTYPE, filters={"customer": name}, fields=ROW_FIELDS,
+    rows = frappe.get_list(DOCTYPE, filters={"customer": name}, fields=ROW_FIELDS,
                           order_by="raised_on desc", limit=200)
     return {"rows": _decorate(rows, cfg["sla_days"]), "available": True, "types": cfg["types"],
             "sla_days": cfg["sla_days"], "currency": _company_currency()}

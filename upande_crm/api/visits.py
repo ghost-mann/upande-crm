@@ -43,6 +43,21 @@ def _serialise(doc):
     return out
 
 
+def readable_parties(rows, type_key="party_type", name_key="party"):
+    """Drop rows whose party the user cannot read. User Permissions do not apply
+    to Dynamic Link fields, so a user restricted to their own customers would
+    otherwise see every visit (or opportunity) on the list."""
+    seen = {}
+    out = []
+    for r in rows:
+        key = (r.get(type_key), r.get(name_key))
+        if key not in seen:
+            seen[key] = bool(key[0] and key[1] and frappe.has_permission(key[0], "read", key[1]))
+        if seen[key]:
+            out.append(r)
+    return out
+
+
 def _with_actions(rows):
     """Attach each visit's follow-ups, and how many are still open, in two queries."""
     if not rows:
@@ -76,10 +91,12 @@ def crm_dashboard_visits(date_from=None, date_to=None, customer=None):
         return empty
     frm, to = _range(date_from, date_to)
     base = {"party_type": "Customer", "party": customer} if customer else {}
-    rows = frappe.get_all(DOCTYPE, filters={**base, "visit_date": ["between", [f"{frm} 00:00:00", f"{to} 23:59:59"]]},
+    rows = frappe.get_list(DOCTYPE, filters={**base, "visit_date": ["between", [f"{frm} 00:00:00", f"{to} 23:59:59"]]},
                           fields=ROW_FIELDS, order_by="visit_date desc", limit=500)
-    upcoming = frappe.get_all(DOCTYPE, filters={**base, "status": "Planned", "visit_date": [">=", str(now_datetime())]},
+    upcoming = frappe.get_list(DOCTYPE, filters={**base, "status": "Planned", "visit_date": [">=", str(now_datetime())]},
                               fields=ROW_FIELDS, order_by="visit_date asc", limit=20)
+    rows = readable_parties(rows)
+    upcoming = readable_parties(upcoming)
     _with_actions(rows)
     _with_actions(upcoming)
     by_type, by_purpose = {}, {}
@@ -150,6 +167,6 @@ def crm_customer_visits(name):
     frappe.has_permission("Customer", "read", name, throw=True)
     if not _available():
         return {"rows": [], "available": False, "purposes": _purposes(), "types": list(VISIT_TYPES)}
-    rows = frappe.get_all(DOCTYPE, filters={"party_type": "Customer", "party": name}, fields=ROW_FIELDS,
+    rows = frappe.get_list(DOCTYPE, filters={"party_type": "Customer", "party": name}, fields=ROW_FIELDS,
                           order_by="visit_date desc", limit=200)
     return {"rows": _with_actions(rows), "available": True, "purposes": _purposes(), "types": list(VISIT_TYPES)}

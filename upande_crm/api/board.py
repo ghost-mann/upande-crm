@@ -61,13 +61,17 @@ def _lead_cards():
     from upande_crm.api.settings import open_statuses
 
     statuses = open_statuses("lead_open_statuses")
-    where = "status in %(st)s"
-    total = cint(frappe.db.sql(f"select count(*) from `tabLead` where {where}", {"st": tuple(statuses)})[0][0])
+    # get_list applies the caller's record-level permissions (User Permissions,
+    # permission query conditions); the columns it cannot express are read after.
+    permitted = frappe.get_list("Lead", filters={"status": ["in", statuses]}, pluck="name",
+                                order_by="creation desc", limit_page_length=0)
+    total = len(permitted)
+    names = permitted[:CARD_LIMIT]
     rows = frappe.db.sql(
         f"""select name, lead_name, company_name, qualification_status, {lead_source_sql()} as source,
                    creation, lead_owner, status
-            from `tabLead` where {where} order by creation desc limit %(n)s""",
-        {"st": tuple(statuses), "n": CARD_LIMIT}, as_dict=True)
+            from `tabLead` where name in %(names)s order by creation desc""",
+        {"names": tuple(names)}, as_dict=True) if names else []
     today = nowdate()
     return total, [{
         "doctype": "Lead", "name": r.name, "title": r.company_name or r.lead_name or r.name,
@@ -83,12 +87,18 @@ def _opportunity_cards(stages):
     amount = "opportunity_amount" if _hascol("Opportunity", "opportunity_amount") else "0"
     # Column totals add base amounts: opportunities here are in several currencies.
     base = "base_opportunity_amount" if _hascol("Opportunity", "base_opportunity_amount") else amount
+    from upande_crm.api.visits import readable_parties
+
+    permitted = frappe.get_list("Opportunity", filters={"status": ["in", list(statuses)]}, pluck="name",
+                                limit_page_length=0)
     rows = frappe.db.sql(
         f"""select name, party_name, customer_name, opportunity_from, sales_stage, {amount} as amount,
                    {base} as base_amount,
                    probability, expected_closing, creation, opportunity_owner, status, currency
-            from `tabOpportunity` where status in %(st)s order by creation desc""",
-        {"st": statuses}, as_dict=True)
+            from `tabOpportunity` where name in %(names)s order by creation desc""",
+        {"names": tuple(permitted)}, as_dict=True) if permitted else []
+    # party_name is a Dynamic Link, which User Permissions skip.
+    rows = readable_parties(rows, "opportunity_from", "party_name")
     today = nowdate()
     by_stage = {s: [] for s in stages}
     other = []
@@ -104,10 +114,11 @@ def _opportunity_cards(stages):
 
 
 def _customer_cards(frm, to):
-    rows = frappe.get_all("Customer", filters={"creation": ["between", [f"{frm} 00:00:00", f"{to} 23:59:59"]]},
+    rows = frappe.get_list("Customer", filters={"creation": ["between", [f"{frm} 00:00:00", f"{to} 23:59:59"]]},
                           fields=["name", "customer_name", "customer_group", "territory", "creation"],
                           order_by="creation desc", limit=CARD_LIMIT)
-    total = frappe.db.count("Customer", {"creation": ["between", [f"{frm} 00:00:00", f"{to} 23:59:59"]]})
+    total = len(frappe.get_list("Customer", filters={"creation": ["between", [f"{frm} 00:00:00", f"{to} 23:59:59"]]},
+                                pluck="name", limit_page_length=0))
     return total, [{"doctype": "Customer", "name": r.name, "title": r.customer_name or r.name,
                     "subtitle": " · ".join(x for x in (r.customer_group, r.territory) if x),
                     "created": str(r.creation)[:10]} for r in rows]

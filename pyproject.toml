@@ -4,17 +4,68 @@ authors = [
     { name = "Upande Limited", email = "dev@upande.com"}
 ]
 description = "Custom CRM dashboard for Upande (leads, opportunities, prospects, customers, mail)."
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 readme = "README.md"
+license = { file = "license.txt" }
 dynamic = ["version"]
+# No third-party Python packages at runtime: the app uses only the standard
+# library and Frappe. Frappe apps are declared below, not here.
 dependencies = [
-    # "frappe~=15.0.0" # Installed and managed by bench.
+    # "frappe~=16.0.0" # Installed and managed by bench.
 ]
 
 [build-system]
 requires = ["flit_core >=3.4,<4"]
 build-backend = "flit_core.buildapi"
 
+# Frappe apps this app needs, checked by bench / Frappe Cloud at install time.
+# Customer, Lead, Opportunity, Quotation, Sales Order/Invoice, Delivery Note and
+# Item Price all come from ERPNext. WhatsApp (frappe_whatsapp) is optional: the
+# CRM hides that section when the app is absent, so it is not declared here.
+[tool.bench.frappe-dependencies]
+frappe = ">=16.0.0,<17.0.0"
+erpnext = ">=16.0.0,<17.0.0"
+
 # These dependencies are only installed when developer mode is enabled
 [tool.bench.dev-dependencies]
-# package_name = "~=1.1.0"
+
+# These apt dependencies will be installed from Ubuntu repositories when you host your app on Frappe Cloud
+[deploy.dependencies.apt]
+packages = []
+
+[tool.ruff]
+line-length = 110
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    "F",
+    "E",
+    "W",
+    "I",
+    "UP",
+    "B",
+    "RUF",
+]
+ignore = [
+    "B017", # assertRaises(Exception) - should be more specific
+    "B018", # useless expression, not assigned to anything
+    "B023", # function doesn't bind loop variable - will have last iteration's value
+    "B904", # raise inside except without from
+    "E101", # indentation contains mixed spaces and tabs
+    "E402", # module level import not at top of file
+    "E501", # line too long
+    "E741", # ambiguous variable name
+    "F401", # "unused" imports
+    "F403", # can't detect undefined names from * import
+    "F405", # can't detect undefined names from * import
+    "F722", # syntax error in forward type annotation
+    "W191", # indentation contains tabs
+]
+typing-modules = ["frappe.types.DF"]
+
+[tool.ruff.format]
+quote-style = "double"
+# Most of this app is 4-space indented (a few older files use tabs).
+indent-style = "space"
+docstring-code-format = true

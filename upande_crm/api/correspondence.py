@@ -36,6 +36,7 @@ notification mailer look like the most active salesperson in the company.
 import frappe
 
 from upande_crm.api.crm import _guard, _has, _range
+from upande_crm.modules import requires_module
 
 PARTY_TYPES = ("Customer", "Lead", "Prospect")
 
@@ -60,6 +61,7 @@ def _person(address):
 
 
 @frappe.whitelist()
+@requires_module("corr")
 def crm_correspondence(date_from=None, date_to=None, limit=200):
     """The staff-to-client correspondence matrix.
 

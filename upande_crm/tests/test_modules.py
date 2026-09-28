@@ -117,3 +117,39 @@ class TestBackfillPatch(FrappeTestCase):
         execute()
         _clear()
         self.assertEqual(frappe.db.get_single_value(S.SETTINGS_DOCTYPE, "module_calls"), 0)
+
+
+class TestEnforcement(FrappeTestCase):
+    def setUp(self):
+        frappe.set_user("Administrator")
+
+    def tearDown(self):
+        _clear()
+
+    def test_every_gated_endpoint_refuses_when_its_module_is_off(self):
+        from upande_crm.tests.test_modules_gated import GATED
+
+        fields = {m.key: m.field for m in M.MODULES}
+        for key, paths in GATED.items():
+            _save(**{fields[key]: 0})
+            for path in paths:
+                with self.assertRaises(frappe.PermissionError, msg=path):
+                    frappe.get_attr(path)()
+            _save(**{fields[key]: 1})
+
+    def test_gated_endpoints_stay_whitelisted(self):
+        from upande_crm.tests.test_modules_gated import GATED
+
+        for paths in GATED.values():
+            for path in paths:
+                self.assertIn(frappe.get_attr(path), frappe.whitelisted, path)
+
+    def test_decorator_preserves_the_signature(self):
+        from upande_crm.api.crm import crm_dashboard_leads
+
+        self.assertIn("date_from", inspect.signature(crm_dashboard_leads).parameters)
+
+    def test_an_enabled_module_answers(self):
+        from upande_crm.api.crm import crm_dashboard_leads
+
+        self.assertIsInstance(crm_dashboard_leads(), dict)

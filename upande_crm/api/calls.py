@@ -48,6 +48,7 @@ from upande_crm.api.activity import (
     _pick,
 )
 from upande_crm.api.crm import _count, _guard, _has, _hascol
+from upande_crm.modules import requires_module
 
 # Fields accepted from the client. Anything else in the payload is dropped rather
 # than written, so a crafted request cannot set `owner` or `docstatus`.
@@ -94,6 +95,7 @@ def _digits(number):
 
 # ---------------------------------------------------------------- write
 @frappe.whitelist()
+@requires_module("calls")
 def crm_call_save(call):
     """Create or update a Call Log, optionally with a follow-up task.
 
@@ -241,6 +243,7 @@ def _create_follow_up(call, follow_up, ref_doctype, ref_name):
 
 
 @frappe.whitelist()
+@requires_module("calls")
 def crm_call_delete(name):
     """Delete a logged call. Owner or manager only, mirroring the task rule."""
     _guard()
@@ -273,6 +276,7 @@ def crm_call_types():
 
 
 @frappe.whitelist()
+@requires_module("calls")
 def crm_call_type_add(label):
     """Add a disposition. Idempotent, so the UI can offer 'add' without checking."""
     _guard()
@@ -322,6 +326,7 @@ def _scope_names(customer):
 
 
 @frappe.whitelist()
+@requires_module("calls")
 def crm_dashboard_calls(date_from=None, date_to=None, customer=None):
     """KPIs, mixes, trend and rows for the Calls section. Degrades to empty."""
     _guard()

@@ -30,6 +30,7 @@ from frappe.utils import flt
 from upande_crm.api.analytics import _company_currency
 from upande_crm.api.crm import _guard, _has, _hascol, _range
 from upande_crm.api.territory_names import to_territory
+from upande_crm.modules import requires_module
 
 # Metric key -> the doctype and column it is counted from. `amount` is None for
 # pure counts. Order matters only for readability of the payload.
@@ -125,6 +126,7 @@ def _submitted(doctype):
 
 
 @frappe.whitelist()
+@requires_module("terr")
 def crm_territory_map(date_from=None, date_to=None):
     """Every territory that carries data in the window, split country vs group.
 
@@ -309,6 +311,7 @@ def _totals(countries, regional):
 
 
 @frappe.whitelist()
+@requires_module("terr")
 def crm_territory_detail(territory, date_from=None, date_to=None, limit=6):
     """Deeper intel for one territory, fetched only when a country is pinned.
 

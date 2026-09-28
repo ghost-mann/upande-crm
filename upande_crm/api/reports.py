@@ -46,6 +46,7 @@ import frappe
 from frappe import _
 
 from upande_crm.api.crm import _guard, _range
+from upande_crm.modules import requires_module
 
 # Sentinels resolved per request, so reports obey the CRM's own header controls.
 COMPANY = "__company__"
@@ -236,6 +237,7 @@ def _load(payload):
 
 # ---------------------------------------------------------------- registry
 @frappe.whitelist()
+@requires_module("rep")
 def crm_reports(date_from=None, date_to=None, customer=None):
     """The curated registry, with each entry's resolved filters."""
     _guard()
@@ -279,6 +281,7 @@ def _desk_url(report):
 
 # ---------------------------------------------------------------- run
 @frappe.whitelist()
+@requires_module("rep")
 def crm_report_run(key=None, report=None, filters=None, date_from=None, date_to=None,
                    customer=None):
     """Run one report and return its columns, rows, chart and summary.
@@ -390,6 +393,7 @@ def _rows(result, columns):
 
 # ---------------------------------------------------------------- catalogue
 @frappe.whitelist()
+@requires_module("rep")
 def crm_report_catalogue():
     """Every CRM/Selling report this user may see.
 

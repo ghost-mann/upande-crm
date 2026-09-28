@@ -20,6 +20,7 @@ from frappe import _
 from frappe.utils import getdate, strip_html
 
 from upande_crm.api.crm import CRM_ROLES, _guard
+from upande_crm.modules import requires_module
 
 # Roles allowed to close a task that is not their own. Desk restricts completion
 # to the assignee; a dashboard exists for oversight, so managers get an override.
@@ -143,6 +144,7 @@ def crm_assignable_users():
 
 
 @frappe.whitelist()
+@requires_module("evt")
 def crm_my_calendars():
     """The signed-in user's *authorized* Google Calendars.
 
@@ -167,6 +169,7 @@ def crm_my_calendars():
 
 # ---------------------------------------------------------------- events
 @frappe.whitelist()
+@requires_module("evt")
 def crm_event_save(event):
     """Create or update an Event.
 
@@ -227,6 +230,7 @@ def crm_event_save(event):
 
 
 @frappe.whitelist()
+@requires_module("evt")
 def crm_event_status(name, status):
     """Set an Event's status. Used by the 'mark complete' row action."""
     _guard()
@@ -257,6 +261,7 @@ def _assert_may_close(doc):
 
 
 @frappe.whitelist()
+@requires_module("evt")
 def crm_task_save(task):
     """Create or update a ToDo.
 
@@ -293,6 +298,7 @@ def crm_task_save(task):
 
 
 @frappe.whitelist()
+@requires_module("evt")
 def crm_task_status(name, status):
     """Complete / reopen / cancel a task under the completion rule.
 
@@ -401,6 +407,7 @@ CALENDAR_KEYS = (
 
 
 @frappe.whitelist()
+@requires_module("evt")
 def crm_calendar(start, end):
     """Events between `start` and `end`, with recurrences expanded.
 

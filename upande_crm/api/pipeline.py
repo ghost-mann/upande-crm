@@ -75,6 +75,7 @@ from upande_crm.api.crm import (
     _range,
 )
 from upande_crm.api.funnel import cohort
+from upande_crm.modules import requires_module
 
 # Age buckets for open records, in days.
 AGE_BUCKETS = ((0, 7, "0-7d"), (7, 30, "7-30d"), (30, 90, "30-90d"), (90, None, "90d+"))
@@ -148,6 +149,7 @@ def _age_buckets(doctype, date_col, where):
 
 # ---------------------------------------------------------------- funnel
 @frappe.whitelist()
+@requires_module("anl")
 def crm_analytics_funnel(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)
@@ -267,6 +269,7 @@ def crm_analytics_funnel(date_from=None, date_to=None, customer=None):
 
 # ---------------------------------------------------------------- leads
 @frappe.whitelist()
+@requires_module("anl")
 def crm_analytics_leads(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)
@@ -326,6 +329,7 @@ def crm_analytics_leads(date_from=None, date_to=None, customer=None):
 
 # ---------------------------------------------------------------- opportunities
 @frappe.whitelist()
+@requires_module("anl")
 def crm_analytics_opportunities(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)
@@ -408,6 +412,7 @@ VALUE_BUCKETS = ((0, 50_000, "<50k"), (50_000, 250_000, "50-250k"),
 
 
 @frappe.whitelist()
+@requires_module("anl")
 def crm_analytics_revenue(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)

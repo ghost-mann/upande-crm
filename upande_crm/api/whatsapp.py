@@ -26,6 +26,7 @@ from frappe import _
 from frappe.utils import add_to_date, get_datetime, now_datetime
 
 from upande_crm.api.crm import _guard, _has, _hascol, _range
+from upande_crm.modules import requires_module
 
 # What a WhatsApp message may be linked to.
 WA_REF_DOCTYPES = {
@@ -143,6 +144,7 @@ def _profile_names():
 
 
 @frappe.whitelist()
+@requires_module("wa")
 def crm_whatsapp_match(party):
     """Resolve one phone number to a CRM record, or None."""
     _guard()
@@ -160,6 +162,7 @@ def _window_open(last_inbound_at):
 
 
 @frappe.whitelist()
+@requires_module("wa")
 def crm_whatsapp_conversations(search="", limit=60):
     """One row per counterparty, newest activity first."""
     _guard()
@@ -353,6 +356,7 @@ def _message_text(row):
 
 
 @frappe.whitelist()
+@requires_module("wa")
 def crm_whatsapp_thread(party, limit=200):
     """Every message exchanged with `party`, oldest first."""
     _guard()
@@ -408,6 +412,7 @@ def crm_whatsapp_thread(party, limit=200):
 
 
 @frappe.whitelist()
+@requires_module("wa")
 def crm_whatsapp_mark_read(party):
     """Mark this party's inbound messages read, as the desk chat UI does."""
     _guard()
@@ -430,6 +435,7 @@ def crm_whatsapp_mark_read(party):
 
 # ---------------------------------------------------------------- templates
 @frappe.whitelist()
+@requires_module("wa")
 def crm_whatsapp_templates():
     """APPROVED templates only — anything else cannot be delivered."""
     _guard()
@@ -496,6 +502,7 @@ def _free_text_warning(party):
 
 
 @frappe.whitelist()
+@requires_module("wa")
 def crm_whatsapp_send(to, message, reference_doctype=None, reference_name=None, reply_to=None):
     """Send free-form text.
 
@@ -538,6 +545,7 @@ def crm_whatsapp_send(to, message, reference_doctype=None, reference_name=None, 
 
 
 @frappe.whitelist()
+@requires_module("wa")
 def crm_whatsapp_send_template(to, template, reference_doctype=None, reference_name=None):
     """Send an approved template. Valid regardless of the 24-hour window."""
     _guard()
@@ -571,6 +579,7 @@ def crm_whatsapp_send_template(to, template, reference_doctype=None, reference_n
 
 # ---------------------------------------------------------------- analytics
 @frappe.whitelist()
+@requires_module("wa")
 def crm_whatsapp_analytics(date_from=None, date_to=None):
     _guard()
     frm, to = _range(date_from, date_to)

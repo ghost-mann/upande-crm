@@ -26,6 +26,7 @@ import frappe
 from frappe.utils import flt
 
 from upande_crm.api.crm import _guard, _has, _hascol, _range
+from upande_crm.modules import requires_module
 
 # Jomo Kenyatta International Airport, Nairobi. The hub every delivery point
 # here feeds; used as the anchor the schematic ring is drawn around.
@@ -45,6 +46,7 @@ def _available():
 
 
 @frappe.whitelist()
+@requires_module("terr")
 def crm_delivery_points(date_from=None, date_to=None, limit=40):
     """Handlers at JKIA, ranked by order volume, with customer counts."""
     _guard()
@@ -104,6 +106,7 @@ def crm_delivery_points(date_from=None, date_to=None, limit=40):
 
 
 @frappe.whitelist()
+@requires_module("terr")
 def crm_delivery_point_detail(point, date_from=None, date_to=None, limit=12):
     """Customers and destinations moving through one handler."""
     _guard()

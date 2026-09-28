@@ -14,6 +14,7 @@ import json
 import frappe
 from frappe import _
 from frappe.utils import add_days, getdate, nowdate, flt, get_quarter_start, now_datetime
+from upande_crm.modules import requires_module
 
 CRM_ROLES = {"System Manager", "Sales Manager", "Sales User", "CRM Manager", "CRM User"}
 
@@ -339,6 +340,7 @@ def _so_revenue(frm, to, customer=None):
 
 # ---------------------------------------------------------------- leads
 @frappe.whitelist()
+@requires_module("leads")
 def crm_dashboard_leads(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)
@@ -371,6 +373,7 @@ def crm_dashboard_leads(date_from=None, date_to=None, customer=None):
 
 # ---------------------------------------------------------------- opportunities
 @frappe.whitelist()
+@requires_module("opps")
 def crm_dashboard_opportunities(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)
@@ -407,6 +410,7 @@ def crm_dashboard_opportunities(date_from=None, date_to=None, customer=None):
 
 # ---------------------------------------------------------------- prospects
 @frappe.whitelist()
+@requires_module("prosp")
 def crm_dashboard_prospects(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)
@@ -546,6 +550,7 @@ def _top_customers(frm, to, limit=20):
 
 # ---------------------------------------------------------------- events / tasks / emails
 @frappe.whitelist()
+@requires_module("evt")
 def crm_dashboard_events_tasks(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)
@@ -704,6 +709,7 @@ def _attach_participants(events_rows):
 
 # ---------------------------------------------------------------- activity log
 @frappe.whitelist()
+@requires_module("act")
 def crm_dashboard_activity(date_from=None, date_to=None, customer=None):
     _guard()
     frm, to = _range(date_from, date_to)
@@ -744,6 +750,7 @@ _FOLDER_REF = {"crm_leads": "Lead", "crm_opps": "Opportunity",
 
 
 @frappe.whitelist()
+@requires_module("mail")
 def crm_mail_data(folder="inbox", tab="all", search="", limit=100, offset=0,
                   date_from=None, date_to=None):
     _guard()
@@ -869,6 +876,7 @@ def crm_search(query=""):
 
 # ---------------------------------------------------------------- compose
 @frappe.whitelist()
+@requires_module("mail")
 def crm_send_email(recipients, subject="", content="", cc=None, bcc=None,
                    reference_doctype=None, reference_name=None, in_reply_to=None):
     _guard()
@@ -936,6 +944,7 @@ def crm_send_email(recipients, subject="", content="", cc=None, bcc=None,
 
 
 @frappe.whitelist()
+@requires_module("mail")
 def crm_mark_read(name, seen=1):
     """Mark a Communication as read/unread (used when a thread is opened in the app)."""
     _guard()

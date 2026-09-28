@@ -37,6 +37,7 @@ import frappe
 from frappe import _
 
 from upande_crm.api.crm import _guard
+from upande_crm.modules import requires_module
 
 # Fields never writable from here, whatever the site's schema says. This is the
 # half of the allowlist that does not move: a crafted request cannot set `owner`,
@@ -159,6 +160,7 @@ def _require(doctype, ptype, name=None):
 
 # ---------------------------------------------------------------- lead
 @frappe.whitelist()
+@requires_module("leads")
 def crm_lead_save(lead):
     """Create or update a Lead from the CRM app."""
     _guard()

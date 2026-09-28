@@ -64,6 +64,7 @@ from frappe.utils import cint, getdate, nowdate, today
 
 from upande_crm.api.activity import _load, _pick
 from upande_crm.api.crm import _count, _guard, _has, _hascol, _range
+from upande_crm.modules import requires_module
 
 # What an enrolment may target, mirroring Email Campaign's own Select options.
 ENROL_TARGETS = ("Lead", "Contact", "Email Group")
@@ -153,6 +154,7 @@ def _schedule_of(names):
 
 
 @frappe.whitelist()
+@requires_module("camp")
 def crm_dashboard_campaigns(date_from=None, date_to=None, customer=None):
     """Campaigns, their enrolments and what they are attributed to. Degrades."""
     _guard()
@@ -273,6 +275,7 @@ def crm_dashboard_campaigns(date_from=None, date_to=None, customer=None):
 
 
 @frappe.whitelist()
+@requires_module("camp")
 def crm_campaign_detail(name):
     """One campaign with its schedule and enrolments."""
     _guard()
@@ -299,6 +302,7 @@ def crm_campaign_detail(name):
 
 # ---------------------------------------------------------------- writes
 @frappe.whitelist()
+@requires_module("camp")
 def crm_campaign_save(campaign):
     """Create or update a Campaign and its drip schedule.
 
@@ -410,6 +414,7 @@ def _ensure_utm(campaign_name, title):
 
 
 @frappe.whitelist()
+@requires_module("camp")
 def crm_campaign_enrol(campaign=None, target=None, recipients=None, start_date=None,
                        sender=None, attribute=1):
     """Enrol many recipients in a campaign, one Email Campaign each.
@@ -494,6 +499,7 @@ def crm_campaign_enrol(campaign=None, target=None, recipients=None, start_date=N
 
 
 @frappe.whitelist()
+@requires_module("camp")
 def crm_campaign_cancel(name):
     """Remove one enrolment. Owner or manager only."""
     _guard()
@@ -509,6 +515,7 @@ def crm_campaign_cancel(name):
 
 
 @frappe.whitelist()
+@requires_module("camp")
 def crm_campaign_recipients(target=None, search="", limit=50):
     """Candidate recipients for the enrol dialog.
 

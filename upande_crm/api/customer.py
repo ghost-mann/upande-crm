@@ -278,6 +278,11 @@ def crm_customer_contracts(name):
 TIMELINE_KINDS = ("email", "call", "whatsapp", "event", "task", "note")
 SNIPPET = 160
 FAR_FUTURE = "9999-12-31 23:59:59.999999"
+# The module each source belongs to; a switched-off module's source is skipped.
+KIND_MODULE = {"email": "mail", "call": "calls", "whatsapp": "wa", "event": "evt", "task": "evt"}
+# The doctype each source reads; a caller who cannot read it does not get it.
+KIND_DOCTYPE = {"email": "Communication", "call": "Call Log", "whatsapp": "WhatsApp Message",
+                "event": "Event", "task": "ToDo", "note": "Comment"}
 
 
 def _when(value):
@@ -290,9 +295,9 @@ def _snip(html, n=SNIPPET):
     return text if len(text) <= n else text[: n - 1] + "…"
 
 
-def _item(kind, when, title, snippet, who, ref_doctype, ref_name):
+def _item(kind, when, title, snippet, who, ref_doctype, ref_name, row_id):
     return {"kind": kind, "when": _when(when), "title": title or "", "snippet": snippet or "",
-            "who": who or "", "ref_doctype": ref_doctype, "ref_name": ref_name}
+            "who": who or "", "ref_doctype": ref_doctype, "ref_name": ref_name, "_id": row_id}
 
 
 def _parse_kinds(kinds):
@@ -307,106 +312,147 @@ def _parse_kinds(kinds):
     return picked
 
 
-def _emails(name, scope, before, limit):
+# ---- paging
+# The timeline is one list ordered by (when, kind, row id), newest first. The
+# cursor is the last item's position in that order, "when|kind|id", so items
+# sharing a timestamp — emails carry whole seconds — are neither dropped nor
+# repeated at a page boundary. A bare datetime is accepted as a cursor too.
+def _parse_cursor(before):
+    if not before:
+        return FAR_FUTURE, "", ""
+    parts = str(before).split("|", 2)
+    when = _when(parts[0])
+    return when, (parts[1] if len(parts) > 1 else ""), (parts[2] if len(parts) > 2 else "")
+
+
+def _after(kind, when_col, id_col, cursor):
+    """SQL (with named params) for "this source's rows that come after the cursor"."""
+    w, ck, cid = cursor
+    if kind < ck:  # at an equal timestamp this source sorts after the cursor
+        return f"{when_col} <= %(cw)s", {"cw": w}
+    if kind > ck:
+        return f"{when_col} < %(cw)s", {"cw": w}
+    return (f"({when_col} < %(cw)s or ({when_col} = %(cw)s and {id_col} < %(cid)s))",
+            {"cw": w, "cid": cid})
+
+
+def _emails(name, scope, cursor, limit):
     """Emails linked to the customer, or referencing one of its pipeline records.
 
-    Three indexed branches, each walked newest-first and cut at `limit`, then
+    Separate indexed branches, each walked newest-first and cut at `limit`, then
     merged — an OR across them in one query stops MariaDB using the
     (link_doctype, link_name, communication_date) index and costs over a second
     for a customer with a few thousand emails.
     """
     cols = "c.name, c.communication_date, c.subject, c.sender, c.content"
-    args = {"c": name, "before": before, "limit": limit}
+    cond, args = _after("email", "l.communication_date", "l.parent", cursor)
+    args.update({"c": name, "limit": limit})
     rows = frappe.db.sql(
         f"""select {cols} from `tabCommunication Link` l
             straight_join `tabCommunication` c on c.name = l.parent
             where l.link_doctype = 'Customer' and l.link_name = %(c)s
-              and l.communication_date < %(before)s and c.communication_medium = 'Email'
-            order by l.communication_date desc limit %(limit)s""", args, as_dict=True)
+              and {cond} and c.communication_medium = 'Email'
+            order by l.communication_date desc, l.parent desc limit %(limit)s""", args, as_dict=True)
+    cond, args = _after("email", "c.communication_date", "c.name", cursor)
+    args["limit"] = limit
     refs = [("Customer", [name])] + [(dt, scope.get(dt) or []) for dt in ("Lead", "Opportunity", "Quotation", "Prospect")]
     for dt, names in refs:
-        if not names:
-            continue
-        rows += frappe.db.sql(
-            f"""select {cols} from `tabCommunication` c
-                where c.reference_doctype = %(dt)s and c.reference_name in %(names)s
-                  and c.communication_medium = 'Email' and c.communication_date < %(before)s
-                order by c.communication_date desc limit %(limit)s""",
-            {**args, "dt": dt, "names": tuple(names)}, as_dict=True)
+        if names:
+            rows += frappe.db.sql(
+                f"""select {cols} from `tabCommunication` c
+                    where c.reference_doctype = %(dt)s and c.reference_name in %(names)s
+                      and c.communication_medium = 'Email' and {cond}
+                    order by c.communication_date desc, c.name desc limit %(limit)s""",
+                {**args, "dt": dt, "names": tuple(names)}, as_dict=True)
     seen, out = set(), []
-    for r in sorted(rows, key=lambda r: r.communication_date, reverse=True):
-        if r.name in seen:
-            continue
-        seen.add(r.name)
-        out.append(_item("email", r.communication_date, r.subject, _snip(r.content), r.sender,
-                         "Communication", r.name))
-    return out[:limit]
+    for r in rows:
+        if r.name not in seen:
+            seen.add(r.name)
+            out.append(_item("email", r.communication_date, r.subject, _snip(r.content), r.sender,
+                             "Communication", r.name, r.name))
+    return out
 
 
-def _calls(name, before, limit):
+def _calls(name, cursor, limit):
     if not _has("Call Log"):
         return []
     cust = "customer = %(c)s or " if _hascol("Call Log", "customer") else ""
+    cond, args = _after("call", "creation", "name", cursor)
     rows = frappe.db.sql(
-        f"""select name, creation, type, summary, owner, duration from `tabCall Log`
-            where creation < %(before)s and ({cust}name in (
+        f"""select name, creation, type, summary, owner from `tabCall Log`
+            where {cond} and ({cust}name in (
                 select parent from `tabDynamic Link` where parenttype = 'Call Log'
                 and link_doctype = 'Customer' and link_name = %(c)s))
-            order by creation desc limit %(limit)s""",
-        {"c": name, "before": before, "limit": limit}, as_dict=True)
+            order by creation desc, name desc limit %(limit)s""",
+        {**args, "c": name, "limit": limit}, as_dict=True)
     return [_item("call", r.creation, f"{r.type or 'Phone'} call", _snip(r.summary), r.owner,
-                  "Call Log", r.name) for r in rows]
+                  "Call Log", r.name, r.name) for r in rows]
 
 
-def _whatsapp(name, before, limit):
-    from upande_crm.modules import is_enabled
-
-    if not is_enabled("wa") or not _has("WhatsApp Message"):
+def _whatsapp(name, cursor, limit):
+    if not _has("WhatsApp Message"):
         return []
+    cond, args = _after("whatsapp", "creation", "name", cursor)
     rows = frappe.db.sql(
-        """select name, creation, type, message, owner from `tabWhatsApp Message`
-           where reference_doctype = 'Customer' and reference_name = %(c)s and creation < %(before)s
-           order by creation desc limit %(limit)s""",
-        {"c": name, "before": before, "limit": limit}, as_dict=True)
+        f"""select name, creation, type, message, owner from `tabWhatsApp Message`
+            where reference_doctype = 'Customer' and reference_name = %(c)s and {cond}
+            order by creation desc, name desc limit %(limit)s""",
+        {**args, "c": name, "limit": limit}, as_dict=True)
     return [_item("whatsapp", r.creation, f"WhatsApp · {r.type or 'message'}", _snip(r.message),
-                  r.owner, "WhatsApp Message", r.name) for r in rows]
+                  r.owner, "WhatsApp Message", r.name, r.name) for r in rows]
 
 
-def _events(scope, before, limit):
+def _events(scope, cursor, limit):
     from upande_crm.api import scope as scope_mod
 
     names = scope_mod.event_names(scope)
     if not names:
         return []
-    rows = frappe.get_all("Event", filters={"name": ["in", names], "starts_on": ["<", before]},
-                          fields=["name", "starts_on", "subject", "description", "owner"],
-                          order_by="starts_on desc", limit=limit)
-    return [_item("event", r.starts_on, r.subject, _snip(r.description), r.owner, "Event", r.name)
+    cond, args = _after("event", "starts_on", "name", cursor)
+    rows = frappe.db.sql(
+        f"""select name, starts_on, subject, description, owner from `tabEvent`
+            where name in %(names)s and {cond}
+            order by starts_on desc, name desc limit %(limit)s""",
+        {**args, "names": tuple(names), "limit": limit}, as_dict=True)
+    return [_item("event", r.starts_on, r.subject, _snip(r.description), r.owner, "Event", r.name, r.name)
             for r in rows]
 
 
-def _tasks(scope, before, limit):
+def _tasks(scope, cursor, limit):
     from upande_crm.api import scope as scope_mod
 
     names = scope_mod.todo_names(scope)
     if not names:
         return []
-    rows = frappe.get_all("ToDo", filters={"name": ["in", names], "creation": ["<", before]},
-                          fields=["name", "creation", "description", "status", "allocated_to"],
-                          order_by="creation desc", limit=limit)
-    return [_item("task", r.creation, _snip(r.description, 80), r.status, r.allocated_to, "ToDo", r.name)
+    cond, args = _after("task", "creation", "name", cursor)
+    rows = frappe.db.sql(
+        f"""select name, creation, description, status, allocated_to from `tabToDo`
+            where name in %(names)s and {cond}
+            order by creation desc, name desc limit %(limit)s""",
+        {**args, "names": tuple(names), "limit": limit}, as_dict=True)
+    return [_item("task", r.creation, _snip(r.description, 80), r.status, r.allocated_to, "ToDo", r.name, r.name)
             for r in rows]
 
 
-def _notes(name, before, limit):
-    rows = frappe.get_all(
-        "Comment",
-        filters={"comment_type": "Comment", "reference_doctype": "Customer",
-                 "reference_name": name, "creation": ["<", before]},
-        fields=["name", "creation", "content", "comment_email", "comment_by"],
-        order_by="creation desc", limit=limit)
+def _notes(name, cursor, limit):
+    cond, args = _after("note", "creation", "name", cursor)
+    rows = frappe.db.sql(
+        f"""select name, creation, content, comment_email, comment_by from `tabComment`
+            where comment_type = 'Comment' and reference_doctype = 'Customer'
+              and reference_name = %(c)s and {cond}
+            order by creation desc, name desc limit %(limit)s""",
+        {**args, "c": name, "limit": limit}, as_dict=True)
     return [_item("note", r.creation, "Note", _snip(r.content, 400), r.comment_by or r.comment_email,
-                  "Customer", name) for r in rows]
+                  "Customer", name, r.name) for r in rows]
+
+
+def _source_allowed(kind):
+    from upande_crm.modules import is_enabled
+
+    module = KIND_MODULE.get(kind)
+    if module and not is_enabled(module):
+        return False
+    return kind == "note" or bool(frappe.has_permission(KIND_DOCTYPE[kind], "read"))
 
 
 @frappe.whitelist()
@@ -414,35 +460,42 @@ def _notes(name, before, limit):
 def crm_customer_timeline(name, kinds=None, before=None, limit=50):
     """Everything said or done with this customer, newest first.
 
-    Keyset-paged on `when`: pass the previous page's `next_before` as `before`.
-    Each source is asked for at most `limit` rows older than `before`, then the
-    union is sorted and cut — so a page is exact however the sources interleave.
+    Keyset-paged: pass the previous page's `next_before` as `before`. Each source
+    is asked for at most `limit` rows after the cursor, then the union is sorted
+    and cut — so a page is exact however the sources interleave. A source whose
+    module is switched off, or whose doctype the caller cannot read, is skipped.
     """
     from upande_crm.api import scope as scope_mod
 
     _customer(name)
-    picked = _parse_kinds(kinds)
+    picked = [k for k in _parse_kinds(kinds) if _source_allowed(k)]
     limit = max(1, min(MAX_PAGE, cint(limit) or 50))
-    before = _when(before) if before else FAR_FUTURE
+    cursor = _parse_cursor(before)
     scope = scope_mod.customer_scope(name) if {"email", "event", "task"} & set(picked) else {}
 
     items = []
     if "email" in picked:
-        items += _emails(name, scope, before, limit)
+        items += _emails(name, scope, cursor, limit)
     if "call" in picked:
-        items += _calls(name, before, limit)
+        items += _calls(name, cursor, limit)
     if "whatsapp" in picked:
-        items += _whatsapp(name, before, limit)
+        items += _whatsapp(name, cursor, limit)
     if "event" in picked:
-        items += _events(scope, before, limit)
+        items += _events(scope, cursor, limit)
     if "task" in picked:
-        items += _tasks(scope, before, limit)
+        items += _tasks(scope, cursor, limit)
     if "note" in picked:
-        items += _notes(name, before, limit)
+        items += _notes(name, cursor, limit)
 
-    items.sort(key=lambda i: i["when"], reverse=True)
+    items.sort(key=lambda i: (i["when"], i["kind"], i["_id"]), reverse=True)
     items = items[:limit]
-    return {"items": items, "next_before": items[-1]["when"] if len(items) == limit else None}
+    next_before = None
+    if len(items) == limit:
+        last = items[-1]
+        next_before = f"{last['when']}|{last['kind']}|{last['_id']}"
+    for i in items:
+        i.pop("_id")
+    return {"items": items, "next_before": next_before}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -465,5 +518,7 @@ def crm_customer_add_note(name, content):
     # The Customer read check above is the gate; Comment's own DocPerms are not
     # granted to CRM roles on every site.
     doc.insert(ignore_permissions=True)
-    return {"item": _item("note", doc.creation, "Note", _snip(doc.content, 400), doc.comment_by,
-                          "Customer", name)}
+    item = _item("note", doc.creation, "Note", _snip(doc.content, 400), doc.comment_by,
+                 "Customer", name, doc.name)
+    item.pop("_id")
+    return {"item": item}

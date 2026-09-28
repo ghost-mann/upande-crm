@@ -218,7 +218,10 @@ class TestTimeline(CustomerPageCase):
         self.assertLessEqual(len(t1["items"]), 5)
         if t1["next_before"]:
             t2 = C.crm_customer_timeline(self.busy, limit=5, before=t1["next_before"])
-            self.assertTrue(all(i["when"] < t1["next_before"] for i in t2["items"]))
+            cursor_when = t1["next_before"].split("|")[0]
+            self.assertTrue(all(i["when"] <= cursor_when for i in t2["items"]))
+            first = {(i["kind"], i["ref_name"], i["when"]) for i in t1["items"]}
+            self.assertFalse(first & {(i["kind"], i["ref_name"], i["when"]) for i in t2["items"]})
 
     def test_timeline_limit_is_clamped(self):
         self.assertLessEqual(len(C.crm_customer_timeline(self.busy, limit=5000)["items"]), 100)
@@ -246,3 +249,24 @@ class TestTimeline(CustomerPageCase):
         for fn in (C.crm_customer_timeline, C.crm_customer_add_note):
             with self.assertRaises(frappe.PermissionError):
                 fn(self.empty, "x") if fn is C.crm_customer_add_note else fn(self.empty)
+
+
+class TestTimelineTies(CustomerPageCase):
+    """Emails carry second-level timestamps, and 98 customer/date groups on this
+    site share one. Paging must neither drop nor repeat an item at a boundary."""
+
+    def test_items_sharing_a_timestamp_all_appear_once(self):
+        names = []
+        for i in range(3):
+            names.append(C.crm_customer_add_note(self.empty, f"tie note {i}")["item"])
+        same = "2020-01-01 10:00:00"
+        for c in frappe.get_all("Comment", filters={"reference_name": self.empty, "content": ["like", "tie note%"]}, pluck="name"):
+            frappe.db.set_value("Comment", c, "creation", same, update_modified=False)
+        seen, before = [], None
+        for _ in range(5):
+            page = C.crm_customer_timeline(self.empty, kinds="note", before=before, limit=2)
+            seen += [i["snippet"] for i in page["items"] if i["snippet"].startswith("tie note")]
+            before = page["next_before"]
+            if not before:
+                break
+        self.assertEqual(sorted(seen), ["tie note 0", "tie note 1", "tie note 2"])

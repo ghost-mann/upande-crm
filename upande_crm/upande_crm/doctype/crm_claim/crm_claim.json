@@ -1,0 +1,210 @@
+{
+ "actions": [],
+ "autoname": "CLM-.YYYY.-.#####",
+ "creation": "2026-09-28 22:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Upande CRM",
+ "name": "CRM Claim",
+ "naming_rule": "Expression (old style)",
+ "track_changes": 1,
+ "sort_field": "raised_on",
+ "sort_order": "DESC",
+ "title_field": "customer",
+ "search_fields": "customer,claim_type,status",
+ "show_title_field_in_link": 0,
+ "fields": [
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "claim_type",
+   "fieldtype": "Data",
+   "label": "Claim Type",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "One of the claim types in Upande CRM Settings."
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Open\nUnder Review\nResolved\nRejected",
+   "default": "Open",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "cb_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "raised_on",
+   "fieldtype": "Date",
+   "label": "Raised On",
+   "default": "Today",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "assigned_to",
+   "fieldtype": "Link",
+   "label": "Assigned To",
+   "options": "User"
+  },
+  {
+   "fieldname": "resolved_on",
+   "fieldtype": "Date",
+   "label": "Resolved On",
+   "read_only": 1,
+   "description": "Set automatically when the claim is resolved or rejected."
+  },
+  {
+   "fieldname": "sb_against",
+   "fieldtype": "Section Break",
+   "label": "Against"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Select",
+   "label": "Order / Delivery Type",
+   "options": "\nSales Invoice\nDelivery Note\nSales Order"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Order / Delivery",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "cb_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "qty_affected",
+   "fieldtype": "Float",
+   "label": "Quantity Affected"
+  },
+  {
+   "fieldname": "sb_money",
+   "fieldtype": "Section Break",
+   "label": "Value"
+  },
+  {
+   "fieldname": "amount_claimed",
+   "fieldtype": "Currency",
+   "label": "Amount Claimed"
+  },
+  {
+   "fieldname": "cb_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "amount_credited",
+   "fieldtype": "Currency",
+   "label": "Amount Credited"
+  },
+  {
+   "fieldname": "sb_detail",
+   "fieldtype": "Section Break",
+   "label": "Detail"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "What Happened",
+   "reqd": 1
+  },
+  {
+   "fieldname": "root_cause",
+   "fieldtype": "Small Text",
+   "label": "Root Cause"
+  },
+  {
+   "fieldname": "resolution",
+   "fieldtype": "Text",
+   "label": "Resolution",
+   "description": "Required when the claim is resolved or rejected."
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1,
+   "export": 1,
+   "delete": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1,
+   "export": 1,
+   "delete": 1
+  },
+  {
+   "role": "Sales User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1,
+   "export": 0,
+   "delete": 0
+  }
+ ],
+ "modified": "2026-09-28 22:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "states": [],
+ "field_order": [
+  "customer",
+  "claim_type",
+  "status",
+  "cb_1",
+  "raised_on",
+  "assigned_to",
+  "resolved_on",
+  "sb_against",
+  "reference_doctype",
+  "reference_name",
+  "cb_2",
+  "item_code",
+  "qty_affected",
+  "sb_money",
+  "amount_claimed",
+  "cb_3",
+  "amount_credited",
+  "sb_detail",
+  "description",
+  "root_cause",
+  "resolution"
+ ]
+}

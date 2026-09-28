@@ -56,6 +56,14 @@ DEFAULTS = {
     # above; the rest are added from the registry below.
     "custpage_tabs": "\n".join(CUSTPAGE_TABS),
     "custpage_default_tab": "overview",
+    # Claims, quotations, visits, pipeline (see docs/superpowers/specs/
+    # 2026-09-28-crm-claims-quotes-visits-pipeline-design.md). Lists are one per line.
+    "claim_types": "Quality rejection\nShort shipment\nDamaged goods\nLate delivery\nWrong variety\nOther",
+    "claim_sla_days": 7,
+    "quote_followup_days": 7,
+    "visit_purposes": "Farm tour\nVariety showcase\nRelationship check-in\nComplaint follow-up\nPrice negotiation\nOther",
+    "opportunity_stages": "Prospecting\nSample Dispatch\nQuotation\nNegotiation",
+    "lead_channels": "Email\nPhone Call\nTrade Event\nReferral\nWebsite",
 }
 
 # Theme fields. Blank means "not themed" — the compiled palette is used and no
@@ -73,6 +81,7 @@ OPTIONS = {
     "default_task_priority": ["High", "Medium", "Low"],
     "default_event_category": ["Event", "Meeting", "Call", "Sent/Received Email", "Other"],
     "custpage_default_tab": list(CUSTPAGE_TABS),
+    "visit_types": ["Customer visit to farm", "Sales visit to customer"],
 }
 
 # How far back the WhatsApp failure-rate health check looks.

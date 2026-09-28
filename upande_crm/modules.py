@@ -55,18 +55,21 @@ MODULES = (
            "A world map of where customers, claims and sales are.", True),
     Module("corr", "module_correspondence", "Correspondence", ("corr",), "Insight",
            "Which staff member is in touch with which customer, from real email traffic.", True),
-    Module("claims", "module_claims", "Claims", (), "Coming soon",
-           "Log complaints and quality claims against customers and orders, and track them to resolution.", False),
-    Module("quotations", "module_quotations", "Quotations", (), "Coming soon",
-           "Quotations sent to customers and prospects, and which ones turned into orders.", False),
-    Module("visits", "module_visits", "Visits", (), "Coming soon",
-           "Farm visits by customers and customer visits by sales staff, with outcomes and follow-ups.", False),
+    Module("quotations", "module_quotations", "Quotations", ("quotes",), "Pipeline",
+           "Quotations sent to customers and prospects, which ones turned into orders, and the prices quoted over time.", True),
+    Module("claims", "module_claims", "Claims", ("claims",), "Service",
+           "Log complaints and quality claims against customers and orders, and track them to resolution.", True),
+    Module("visits", "module_visits", "Visits", ("visits",), "Communication",
+           "Farm visits by customers and customer visits by sales staff, with outcomes and follow-ups.", True),
 )
 
 _BY_KEY = {m.key: m for m in MODULES}
 
 # Tabs the customer page can show, in display order.
-CUSTPAGE_TABS = ("overview", "timeline", "orders", "pricing", "contracts")
+CUSTPAGE_TABS = ("overview", "timeline", "orders", "quotations", "pricing", "claims", "visits", "contracts")
+
+# Customer page tabs that belong to a switchable module; hidden while it is off.
+CUSTPAGE_TAB_MODULE = {"quotations": "quotations", "claims": "claims", "visits": "visits"}
 
 
 def _settings(settings):

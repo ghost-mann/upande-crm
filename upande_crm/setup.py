@@ -72,6 +72,8 @@ CRM_ROLE_PERMS = {
 		("Address", 0): _USER,
 		# Read-only: the variety picker searches items, it never creates one.
 		("Item", 0): "read",
+		("CRM Claim", 0): _USER,
+		("CRM Visit", 0): _USER,
 	},
 	"CRM Manager": {
 		("Lead", 0): _MANAGER,
@@ -85,6 +87,8 @@ CRM_ROLE_PERMS = {
 		("Contact", 0): _MANAGER,
 		("Address", 0): _MANAGER,
 		("Item", 0): "read",
+		("CRM Claim", 0): _MANAGER + ",delete",
+		("CRM Visit", 0): _MANAGER + ",delete",
 	},
 }
 

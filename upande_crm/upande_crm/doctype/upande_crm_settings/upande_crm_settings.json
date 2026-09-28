@@ -52,6 +52,18 @@
   "custpage_tabs",
   "cb_custpage",
   "custpage_default_tab",
+  "sb_pipeline_stages",
+  "opportunity_stages",
+  "cb_pipeline_stages",
+  "lead_channels",
+  "sb_claims",
+  "claim_types",
+  "cb_claims",
+  "claim_sla_days",
+  "sb_quotes_visits",
+  "quote_followup_days",
+  "cb_quotes_visits",
+  "visit_purposes",
   "sb_theme",
   "theme_accent",
   "theme_accent_dark",
@@ -348,22 +360,22 @@
    "fieldname": "module_claims",
    "fieldtype": "Check",
    "label": "Claims",
-   "default": "0",
-   "description": "Log complaints and quality claims against customers and orders, and track them to resolution. (Coming soon.)"
+   "default": "1",
+   "description": "Log complaints and quality claims against customers and orders, and track them to resolution."
   },
   {
    "fieldname": "module_quotations",
    "fieldtype": "Check",
    "label": "Quotations",
-   "default": "0",
-   "description": "Quotations sent to customers and prospects, and which ones turned into orders. (Coming soon.)"
+   "default": "1",
+   "description": "Quotations sent to customers and prospects, and which ones turned into orders."
   },
   {
    "fieldname": "module_visits",
    "fieldtype": "Check",
    "label": "Visits",
-   "default": "0",
-   "description": "Farm visits by customers and customer visits by sales staff, with outcomes and follow-ups. (Coming soon.)"
+   "default": "1",
+   "description": "Farm visits by customers and customer visits by sales staff, with outcomes and follow-ups."
   },
   {
    "fieldname": "sb_custpage",
@@ -374,8 +386,8 @@
    "fieldname": "custpage_tabs",
    "fieldtype": "Small Text",
    "label": "Customer Page Tabs",
-   "default": "overview\ntimeline\norders\npricing\ncontracts",
-   "description": "One per line, in the order shown. Any of: overview, timeline, orders, pricing, contracts."
+   "default": "overview\ntimeline\norders\nquotations\npricing\nclaims\nvisits\ncontracts",
+   "description": "One per line, in the order shown. Any of: overview, timeline, orders, quotations, pricing, claims, visits, contracts."
   },
   {
    "fieldname": "cb_custpage",
@@ -385,8 +397,77 @@
    "fieldname": "custpage_default_tab",
    "fieldtype": "Select",
    "label": "Opens On Tab",
-   "options": "overview\ntimeline\norders\npricing\ncontracts",
+   "options": "overview\ntimeline\norders\nquotations\npricing\nclaims\nvisits\ncontracts",
    "default": "overview"
+  },
+  {
+   "fieldname": "sb_pipeline_stages",
+   "fieldtype": "Section Break",
+   "label": "Pipeline Stages & Lead Channels"
+  },
+  {
+   "fieldname": "opportunity_stages",
+   "fieldtype": "Small Text",
+   "label": "Opportunity Stages",
+   "default": "Prospecting\nSample Dispatch\nQuotation\nNegotiation",
+   "description": "The columns of the pipeline board, in order, one per line. Saving creates any stage that does not exist yet."
+  },
+  {
+   "fieldname": "cb_pipeline_stages",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "lead_channels",
+   "fieldtype": "Small Text",
+   "label": "Lead Channels",
+   "default": "Email\nPhone Call\nTrade Event\nReferral\nWebsite",
+   "description": "How leads reach you, offered first when a lead is logged. Saving creates any channel that does not exist yet."
+  },
+  {
+   "fieldname": "sb_claims",
+   "fieldtype": "Section Break",
+   "label": "Claims"
+  },
+  {
+   "fieldname": "claim_types",
+   "fieldtype": "Small Text",
+   "label": "Claim Types",
+   "default": "Quality rejection\nShort shipment\nDamaged goods\nLate delivery\nWrong variety\nOther",
+   "description": "The kinds of complaint a claim can be logged as, one per line."
+  },
+  {
+   "fieldname": "cb_claims",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "claim_sla_days",
+   "fieldtype": "Int",
+   "label": "Resolve Claims Within (days)",
+   "default": "7",
+   "description": "An open claim older than this is flagged overdue."
+  },
+  {
+   "fieldname": "sb_quotes_visits",
+   "fieldtype": "Section Break",
+   "label": "Quotations & Visits"
+  },
+  {
+   "fieldname": "quote_followup_days",
+   "fieldtype": "Int",
+   "label": "Follow Up Quotations After (days)",
+   "default": "7",
+   "description": "An open quotation older than this is flagged for follow-up."
+  },
+  {
+   "fieldname": "cb_quotes_visits",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "visit_purposes",
+   "fieldtype": "Small Text",
+   "label": "Visit Purposes",
+   "default": "Farm tour\nVariety showcase\nRelationship check-in\nComplaint follow-up\nPrice negotiation\nOther",
+   "description": "Why a visit happened, one per line."
   },
   {
    "fieldname": "sb_theme",
@@ -602,7 +683,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-28 14:00:00.000000",
+ "modified": "2026-09-28 22:00:00.000000",
  "modified_by": "Administrator",
  "module": "Upande CRM",
  "name": "Upande CRM Settings",

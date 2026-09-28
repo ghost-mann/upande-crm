@@ -51,8 +51,12 @@ class TestRegistry(FrappeTestCase):
             self.assertEqual(S.DEFAULTS[m.field], 1 if m.available else 0, m.key)
 
     def test_unavailable_module_is_never_enabled(self):
+        from unittest.mock import patch
+
+        fake = M.Module("ghost", "module_claims", "Ghost", (), "Coming soon", "Not built.", False)
         _save(module_claims=1)
-        self.assertFalse(M.is_enabled("claims"))
+        with patch.dict(M._BY_KEY, {"ghost": fake}):
+            self.assertFalse(M.is_enabled("ghost"))
 
     def test_switching_off_is_reflected(self):
         _save(module_calls=0)
@@ -108,7 +112,20 @@ class TestBackfillPatch(FrappeTestCase):
         execute()
         _clear()
         self.assertEqual(frappe.db.get_single_value(S.SETTINGS_DOCTYPE, "module_leads"), 1)
-        self.assertEqual(frappe.db.get_single_value(S.SETTINGS_DOCTYPE, "module_claims"), 0)
+        self.assertEqual(frappe.db.get_single_value(S.SETTINGS_DOCTYPE, "module_claims"), 1)
+
+    def test_every_new_defaulted_field_is_backfilled(self):
+        # Not only module switches: a new Int with a bounded default reads 0 on a
+        # saved Single, and the settings validator then refuses every save.
+        from upande_crm.patches.backfill_module_switches import execute
+
+        self._unset("claim_sla_days")
+        self._unset("lead_channels")
+        execute()
+        _clear()
+        self.assertEqual(frappe.db.get_single_value(S.SETTINGS_DOCTYPE, "claim_sla_days"), 7)
+        self.assertIn("Referral", frappe.db.get_single_value(S.SETTINGS_DOCTYPE, "lead_channels"))
+        _save()  # and settings save again
 
     def test_a_saved_choice_is_left_alone(self):
         from upande_crm.patches.backfill_module_switches import execute

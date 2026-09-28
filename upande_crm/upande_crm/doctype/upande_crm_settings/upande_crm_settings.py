@@ -21,6 +21,8 @@ BOUNDS = (
     ("default_task_due_days", "Default task due in (days)", 0, 365),
     ("default_event_duration_mins", "Default event duration (minutes)", 5, 1440),
     ("whatsapp_fail_rate_alert", "WhatsApp failure rate alert", 0, 100),
+    ("claim_sla_days", "Resolve claims within (days)", 1, 365),
+    ("quote_followup_days", "Follow up quotations after (days)", 1, 365),
 )
 
 TARGET_FIELDS = (
@@ -52,6 +54,27 @@ class UpandeCRMSettings(Document):
         self._validate_theme_seeds()
         self._validate_theme_extras()
         self._validate_custpage()
+
+    def on_update(self):
+        self._ensure_pipeline_records()
+
+    def _ensure_pipeline_records(self):
+        """Create any configured stage or channel that does not exist yet, so the
+        pipeline board and the lead form can use it at once. Never deletes: a
+        stage in use on old opportunities must survive being unlisted."""
+        from upande_crm.api.settings import DEFAULTS, parse_lines
+
+        for field, doctype, key in (("opportunity_stages", "Sales Stage", "stage_name"),
+                                    ("lead_channels", "UTM Source", "name")):
+            if not frappe.db.exists("DocType", doctype):
+                continue
+            for value in parse_lines(self.get(field) or DEFAULTS[field]):
+                if frappe.db.exists(doctype, value):
+                    continue
+                if key == "name":  # UTM Source is prompt-named
+                    frappe.new_doc(doctype).insert(ignore_permissions=True, set_name=value)
+                else:
+                    frappe.get_doc({"doctype": doctype, key: value}).insert(ignore_permissions=True)
 
     def _validate_theme_extras(self):
         """Corner sizes, fonts and custom CSS — each refused with a plain reason.

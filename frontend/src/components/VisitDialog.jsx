@@ -77,7 +77,8 @@ export default function VisitDialog({ visit, purposes = [], onClose, onSaved }) 
         <div>
           <label className={LABEL}>Purpose</label>
           <select className={SELECT} value={form.purpose} onChange={(e) => set({ purpose: e.target.value })}>
-            {purposes.map((p) => <option key={p} value={p}>{p}</option>)}
+            {(form.purpose && !purposes.includes(form.purpose) ? [form.purpose, ...purposes] : purposes)
+              .map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
         <div>

@@ -125,3 +125,31 @@ class TestClaimDashboard(ClaimCase):
                 CL.crm_dashboard_claims()
         finally:
             _save_settings(module_claims=1)
+
+
+class TestEditingKeepsText(ClaimCase):
+    """The edit form must open with the whole claim, not the table row, or
+    resolving a claim silently erases what the customer reported."""
+
+    def test_get_returns_the_full_claim(self):
+        c = self._claim(root_cause="Hub cold chain")
+        full = CL.crm_claim_get(c["name"])["claim"]
+        self.assertEqual(full["description"], "Botrytis on 3 boxes")
+        self.assertEqual(full["root_cause"], "Hub cold chain")
+        self.assertIn("resolution", full)
+
+    def test_resolving_with_the_full_claim_keeps_its_text(self):
+        c = self._claim(root_cause="Hub cold chain")
+        full = CL.crm_claim_get(c["name"])["claim"]
+        CL.crm_claim_save(frappe.as_json({**full, "status": "Resolved", "resolution": "Credited"}))
+        doc = frappe.get_doc("CRM Claim", c["name"])
+        self.assertIn("Botrytis", doc.description)
+        self.assertEqual(doc.root_cause, "Hub cold chain")
+
+    def test_get_needs_read_permission(self):
+        from unittest.mock import patch
+
+        c = self._claim()
+        with patch("upande_crm.api.claims.frappe.has_permission", return_value=False):
+            with self.assertRaises(frappe.PermissionError):
+                CL.crm_claim_get(c["name"])

@@ -7,6 +7,7 @@ const json = (v) => JSON.stringify(v);
 
 export const claimsDashboardApi = (args) => api(A + 'claims.crm_dashboard_claims', args);
 export const claimSaveApi = (claim) => api(A + 'claims.crm_claim_save', { claim: json(claim) });
+export const claimGetApi = (name) => api(A + 'claims.crm_claim_get', { name });
 export const claimReferencesApi = (customer, kind) => api(A + 'claims.crm_claim_references', { customer, kind });
 export const customerClaimsApi = (name) => api(A + 'claims.crm_customer_claims', { name });
 

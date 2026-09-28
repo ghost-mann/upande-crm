@@ -92,6 +92,7 @@ GATED = {
     "claims": [
         "upande_crm.api.claims.crm_dashboard_claims",
         "upande_crm.api.claims.crm_claim_save",
+        "upande_crm.api.claims.crm_claim_get",
         "upande_crm.api.claims.crm_claim_references",
         "upande_crm.api.claims.crm_customer_claims",
     ],

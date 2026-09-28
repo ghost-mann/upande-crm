@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import LinkSearch from './LinkSearch';
 import DialogShell, { LABEL, SELECT } from './DialogShell';
-import { claimSaveApi, claimReferencesApi, CLAIM_STATUSES } from '@/lib/service';
+import { claimSaveApi, claimReferencesApi, claimGetApi, CLAIM_STATUSES } from '@/lib/service';
 import { fmtDate, fmtMoney } from '@shared/utils';
 
 // Log or update a customer claim. The order picker only offers the customer's
@@ -17,13 +17,36 @@ function today() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+const BLANK = {
+  customer: '', status: 'Open', reference_name: '', item_code: '', qty_affected: '',
+  amount_claimed: '', amount_credited: '', description: '', root_cause: '', resolution: '', assigned_to: '',
+};
+
+// A row from a list carries nulls; the form wants empty strings and defaults.
+function fromClaim(claim, types) {
+  const out = { ...BLANK, raised_on: today(), claim_type: types[0] || '' };
+  Object.entries(claim || {}).forEach(([k, v]) => { if (v != null) out[k] = v; });
+  out.reference_doctype = claim?.reference_doctype || 'Sales Invoice';
+  return out;
+}
+
 export default function ClaimDialog({ claim, types = [], onClose, onSaved }) {
-  const [form, setForm] = useState(() => ({
-    customer: '', claim_type: types[0] || '', status: 'Open', raised_on: today(),
-    reference_doctype: 'Sales Invoice', reference_name: '', item_code: '', qty_affected: '',
-    amount_claimed: '', amount_credited: '', description: '', root_cause: '', resolution: '', assigned_to: '',
-    ...(claim || {}),
-  }));
+  const [form, setForm] = useState(() => fromClaim(claim, types));
+  // Editing: load the whole claim first. List rows leave out the long text
+  // fields, and saving a form built from a row would blank them.
+  const [loading, setLoading] = useState(!!claim?.name);
+  useEffect(() => {
+    if (!claim?.name) return undefined;
+    let dead = false;
+    claimGetApi(claim.name)
+      .then((r) => { if (!dead) { setForm(fromClaim({ ...r.claim, lockCustomer: claim.lockCustomer }, types)); setLoading(false); } })
+      .catch((e) => { if (!dead) { setErr(e.message || 'Could not load the claim'); setLoading(false); } });
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claim?.name]);
+  // A type removed from Settings since this claim was logged stays selectable
+  // as its current value, rather than the select silently showing another.
+  const typeOptions = form.claim_type && !types.includes(form.claim_type) ? [form.claim_type, ...types] : types;
   const [refs, setRefs] = useState([]);
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
@@ -40,6 +63,7 @@ export default function ClaimDialog({ claim, types = [], onClose, onSaved }) {
   }, [form.customer, form.reference_doctype]);
 
   const save = async () => {
+    if (loading) return;
     if (!form.customer) { setErr('Pick the customer.'); return; }
     if (!form.description.trim()) { setErr('Say what happened.'); return; }
     if (closing && !String(form.resolution || '').trim()) { setErr(`Say how the claim was ${form.status.toLowerCase()}.`); return; }
@@ -48,6 +72,7 @@ export default function ClaimDialog({ claim, types = [], onClose, onSaved }) {
       const payload = { ...form };
       ['qty_affected', 'amount_claimed', 'amount_credited'].forEach((k) => { if (payload[k] === '') delete payload[k]; });
       if (!payload.reference_name) { payload.reference_doctype = ''; }
+      delete payload.lockCustomer; delete payload.overdue; delete payload.age_days; delete payload.resolved_on;
       const r = await claimSaveApi(payload);
       onSaved?.(r.claim);
       onClose();
@@ -61,6 +86,7 @@ export default function ClaimDialog({ claim, types = [], onClose, onSaved }) {
   return (
     <DialogShell title={form.name ? `Claim · ${form.name}` : 'Log a claim'} onClose={onClose} onSave={save}
       saving={saving} err={err} saveLabel={form.name ? 'Save claim' : 'Log claim'} width={680}>
+      {loading && <div className="text-[12px] text-ink-mute">Loading the claim…</div>}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LABEL}>Customer</label>
@@ -70,7 +96,7 @@ export default function ClaimDialog({ claim, types = [], onClose, onSaved }) {
         <div>
           <label className={LABEL}>Type of claim</label>
           <select className={SELECT} value={form.claim_type} onChange={(e) => set({ claim_type: e.target.value })}>
-            {types.map((t) => <option key={t} value={t}>{t}</option>)}
+            {typeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
       </div>

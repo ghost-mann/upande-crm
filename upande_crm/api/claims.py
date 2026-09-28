@@ -139,6 +139,19 @@ def crm_claim_save(claim=None):
 
 @frappe.whitelist()
 @requires_module("claims")
+def crm_claim_get(name):
+    """The whole claim, for the edit form. Table rows leave out the long text
+    fields; editing from a row would otherwise write them back blank."""
+    _guard()
+    if not frappe.has_permission(DOCTYPE, "read", name):
+        frappe.throw(_("Not permitted to read this claim"), frappe.PermissionError)
+    doc = frappe.get_doc(DOCTYPE, name)
+    row = frappe._dict({f: doc.get(f) for f in ROW_FIELDS + ["description", "root_cause", "resolution"]})
+    return {"claim": _decorate([row], _settings()["sla_days"])[0]}
+
+
+@frappe.whitelist()
+@requires_module("claims")
 def crm_claim_references(customer, kind="Sales Invoice", search=None):
     """The customer's recent invoices / deliveries / orders, for the claim form."""
     _guard()

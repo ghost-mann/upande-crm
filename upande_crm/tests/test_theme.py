@@ -113,6 +113,13 @@ class TestReproducesShippedPalette(FrappeTestCase):
         for name in DIVERGENCES:
             self.assertGreater(_delta(self.shipped[name], self.derived[name]), TOLERANCE, name)
 
+    def test_shipped_seeds_constant_matches(self):
+        self.assertEqual(T.SHIPPED_SEEDS, SHIPPED_SEEDS)
+
+    def test_shipped_extras_match_the_stylesheet(self):
+        for name, value in T.SHIPPED_EXTRA.items():
+            self.assertEqual(value.replace('"', "'"), self.shipped[name].replace('"', "'"), name)
+
     def test_shipped_fallbacks_match_the_stylesheet(self):
         for name, value in T.SHIPPED.items():
             self.assertEqual(value.lower(), self.shipped[name].lower(), name)
@@ -489,3 +496,31 @@ class TestFontUrlCannotBreakOut(FrappeTestCase):
         path = os.path.join(frappe.get_app_path("upande_crm"), "..", "frontend", "scripts", "build-html.mjs")
         with open(os.path.normpath(path), encoding="utf-8") as handle:
             self.assertIn("{{ theme_font_link | e }}", handle.read())
+
+
+class TestPreviewIsComplete(FrappeTestCase):
+    """The preview wrapper sits inside the page, which already carries the saved
+    theme. Its tokens must be a complete set, or a cleared field would show the
+    saved value instead of what Save will produce."""
+
+    def setUp(self):
+        frappe.set_user("Administrator")
+
+    def tearDown(self):
+        frappe.clear_document_cache(S.SETTINGS_DOCTYPE, S.SETTINGS_DOCTYPE)
+
+    def test_clearing_a_saved_colour_previews_the_shipped_one(self):
+        S.crm_theme_save(frappe.as_json(MAROON_SEEDS))
+        out = S.crm_theme_preview(frappe.as_json({"theme_ink": "", "theme_accent": ""}))
+        self.assertEqual(out["preview_tokens"]["ink"], "#0a0a0a")
+        self.assertEqual(out["preview_tokens"]["gold"], "#d9a514")
+
+    def test_draft_values_win_over_the_base(self):
+        out = S.crm_theme_preview(frappe.as_json({"theme_accent": "#123456", "theme_radius_card": "0"}))
+        self.assertEqual(out["preview_tokens"]["gold"], "#123456")
+        self.assertEqual(out["preview_tokens"]["r-card"], "0")
+
+    def test_derived_css_variables_are_redeclared(self):
+        pt = S.crm_theme_preview(frappe.as_json({"theme_accent": "#123456"}))["preview_tokens"]
+        for name in ("r-card-in", "r-ctl", "r-sm", "nav-active", "nav-active-fg", "f", "display", "mono", "radius"):
+            self.assertIn(name, pt)

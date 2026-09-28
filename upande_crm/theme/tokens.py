@@ -195,6 +195,38 @@ def get_tokens(settings):
     return out
 
 
+# The seeds that reproduce the shipped palette (test_theme checks this), and the
+# shipped values of tokens the seeds do not drive. Together they are the base a
+# preview is painted over — see preview_tokens.
+SHIPPED_SEEDS = {
+    "theme_accent": "#d9a514", "theme_ink": "#0a0a0a", "theme_ink_muted": "#8a8780",
+    "theme_canvas": "#f4f3ef", "theme_success": "#3f8f4f", "theme_warning": "#96650f",
+    "theme_danger": "#c4302b", "theme_info": "#175cd3",
+}
+SHIPPED_EXTRA = {
+    "f": "'Poppins', system-ui, sans-serif",
+    "mono": "'Poppins', system-ui, sans-serif",
+    "display": "'Fraunces', Georgia, serif",
+    "radius": "12px", "r-sm": "var(--radius)", "r-card": "24px", "r-panel": "24px",
+    # index.css resolves these once on :root; a preview must redeclare them so
+    # they follow the draft's --r-card, --radius and ink.
+    "r-card-in": "max(0px, calc(var(--r-card) - 10px))",
+    "r-ctl": "max(0px, calc(var(--radius) - 3px))",
+    "nav-active": "var(--grad-ink)", "nav-active-fg": "#ffffff",
+}
+
+
+def preview_tokens(settings):
+    """A complete token set for the live preview.
+
+    The preview wrapper sits inside a page that already carries the saved theme,
+    so a draft that clears a field produces no token for it and would otherwise
+    inherit the saved value — showing something Save will not produce. Painting
+    the draft over the full shipped set shows exactly what Save will.
+    """
+    return {**get_tokens(SHIPPED_SEEDS), **SHIPPED_EXTRA, **get_tokens(settings)}
+
+
 def _apply_pins(out, settings, accent):
     """Hand-picked colours that override one derived family each."""
     hsl = color.to_hsl_channels

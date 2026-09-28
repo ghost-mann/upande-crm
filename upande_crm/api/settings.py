@@ -214,6 +214,7 @@ def _theme_payload(settings=None):
     return {
         "seeds": {f: s.get(f) if f == "theme_accent_primary" else (s.get(f) or "") for f in T.THEME_FIELDS},
         "tokens": tokens,
+        "preview_tokens": T.preview_tokens(s),
         "derived": {**T.SHIPPED, **T.get_tokens(unpinned)},
         "contrast": T.contrast_report(tokens),
         "fonts": fonts.options(),

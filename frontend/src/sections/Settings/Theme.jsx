@@ -324,7 +324,7 @@ export default function Theme() {
       </div>
 
       <div className="order-1 xl:order-2 xl:sticky xl:top-[96px]">
-        <ThemePreview tokens={preview?.tokens || {}} />
+        <ThemePreview tokens={preview?.preview_tokens || preview?.tokens || {}} />
         <Contrast report={preview?.contrast || theme.contrast} />
       </div>
     </div>

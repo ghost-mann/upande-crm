@@ -42,6 +42,12 @@ def _customer(name):
     return name
 
 
+def _can(doctype):
+    """May the caller read `doctype` at all? Reading the Customer is not reading
+    its invoices, prices or emails — each tab shows what the desk would."""
+    return _has(doctype) and bool(frappe.has_permission(doctype, "read"))
+
+
 def _page(start, page_len, default):
     start = max(0, cint(start))
     size = cint(page_len) or default
@@ -74,24 +80,26 @@ def crm_customer_header(name, date_from=None, date_to=None):
     cust["account_manager"] = cust.get("account_manager") or cust.pop("owner", None)
     cust.pop("owner", None)
 
+    can_si, can_so = _can("Sales Invoice"), _can("Sales Order")
     lifetime = flt(_one(
         "select coalesce(sum(base_grand_total),0) from `tabSales Invoice` where customer=%s and docstatus=1",
-        name))
+        name)) if can_si else None
     so = frappe.db.sql(
         """select count(*), coalesce(sum(base_grand_total),0), max(transaction_date)
-           from `tabSales Order` where customer=%s and docstatus=1""", name)[0]
-    last_si = _one("select max(posting_date) from `tabSales Invoice` where customer=%s and docstatus=1", name)
+           from `tabSales Order` where customer=%s and docstatus=1""", name)[0] if can_so else (None, None, None)
+    last_si = _one("select max(posting_date) from `tabSales Invoice` where customer=%s and docstatus=1",
+                   name) if can_si else None
     last = max([d for d in (so[2], last_si) if d], default=None)
 
     range_revenue = None
-    if date_from and date_to:
+    if date_from and date_to and can_si:
         range_revenue = flt(_one(
             """select coalesce(sum(base_grand_total),0) from `tabSales Invoice`
                where customer=%s and docstatus=1 and posting_date between %s and %s""",
             (name, date_from, date_to)))
 
-    open_quotes = 0
-    if _has("Quotation"):
+    open_quotes = None
+    if _can("Quotation"):
         open_quotes = cint(_one(
             """select count(*) from `tabQuotation` where quotation_to='Customer' and party_name=%s
                and docstatus=1 and status in ('Open','Replied')""", name))
@@ -105,8 +113,8 @@ def crm_customer_header(name, date_from=None, date_to=None):
         "figures": {
             "lifetime_revenue": lifetime,
             "range_revenue": range_revenue,
-            "order_count": cint(so[0]),
-            "avg_order_value": flt(so[1]) / cint(so[0]) if cint(so[0]) else 0,
+            "order_count": cint(so[0]) if can_so else None,
+            "avg_order_value": (flt(so[1]) / cint(so[0]) if cint(so[0]) else 0) if can_so else None,
             "last_order_date": str(last) if last else None,
             "days_since_last_order": date_diff(nowdate(), last) if last else None,
             "open_quotations": open_quotes,
@@ -129,14 +137,15 @@ def crm_customer_overview(name):
 
     _customer(name)
     labels = _month_labels()
-    rows = frappe.db.sql(
+    can_si = _can("Sales Invoice")
+    rows = [] if not can_si else frappe.db.sql(
         """select date_format(posting_date, '%%Y-%%m') as m, sum(base_grand_total) as amount
            from `tabSales Invoice` where customer=%s and docstatus=1 and posting_date >= %s
            group by m""", (name, labels[0] + "-01"), as_dict=True)
     by_month = {r.m: flt(r.amount) for r in rows}
     trend = [{"label": m, "amount": by_month.get(m, 0.0)} for m in labels]
 
-    top_items = frappe.db.sql(
+    top_items = [] if not can_si else frappe.db.sql(
         """select sii.item_code, max(sii.item_name) as item_name,
                   sum(sii.base_net_amount) as amount, sum(sii.stock_qty) as qty
            from `tabSales Invoice Item` sii join `tabSales Invoice` si on si.name = sii.parent
@@ -145,19 +154,20 @@ def crm_customer_overview(name):
 
     scope = scope_mod.customer_scope(name)
     next_event = None
-    events = scope_mod.event_names(scope)
+    events = scope_mod.event_names(scope) if _can("Event") else []
     if events:
         found = frappe.get_all("Event", filters={"name": ["in", events], "starts_on": [">=", nowdate()]},
                                fields=["name", "subject", "starts_on"], order_by="starts_on asc", limit=1)
         next_event = found[0] if found else None
 
-    todos = scope_mod.todo_names(scope)
+    todos = scope_mod.todo_names(scope) if _can("ToDo") else []
     open_todos = frappe.get_all(
         "ToDo", filters={"name": ["in", todos], "status": "Open"},
         fields=["name", "description", "date", "allocated_to", "priority"],
         order_by="date asc", limit=20) if todos else []
 
-    return {"trend": trend, "top_items": top_items, "next_event": next_event, "open_todos": open_todos}
+    return {"trend": trend, "top_items": top_items, "next_event": next_event, "open_todos": open_todos,
+            "no_access": {"revenue": not can_si}}
 
 
 # ---------------------------------------------------------------- orders
@@ -169,6 +179,9 @@ def crm_customer_orders(name, kind="Sales Order", status=None, start=0, page_len
         frappe.throw(_("Unknown order type {0}").format(kind), frappe.ValidationError)
     datecol, has_outstanding = ORDER_KINDS[kind]
     start, size = _page(start, page_len, 25)
+    if not _can(kind):
+        return {"kind": kind, "rows": [], "total": 0, "start": start, "page_len": size, "statuses": [],
+                "summary": None, "no_access": True}
 
     where = "customer=%(c)s and docstatus < 2"
     values = {"c": name}
@@ -197,13 +210,13 @@ def crm_customer_orders(name, kind="Sales Order", status=None, start=0, page_len
         "per_month": [{"label": m, "count": per_map.get(m, 0)} for m in _month_labels()],
         "outstanding": flt(_one(
             "select coalesce(sum(outstanding_amount),0) from `tabSales Invoice` where customer=%s and docstatus=1",
-            name)),
+            name)) if _can("Sales Invoice") else None,
         "since": since,
     }
     for r in rows:
         r["date"] = str(r["date"]) if r["date"] else None
     return {"kind": kind, "rows": rows, "total": total, "start": start, "page_len": size,
-            "statuses": sorted(statuses), "summary": summary}
+            "statuses": sorted(statuses), "summary": summary, "no_access": False}
 
 
 # ---------------------------------------------------------------- pricing
@@ -226,8 +239,8 @@ def crm_customer_pricing(name, search=None, start=0, page_len=50):
     start, size = _page(start, page_len, 50)
     price_list, source = _price_list(name)
     out = {"price_list": price_list, "source": source, "rows": [], "total": 0,
-           "start": start, "page_len": size}
-    if not price_list:
+           "start": start, "page_len": size, "no_access": not _can("Item Price")}
+    if not price_list or out["no_access"]:
         return out
 
     where = "price_list=%(pl)s"
@@ -242,7 +255,7 @@ def crm_customer_pricing(name, search=None, start=0, page_len=50):
         {**values, "size": size, "start": start}, as_dict=True)
     out["total"] = cint(_one(f"select count(*) from `tabItem Price` where {where}", values))
 
-    codes = [r.item_code for r in rows if r.item_code]
+    codes = [r.item_code for r in rows if r.item_code] if _can("Sales Invoice") else []
     last = {}
     if codes:
         for r in frappe.db.sql(
@@ -266,12 +279,14 @@ def crm_customer_pricing(name, search=None, start=0, page_len=50):
 def crm_customer_contracts(name):
     _customer(name)
     if not _has("Contract"):
-        return {"rows": [], "available": False}
+        return {"rows": [], "available": False, "no_access": False}
+    if not _can("Contract"):
+        return {"rows": [], "available": True, "no_access": True}
     wanted = ["name", "status", "start_date", "end_date", "is_signed", "contract_template"]
     fields = [f for f in wanted if f == "name" or _hascol("Contract", f)]
     rows = frappe.get_all("Contract", filters={"party_type": "Customer", "party_name": name},
                           fields=fields, order_by="start_date desc", limit=200)
-    return {"rows": rows, "available": True}
+    return {"rows": rows, "available": True, "no_access": False}
 
 
 # ---------------------------------------------------------------- timeline

@@ -59,13 +59,14 @@ export default function Orders({ name, currency }) {
           <option value="">Any status</option>
           {(data?.statuses || []).map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        {data?.summary && (
+        {data?.summary?.outstanding != null && (
           <span className="text-[12.5px] text-ink-3 ml-auto">
             Unpaid on invoices: <b className="text-ink">{fmtMoney(data.summary.outstanding, currency)}</b>
           </span>
         )}
       </div>
       {err && <div className="crm-empty">{err}</div>}
+      {data?.no_access && <div className="crm-empty">You don't have access to {kind.toLowerCase()}s, so they are not shown here.</div>}
       {data?.summary && (
         <div className="mb-4">
           <ChartCard title={`${kind}s per month`} sub="Last 12 months" height="h-[180px]">
@@ -73,9 +74,9 @@ export default function Orders({ name, currency }) {
           </ChartCard>
         </div>
       )}
-      <DataTable title={`${kind}s`} subOverride={loading ? 'Loading…' : `${fmt(total)} in total`} columns={columns}
+      {!data?.no_access && <DataTable title={`${kind}s`} subOverride={loading ? 'Loading…' : `${fmt(total)} in total`} columns={columns}
         rows={data?.rows || []} doctype={kind} emptyText={loading ? 'Loading…' : `No ${kind.toLowerCase()}s for this customer`}
-        footer={pager} />
+        footer={pager} />}
     </>
   );
 }

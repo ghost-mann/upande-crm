@@ -23,6 +23,7 @@ export default function Pricing({ name }) {
 
   if (err) return <div className="crm-empty">{err}</div>;
   if (!data) return <div className="crm-empty">Loading…</div>;
+  if (data.no_access) return <div className="crm-empty">You don't have access to price lists, so agreed prices are not shown here.</div>;
   if (!data.price_list) {
     return (
       <div className="crm-empty">

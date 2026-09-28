@@ -13,17 +13,20 @@ export default function Overview({ name, currency }) {
   if (err) return <div className="crm-empty">{err}</div>;
   if (!data) return <div className="crm-empty">{loading ? 'Loading…' : 'Nothing to show'}</div>;
   const top = data.top_items || [];
+  const noRevenue = data.no_access?.revenue;
 
   return (
     <>
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-[18px] mb-[18px]">
         <ChartCard title="Revenue by month" sub={`Last 12 months · invoiced · ${currency}`}>
-          <AreaTrendChart labels={data.trend.map((r) => r.label)} data={data.trend.map((r) => r.amount)} />
+          {noRevenue
+            ? <div className="crm-empty">You don't have access to sales invoices.</div>
+            : <AreaTrendChart labels={data.trend.map((r) => r.label)} data={data.trend.map((r) => r.amount)} />}
         </ChartCard>
         <ChartCard title="What they buy" sub="Top 10 items by invoiced amount, all time">
           {top.length
             ? <HBarsChart labels={top.map((r) => r.item_name || r.item_code)} data={top.map((r) => r.amount)} money ccy={currency} />
-            : <div className="crm-empty">No invoiced items yet</div>}
+            : <div className="crm-empty">{noRevenue ? "You don't have access to sales invoices." : 'No invoiced items yet'}</div>}
         </ChartCard>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-[18px]">

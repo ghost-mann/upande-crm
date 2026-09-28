@@ -270,3 +270,50 @@ class TestTimelineTies(CustomerPageCase):
             if not before:
                 break
         self.assertEqual(sorted(seen), ["tie note 0", "tie note 1", "tie note 2"])
+
+
+class TestSubDoctypeAccess(CustomerPageCase):
+    """Reading a Customer is not reading its invoices, prices or emails: the page
+    must show what the caller would see in the desk, not everything."""
+
+    @staticmethod
+    def _only_customer(doctype, ptype="read", doc=None, *args, **kwargs):
+        return doctype == "Customer"
+
+    def _patched(self):
+        return patch("upande_crm.api.customer.frappe.has_permission", side_effect=self._only_customer)
+
+    def test_header_hides_money_it_cannot_read(self):
+        with self._patched():
+            f = C.crm_customer_header(self.busy)["figures"]
+        self.assertIsNone(f["lifetime_revenue"])
+        self.assertIsNone(f["order_count"])
+        self.assertIsNone(f["open_quotations"])
+
+    def test_orders_say_no_access(self):
+        with self._patched():
+            r = C.crm_customer_orders(self.busy, kind="Sales Invoice")
+        self.assertTrue(r["no_access"])
+        self.assertEqual(r["rows"], [])
+
+    def test_pricing_says_no_access(self):
+        with self._patched():
+            p = C.crm_customer_pricing(self.busy)
+        self.assertTrue(p["no_access"])
+        self.assertEqual(p["rows"], [])
+
+    def test_overview_hides_invoiced_items(self):
+        with self._patched():
+            ov = C.crm_customer_overview(self.busy)
+        self.assertEqual(ov["top_items"], [])
+        self.assertTrue(ov["no_access"]["revenue"])
+
+    def test_timeline_skips_unreadable_sources(self):
+        C.crm_customer_add_note(self.busy, "visible to anyone who can read the customer")
+        with self._patched():
+            kinds = {i["kind"] for i in C.crm_customer_timeline(self.busy, limit=100)["items"]}
+        self.assertEqual(kinds, {"note"})
+
+    def test_full_access_is_unchanged(self):
+        self.assertFalse(C.crm_customer_orders(self.busy, kind="Sales Invoice")["no_access"])
+        self.assertIsNotNone(C.crm_customer_header(self.busy)["figures"]["lifetime_revenue"])

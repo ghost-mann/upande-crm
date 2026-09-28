@@ -22,7 +22,7 @@ from frappe.utils import add_months, cint, date_diff, flt, get_datetime, get_fir
 from frappe.utils.html_utils import sanitize_html
 
 from upande_crm.api.crm import _company_currency, _guard, _has, _hascol
-from upande_crm.modules import CUSTPAGE_TABS, requires_module
+from upande_crm.modules import CUSTPAGE_TAB_MODULE, CUSTPAGE_TABS, is_enabled, requires_module
 
 ORDER_KINDS = {
     # kind: (date column, has outstanding_amount)
@@ -104,8 +104,14 @@ def crm_customer_header(name, date_from=None, date_to=None):
             """select count(*) from `tabQuotation` where quotation_to='Customer' and party_name=%s
                and docstatus=1 and status in ('Open','Replied')""", name))
 
+    open_claims = None
+    if is_enabled("claims") and _can("CRM Claim"):
+        open_claims = frappe.db.count("CRM Claim", {"customer": name, "status": ["in", ["Open", "Under Review"]]})
+
     s = get_settings()
     tabs = [t for t in parse_lines(s.get("custpage_tabs")) if t in CUSTPAGE_TABS] or list(CUSTPAGE_TABS)
+    # A tab whose module is switched off is not offered (its endpoint would refuse).
+    tabs = [t for t in tabs if t not in CUSTPAGE_TAB_MODULE or is_enabled(CUSTPAGE_TAB_MODULE[t])] or ["overview"]
     default_tab = s.get("custpage_default_tab")
     return {
         "customer": cust,
@@ -118,6 +124,7 @@ def crm_customer_header(name, date_from=None, date_to=None):
             "last_order_date": str(last) if last else None,
             "days_since_last_order": date_diff(nowdate(), last) if last else None,
             "open_quotations": open_quotes,
+            "open_claims": open_claims,
         },
         "tabs": tabs,
         "default_tab": default_tab if default_tab in tabs else tabs[0],
@@ -290,14 +297,15 @@ def crm_customer_contracts(name):
 
 
 # ---------------------------------------------------------------- timeline
-TIMELINE_KINDS = ("email", "call", "whatsapp", "event", "task", "note")
+TIMELINE_KINDS = ("email", "call", "whatsapp", "event", "task", "note", "claim", "visit")
 SNIPPET = 160
 FAR_FUTURE = "9999-12-31 23:59:59.999999"
 # The module each source belongs to; a switched-off module's source is skipped.
-KIND_MODULE = {"email": "mail", "call": "calls", "whatsapp": "wa", "event": "evt", "task": "evt"}
+KIND_MODULE = {"email": "mail", "call": "calls", "whatsapp": "wa", "event": "evt", "task": "evt",
+               "claim": "claims", "visit": "visits"}
 # The doctype each source reads; a caller who cannot read it does not get it.
 KIND_DOCTYPE = {"email": "Communication", "call": "Call Log", "whatsapp": "WhatsApp Message",
-                "event": "Event", "task": "ToDo", "note": "Comment"}
+                "event": "Event", "task": "ToDo", "note": "Comment", "claim": "CRM Claim", "visit": "CRM Visit"}
 
 
 def _when(value):
@@ -461,6 +469,31 @@ def _notes(name, cursor, limit):
                   "Customer", name, r.name) for r in rows]
 
 
+def _claims(name, cursor, limit):
+    if not _has("CRM Claim"):
+        return []
+    cond, args = _after("claim", "creation", "name", cursor)
+    rows = frappe.db.sql(
+        f"""select name, creation, claim_type, status, description, owner from `tabCRM Claim`
+            where customer = %(c)s and {cond} order by creation desc, name desc limit %(limit)s""",
+        {**args, "c": name, "limit": limit}, as_dict=True)
+    return [_item("claim", r.creation, f"Claim · {r.claim_type} · {r.status}", _snip(r.description), r.owner,
+                  "CRM Claim", r.name, r.name) for r in rows]
+
+
+def _visits(name, cursor, limit):
+    if not _has("CRM Visit"):
+        return []
+    cond, args = _after("visit", "visit_date", "name", cursor)
+    rows = frappe.db.sql(
+        f"""select name, visit_date, visit_type, purpose, status, outcome, owner from `tabCRM Visit`
+            where party_type = 'Customer' and party = %(c)s and {cond}
+            order by visit_date desc, name desc limit %(limit)s""",
+        {**args, "c": name, "limit": limit}, as_dict=True)
+    return [_item("visit", r.visit_date, f"{r.visit_type} · {r.purpose} · {r.status}", _snip(r.outcome), r.owner,
+                  "CRM Visit", r.name, r.name) for r in rows]
+
+
 def _source_allowed(kind):
     from upande_crm.modules import is_enabled
 
@@ -501,6 +534,10 @@ def crm_customer_timeline(name, kinds=None, before=None, limit=50):
         items += _tasks(scope, cursor, limit)
     if "note" in picked:
         items += _notes(name, cursor, limit)
+    if "claim" in picked:
+        items += _claims(name, cursor, limit)
+    if "visit" in picked:
+        items += _visits(name, cursor, limit)
 
     items.sort(key=lambda i: (i["when"], i["kind"], i["_id"]), reverse=True)
     items = items[:limit]

@@ -317,3 +317,35 @@ class TestSubDoctypeAccess(CustomerPageCase):
     def test_full_access_is_unchanged(self):
         self.assertFalse(C.crm_customer_orders(self.busy, kind="Sales Invoice")["no_access"])
         self.assertIsNotNone(C.crm_customer_header(self.busy)["figures"]["lifetime_revenue"])
+
+
+class TestNewTabsAndKinds(CustomerPageCase):
+    def test_header_hides_tabs_of_switched_off_modules(self):
+        _save(module_claims=0)
+        try:
+            self.assertNotIn("claims", C.crm_customer_header(self.busy)["tabs"])
+        finally:
+            _save(module_claims=1)
+        self.assertIn("claims", C.crm_customer_header(self.busy)["tabs"])
+
+    def test_header_counts_open_claims(self):
+        from upande_crm.api.claims import crm_claim_save
+
+        before = C.crm_customer_header(self.busy)["figures"]["open_claims"]
+        crm_claim_save(frappe.as_json({"customer": self.busy, "claim_type": "Quality rejection",
+                                       "description": "x"}))
+        self.assertEqual(C.crm_customer_header(self.busy)["figures"]["open_claims"], before + 1)
+
+    def test_timeline_carries_claims_and_visits(self):
+        from frappe.utils import now_datetime
+
+        from upande_crm.api.claims import crm_claim_save
+        from upande_crm.api.visits import crm_visit_save
+
+        crm_claim_save(frappe.as_json({"customer": self.empty, "claim_type": "Short shipment",
+                                       "description": "two boxes missing"}))
+        crm_visit_save(frappe.as_json({"visit_type": "Customer visit to farm", "party_type": "Customer",
+                                       "party": self.empty, "visit_date": str(now_datetime()),
+                                       "purpose": "Farm tour"}))
+        kinds = {i["kind"] for i in C.crm_customer_timeline(self.empty)["items"]}
+        self.assertTrue({"claim", "visit"} <= kinds)

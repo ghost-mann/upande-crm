@@ -51,12 +51,14 @@ def get_context(context):
 	# flashing the compiled one while the SPA boots. Empty when nothing is
 	# configured, and the template then emits no block at all.
 	try:
-		from upande_crm.theme import get_theme_css
+		from upande_crm.theme import get_font_link, get_theme_css
 
 		context.theme_css = get_theme_css()
+		context.theme_font_link = get_font_link()
 	except Exception:
 		# A broken theme must never take the CRM down; fall back to the bundle.
 		frappe.log_error(frappe.get_traceback(), "CRM theme render failed")
 		context.theme_css = ""
+		context.theme_font_link = None
 
 	return context

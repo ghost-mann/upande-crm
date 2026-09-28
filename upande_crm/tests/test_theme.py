@@ -19,7 +19,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from upande_crm.api import settings as S
-from upande_crm.theme import color, get_theme_css, transfer
+from upande_crm.theme import color, get_theme_css
 from upande_crm.theme import tokens as T
 
 # Total absolute channel delta tolerated between a derived token and the shipped
@@ -109,6 +109,10 @@ class TestReproducesShippedPalette(FrappeTestCase):
         for name in DIVERGENCES:
             self.assertGreater(_delta(self.shipped[name], self.derived[name]), TOLERANCE, name)
 
+    def test_shipped_fallbacks_match_the_stylesheet(self):
+        for name, value in T.SHIPPED.items():
+            self.assertEqual(value.lower(), self.shipped[name].lower(), name)
+
     def test_gold_theme_keeps_ink_text_on_accent_fills(self):
         # The shipped design puts ink on gold; the derivation must agree, or
         # every accent button would flip colour the moment a theme is saved.
@@ -181,7 +185,7 @@ class TestTokenAssembly(FrappeTestCase):
             self.assertRegex(out[name], r"^\d+ \d+% \d+%$", name)
 
     def test_seed_fields_are_all_known_settings_keys(self):
-        for field in T.SEED_FIELDS:
+        for field in T.THEME_FIELDS:
             self.assertIn(field, S.DEFAULTS, field)
 
 
@@ -219,39 +223,6 @@ class TestMaroonTheme(FrappeTestCase):
         self.assertEqual(set(T.get_tokens(SHIPPED_SEEDS)), set(self.tokens))
 
 
-class TestPresets(FrappeTestCase):
-    def test_both_shipped_presets_are_listed(self):
-        names = {p["name"] for p in transfer.list_presets()}
-        self.assertIn("upande", names)
-        self.assertIn("karen_roses", names)
-
-    def test_presets_carry_a_label_and_seeds(self):
-        for preset in transfer.list_presets():
-            self.assertTrue(preset["label"])
-            self.assertTrue(preset["seeds"])
-            for key in preset["seeds"]:
-                self.assertIn(key, T.SEED_FIELDS)
-
-    def test_upande_preset_is_the_shipped_palette(self):
-        self.assertEqual(transfer.preset_seeds("upande"), SHIPPED_SEEDS)
-
-    def test_karen_roses_preset_is_maroon(self):
-        seeds = transfer.preset_seeds("karen_roses")
-        rgb = color.parse(seeds["theme_accent"])
-        self.assertIsNotNone(rgb)
-        self.assertGreater(rgb[0], rgb[1])  # red dominant
-        self.assertGreater(rgb[0], rgb[2])
-
-    def test_traversal_and_junk_names_are_refused(self):
-        for name in ("../etc/passwd", "a/b", "a.b", "Upande", "", None, "up%41nde"):
-            with self.assertRaises(frappe.ValidationError, msg=repr(name)):
-                transfer.preset_seeds(name)
-
-    def test_unknown_preset_throws(self):
-        with self.assertRaises(frappe.ValidationError):
-            transfer.preset_seeds("no_such_preset")
-
-
 class TestThemeEndpoints(FrappeTestCase):
     def tearDown(self):
         frappe.set_user("Administrator")
@@ -259,33 +230,20 @@ class TestThemeEndpoints(FrappeTestCase):
 
     def test_payload_shape(self):
         d = S.crm_theme()
-        for key in ("seeds", "tokens", "presets", "applied", "can_edit", "installed"):
+        for key in ("seeds", "tokens", "derived", "contrast", "fonts", "can_edit", "installed"):
             self.assertIn(key, d)
-        self.assertEqual(set(d["seeds"]), set(T.SEED_FIELDS))
+        self.assertEqual(set(d["seeds"]), set(T.THEME_FIELDS))
+        self.assertNotIn("presets", d)
 
-    def test_apply_preset_writes_seeds_and_records_it(self):
-        d = S.crm_theme_apply_preset("karen_roses")
-        self.assertEqual(d["applied"], "karen_roses")
+    def test_save_writes_seeds_and_derives(self):
+        d = S.crm_theme_save(frappe.as_json({"theme_accent": "#8c1d2e"}))
         self.assertEqual(d["seeds"]["theme_accent"], "#8c1d2e")
         self.assertEqual(d["tokens"]["on-accent"], "#ffffff")
 
-    def test_apply_preset_is_idempotent(self):
-        first = S.crm_theme_apply_preset("karen_roses")
-        second = S.crm_theme_apply_preset("karen_roses")
-        self.assertEqual(first["seeds"], second["seeds"])
+    def test_save_is_idempotent(self):
+        first = S.crm_theme_save(frappe.as_json(MAROON_SEEDS))
+        second = S.crm_theme_save(frappe.as_json(MAROON_SEEDS))
         self.assertEqual(first["tokens"], second["tokens"])
-
-    def test_reset_returns_to_upande_gold(self):
-        S.crm_theme_apply_preset("karen_roses")
-        d = S.crm_theme_reset()
-        self.assertEqual(d["applied"], "upande")
-        self.assertEqual(d["seeds"]["theme_accent"], "#d9a514")
-
-    def test_hand_edited_seeds_clear_the_preset_marker(self):
-        S.crm_theme_apply_preset("karen_roses")
-        d = S.crm_theme_save(frappe.as_json({"theme_accent": "#123456"}))
-        self.assertEqual(d["applied"], "")
-        self.assertEqual(d["seeds"]["theme_accent"], "#123456")
 
     def test_save_rejects_a_malformed_colour(self):
         with self.assertRaises(frappe.ValidationError):
@@ -298,20 +256,20 @@ class TestThemeEndpoints(FrappeTestCase):
 
     def test_blanking_a_seed_is_allowed(self):
         # Clearing back to "not themed" must be possible from the UI.
-        S.crm_theme_apply_preset("karen_roses")
+        S.crm_theme_save(frappe.as_json(MAROON_SEEDS))
         d = S.crm_theme_save(frappe.as_json({"theme_accent": ""}))
         self.assertEqual(d["seeds"]["theme_accent"], "")
         self.assertNotIn("gold", d["tokens"])
 
     def test_get_theme_css_reflects_the_saved_theme(self):
-        S.crm_theme_apply_preset("karen_roses")
+        S.crm_theme_save(frappe.as_json(MAROON_SEEDS))
         frappe.clear_document_cache(S.SETTINGS_DOCTYPE, S.SETTINGS_DOCTYPE)
         self.assertIn("--gold: #8c1d2e;", get_theme_css())
 
     def test_guest_and_sales_user_cannot_change_the_theme(self):
         frappe.set_user("Guest")
         with self.assertRaises(frappe.PermissionError):
-            S.crm_theme_apply_preset("karen_roses")
+            S.crm_theme_save(frappe.as_json(MAROON_SEEDS))
         frappe.set_user("Administrator")
 
         email = "crm-theme-test@example.com"
@@ -342,3 +300,143 @@ class TestSettingsControllerValidatesSeeds(FrappeTestCase):
         doc.theme_ink = "  #0a0a0a  "
         doc.save(ignore_permissions=True)
         self.assertEqual(frappe.get_single(S.SETTINGS_DOCTYPE).theme_ink, "#0a0a0a")
+
+
+class TestThemeExtras(FrappeTestCase):
+    def test_blank_new_seeds_change_nothing(self):
+        base = T.get_tokens(SHIPPED_SEEDS)
+        blank = dict(SHIPPED_SEEDS, **{f: "" for f in T.THEME_FIELDS if f not in SHIPPED_SEEDS})
+        blank["theme_accent_primary"] = 0
+        self.assertEqual(T.get_tokens(blank), base)
+
+    def test_accent_dark_pins_its_tokens(self):
+        t = T.get_tokens(dict(SHIPPED_SEEDS, theme_accent_dark="#553300"))
+        self.assertEqual(t["gold-2"], "#553300")
+        self.assertEqual(t["gold-text"], "#553300")
+        self.assertIn("#553300", t["grad-gold"])
+
+    def test_accent_soft_pins_selected(self):
+        t = T.get_tokens(dict(SHIPPED_SEEDS, theme_accent_soft="#fff1d6"))
+        self.assertEqual(t["gold-soft"], "#fff1d6")
+        self.assertEqual(t["selected"], "#fff1d6")
+
+    def test_wash_and_borders_pin(self):
+        t = T.get_tokens(dict(SHIPPED_SEEDS, theme_wash="#eeeeee", theme_border="#dddddd",
+                              theme_border_strong="#bbbbbb"))
+        self.assertEqual(t["surface-3"], "#eeeeee")
+        self.assertEqual(t["line"], "#dddddd")
+        self.assertEqual(t["line-2"], "#bbbbbb")
+        self.assertEqual(t["border"], color.to_hsl_channels(color.parse("#dddddd")))
+
+    def test_accent_primary_repaints_primary(self):
+        t = T.get_tokens(dict(MAROON_SEEDS, theme_accent_primary=1))
+        self.assertEqual(t["primary"], color.to_hsl_channels(color.parse("#8c1d2e")))
+        self.assertEqual(t["nav-active"], "#8c1d2e")
+        self.assertEqual(t["nav-active-fg"], t["on-accent"])
+
+    def test_accent_primary_without_accent_does_nothing(self):
+        self.assertEqual(T.get_tokens({"theme_accent_primary": 1}), {})
+
+    def test_bundled_font_sets_the_stack(self):
+        t = T.get_tokens({"theme_font_sans": "Inter"})
+        self.assertTrue(t["f"].startswith('"Inter"'))
+
+    def test_custom_font_needs_a_name(self):
+        self.assertNotIn("f", T.get_tokens({"theme_font_sans": "Custom"}))
+        t = T.get_tokens({"theme_font_display": "Custom", "theme_font_display_name": "Lora"})
+        self.assertTrue(t["display"].startswith('"Lora"'))
+
+    def test_radius_seeds_emit_tokens(self):
+        t = T.get_tokens({"theme_radius": "4px", "theme_radius_card": "0", "theme_radius_panel": "1rem"})
+        self.assertEqual((t["r-sm"], t["radius"], t["r-card"], t["r-panel"]), ("4px", "4px", "0", "1rem"))
+
+    def test_custom_css_is_appended_last(self):
+        css = T.get_theme_css({"theme_accent": "#d9a514", "theme_custom_css": "--ink-4: #54586b;"})
+        lines = css.strip().splitlines()
+        self.assertEqual(lines[-1], "}")
+        self.assertEqual(lines[-2].strip(), "--ink-4: #54586b;")
+
+    def test_custom_css_alone_still_emits(self):
+        self.assertIn("--ink-4: #54586b;", T.get_theme_css({"theme_custom_css": "--ink-4: #54586b;"}))
+
+    def test_font_link_only_for_allowed_host(self):
+        from upande_crm.theme import fonts
+        ok = "https://fonts.googleapis.com/css2?family=Lora"
+        self.assertEqual(fonts.resolve({"theme_google_fonts_url": ok})["link"], ok)
+        self.assertIsNone(fonts.resolve({"theme_google_fonts_url": "https://evil.example/x.css"})["link"])
+
+    def test_contrast_report_flags_unreadable_text(self):
+        t = T.get_tokens(dict(SHIPPED_SEEDS, theme_ink="#f0f0f0"))
+        rep = {r["key"]: r for r in T.contrast_report(t)}
+        self.assertEqual(rep["text_on_bg"]["level"], "bad")
+
+    def test_contrast_report_passes_the_shipped_palette(self):
+        rep = {r["key"]: r for r in T.contrast_report(T.get_tokens(SHIPPED_SEEDS))}
+        self.assertEqual(rep["text_on_bg"]["level"], "ok")
+        self.assertTrue(all(r["label"] and r["ratio"] > 1 for r in rep.values()))
+
+    def test_contrast_report_works_unthemed(self):
+        self.assertTrue(T.contrast_report({}))
+
+
+class TestThemeValidation(FrappeTestCase):
+    def setUp(self):
+        frappe.set_user("Administrator")
+
+    def tearDown(self):
+        frappe.clear_document_cache(S.SETTINGS_DOCTYPE, S.SETTINGS_DOCTYPE)
+
+    def _save(self, **kw):
+        doc = frappe.get_single(S.SETTINGS_DOCTYPE)
+        doc.update(kw)
+        doc.save(ignore_permissions=True)
+
+    def test_radius_requires_a_css_length(self):
+        for bad in ("12", "1e3px", "10 px", "calc(1px)", "-4px"):
+            with self.assertRaises(frappe.ValidationError, msg=bad):
+                self._save(theme_radius=bad)
+
+    def test_radius_accepts_lengths(self):
+        self._save(theme_radius="6px", theme_radius_card="0", theme_radius_panel="1.25rem")
+
+    def test_font_url_host_is_enforced(self):
+        with self.assertRaises(frappe.ValidationError):
+            self._save(theme_font_sans="Custom", theme_font_sans_name="Lato",
+                       theme_google_fonts_url="https://evil.example/x.css")
+
+    def test_custom_font_needs_name_and_url(self):
+        with self.assertRaises(frappe.ValidationError):
+            self._save(theme_font_sans="Custom", theme_font_sans_name="", theme_google_fonts_url="")
+
+    def test_font_name_is_plain(self):
+        with self.assertRaises(frappe.ValidationError):
+            self._save(theme_font_sans="Custom", theme_font_sans_name='Lato"; } body {',
+                       theme_google_fonts_url="https://fonts.googleapis.com/css2?family=Lato")
+
+    def test_custom_css_cannot_close_the_style_tag(self):
+        with self.assertRaises(frappe.ValidationError):
+            self._save(theme_custom_css="</style><script>alert(1)</script>")
+
+    def test_reset_clears_every_theme_field(self):
+        S.crm_theme_save(frappe.as_json({"theme_accent": "#8c1d2e", "theme_radius": "4px",
+                                         "theme_accent_primary": 1}))
+        S.crm_theme_reset()
+        frappe.clear_document_cache(S.SETTINGS_DOCTYPE, S.SETTINGS_DOCTYPE)
+        s = S.get_settings()
+        self.assertTrue(all(not s.get(f) for f in T.THEME_FIELDS))
+        self.assertEqual(get_theme_css(), "")
+
+    def test_preview_does_not_write(self):
+        before = S.get_settings()["theme_accent"]
+        out = S.crm_theme_preview(frappe.as_json({"theme_accent": "#123456"}))
+        self.assertEqual(out["tokens"]["gold"], "#123456")
+        frappe.clear_document_cache(S.SETTINGS_DOCTYPE, S.SETTINGS_DOCTYPE)
+        self.assertEqual(S.get_settings()["theme_accent"], before)
+
+    def test_preview_tolerates_an_invalid_draft(self):
+        out = S.crm_theme_preview(frappe.as_json({"theme_accent": "#12"}))
+        self.assertNotIn("gold", out["tokens"])
+
+    def test_theme_preset_field_is_gone(self):
+        self.assertFalse(frappe.get_meta(S.SETTINGS_DOCTYPE).has_field("theme_preset"))
+        self.assertFalse(hasattr(S, "crm_theme_apply_preset"))

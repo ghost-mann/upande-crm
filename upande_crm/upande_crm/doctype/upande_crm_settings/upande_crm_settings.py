@@ -50,7 +50,48 @@ class UpandeCRMSettings(Document):
         self._validate_statuses()
         self._validate_whatsapp_template()
         self._validate_theme_seeds()
+        self._validate_theme_extras()
         self._validate_custpage()
+
+    def _validate_theme_extras(self):
+        """Corner sizes, fonts and custom CSS — each refused with a plain reason.
+
+        These values end up inside a <style> or <link> on every CRM page, so
+        anything that could close the tag or point at another host is refused
+        here rather than filtered at render time.
+        """
+        from upande_crm.theme import fonts
+        from upande_crm.theme.tokens import RADIUS_FIELDS, RADIUS_RE
+
+        for field, _tokens in RADIUS_FIELDS:
+            value = str(self.get(field) or "").strip()
+            self.set(field, value)
+            if value and not RADIUS_RE.match(value):
+                frappe.throw(
+                    _("{0}: corner sizes need a unit, e.g. 8px or 0.5rem (or 0 for square), not {1!r}.").format(
+                        self.meta.get_label(field), value
+                    )
+                )
+
+        url = str(self.theme_google_fonts_url or "").strip()
+        self.theme_google_fonts_url = url
+        if url and not fonts.is_allowed_url(url):
+            frappe.throw(_("The Google Fonts link must start with https://fonts.googleapis.com."))
+        for role, choice_field, name_field, _token in fonts.ROLES:
+            if self.get(choice_field) != fonts.CUSTOM:
+                continue
+            label = self.meta.get_label(choice_field)
+            name = str(self.get(name_field) or "").strip()
+            self.set(name_field, name)
+            if not name:
+                frappe.throw(_("{0} is set to Custom: give the font family's name.").format(label))
+            if not fonts.NAME_RE.match(name):
+                frappe.throw(_("{0}: a font name can only hold letters, numbers, spaces and hyphens.").format(label))
+            if not url:
+                frappe.throw(_("{0} is set to Custom: add the Google Fonts link that loads it.").format(label))
+
+        if "<" in str(self.theme_custom_css or ""):
+            frappe.throw(_("Custom CSS cannot contain '<'."))
 
     def _validate_custpage(self):
         from upande_crm.modules import CUSTPAGE_TABS

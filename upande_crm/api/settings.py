@@ -23,6 +23,7 @@ from frappe.utils import add_days, cint, flt, nowdate
 from upande_crm.api.activity import _load
 from upande_crm.api.crm import _company_currency, _count, _guard, _has, _hascol
 from upande_crm.modules import CUSTPAGE_TABS, MODULES, enabled_map, module_meta
+from upande_crm.theme.tokens import THEME_FIELDS
 
 SETTINGS_DOCTYPE = "Upande CRM Settings"
 
@@ -55,18 +56,12 @@ DEFAULTS = {
     # above; the rest are added from the registry below.
     "custpage_tabs": "\n".join(CUSTPAGE_TABS),
     "custpage_default_tab": "overview",
-    # Theme seeds. Blank means "not themed" — the compiled palette is used and no
-    # <style> block is emitted at all. See upande_crm/theme/.
-    "theme_preset": "",
-    "theme_accent": "",
-    "theme_ink": "",
-    "theme_ink_muted": "",
-    "theme_canvas": "",
-    "theme_success": "",
-    "theme_warning": "",
-    "theme_danger": "",
-    "theme_info": "",
 }
+
+# Theme fields. Blank means "not themed" — the compiled palette is used and no
+# <style> block is emitted at all. See upande_crm/theme/.
+DEFAULTS.update({f: "" for f in THEME_FIELDS})
+DEFAULTS["theme_accent_primary"] = 0
 
 DEFAULTS.update({m.field: int(m.available) for m in MODULES if m.field not in DEFAULTS})
 
@@ -208,18 +203,34 @@ def crm_settings_save(settings=None):
 
 # ---------------------------------------------------------------- theme
 def _theme_payload(settings=None):
-    from upande_crm.theme import tokens as theme_tokens
-    from upande_crm.theme import transfer
+    from upande_crm.theme import fonts
+    from upande_crm.theme import tokens as T
 
     s = settings if settings is not None else get_settings()
+    tokens = T.get_tokens(s)
+    # What each pinned colour would be if left blank — the "worked out for you"
+    # swatch beside an empty field.
+    unpinned = dict(s, **{f: "" for f in T.PIN_FIELDS})
     return {
-        "seeds": {f: s.get(f) or "" for f in theme_tokens.SEED_FIELDS},
-        "tokens": theme_tokens.get_tokens(s),
-        "presets": transfer.list_presets(),
-        "applied": s.get("theme_preset") or "",
+        "seeds": {f: s.get(f) if f == "theme_accent_primary" else (s.get(f) or "") for f in T.THEME_FIELDS},
+        "tokens": tokens,
+        "derived": {**T.SHIPPED, **T.get_tokens(unpinned)},
+        "contrast": T.contrast_report(tokens),
+        "fonts": fonts.options(),
+        "font_link": T.get_font_link(s),
         "can_edit": _can_edit(),
         "installed": _installed(),
     }
+
+
+def _known_theme(seeds):
+    payload = _load(seeds)
+    if not isinstance(payload, dict):
+        frappe.throw(_("Malformed theme payload"))
+    known = {k: v for k, v in payload.items() if k in THEME_FIELDS}
+    if not known:
+        frappe.throw(_("No recognised theme settings in this request"))
+    return known
 
 
 @frappe.whitelist()
@@ -228,14 +239,12 @@ def crm_theme():
     return _theme_payload()
 
 
-def _write_seeds(seeds, preset=""):
-    """Persist seed colours. Returns the payload with freshly derived tokens.
+def _write_theme(values):
+    """Persist theme fields. Returns the payload with freshly derived tokens.
 
-    The doctype controller validates each colour, so a malformed hex throws here
-    rather than silently dropping half the palette at render time.
+    The doctype controller validates every field, so a malformed colour, corner
+    size or font URL throws here rather than silently dropping at render time.
     """
-    from upande_crm.theme.tokens import SEED_FIELDS
-
     if not _can_edit():
         frappe.throw(
             _("Only a Sales Manager or System Manager can change the CRM theme."),
@@ -247,47 +256,41 @@ def _write_seeds(seeds, preset=""):
         )
 
     doc = frappe.get_single(SETTINGS_DOCTYPE)
-    for field in SEED_FIELDS:
-        if field in seeds:
-            doc.set(field, (seeds[field] or "").strip())
-    doc.theme_preset = preset
+    for field, value in values.items():
+        if field == "theme_accent_primary":
+            doc.set(field, cint(value))
+        else:
+            doc.set(field, (str(value) if value is not None else "").strip())
     # ignore_permissions: the role gate above is the authority, as in crm_settings_save.
     doc.save(ignore_permissions=True)
+    frappe.clear_document_cache(SETTINGS_DOCTYPE, SETTINGS_DOCTYPE)
     return _theme_payload()
 
 
 @frappe.whitelist()
 def crm_theme_save(seeds=None):
-    """Save hand-edited seeds. Clears the applied-preset marker."""
+    """Save hand-edited theme fields (a partial patch)."""
     _guard()
-    payload = _load(seeds)
-    if not isinstance(payload, dict):
-        frappe.throw(_("Malformed theme payload"))
-    from upande_crm.theme.tokens import SEED_FIELDS
-
-    known = {k: v for k, v in payload.items() if k in SEED_FIELDS}
-    if not known:
-        frappe.throw(_("No recognised theme colours in this request"))
-    return _write_seeds(known)
+    return _write_theme(_known_theme(seeds))
 
 
 @frappe.whitelist()
-def crm_theme_apply_preset(name=None):
-    _guard()
-    from upande_crm.theme import transfer
+def crm_theme_preview(seeds=None):
+    """The payload a draft would produce, without saving it.
 
-    seeds = transfer.preset_seeds(name)
-    return _write_seeds(seeds, preset=name)
+    Drives the live preview, so the preview and the saved theme come from the
+    same derivation. An invalid draft value is skipped by the derivation, as it
+    would be at render time — the save is where it is refused.
+    """
+    _guard()
+    return _theme_payload(dict(get_settings(), **_known_theme(seeds)))
 
 
 @frappe.whitelist()
 def crm_theme_reset():
-    """Back to the shipped Upande gold look."""
+    """Back to the shipped look: every theme field blank."""
     _guard()
-    from upande_crm.theme import transfer
-
-    return _write_seeds(transfer.preset_seeds(transfer.DEFAULT_PRESET),
-                        preset=transfer.DEFAULT_PRESET)
+    return _write_theme({f: (0 if f == "theme_accent_primary" else "") for f in THEME_FIELDS})
 
 
 # ---------------------------------------------------------------- health

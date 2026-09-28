@@ -28,6 +28,7 @@ const JINJA_BOOT = `
 // a theme change needs: no rebuild. `theme_css` is empty on an unthemed site and
 // the block then disappears entirely.
 const JINJA_THEME = `
+    {% if theme_font_link %}<link rel="stylesheet" href="{{ theme_font_link }}">{% endif %}
     {% if theme_css %}<style id="crm-theme">{{ theme_css }}</style>{% endif %}
 `;
 

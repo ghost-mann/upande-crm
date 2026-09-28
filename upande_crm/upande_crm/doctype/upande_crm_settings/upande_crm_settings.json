@@ -53,16 +53,41 @@
   "cb_custpage",
   "custpage_default_tab",
   "sb_theme",
-  "theme_preset",
   "theme_accent",
+  "theme_accent_dark",
+  "theme_accent_soft",
+  "cb_theme_brand",
+  "theme_accent_primary",
+  "sb_theme_neutral",
   "theme_ink",
   "theme_ink_muted",
   "theme_canvas",
-  "cb_theme",
+  "cb_theme_neutral",
+  "theme_wash",
+  "theme_border",
+  "theme_border_strong",
+  "sb_theme_status",
   "theme_success",
   "theme_warning",
+  "cb_theme",
   "theme_danger",
-  "theme_info"
+  "theme_info",
+  "sb_theme_fonts",
+  "theme_font_sans",
+  "theme_font_sans_name",
+  "theme_font_display",
+  "theme_font_display_name",
+  "theme_font_mono",
+  "theme_font_mono_name",
+  "cb_theme_fonts",
+  "theme_google_fonts_url",
+  "sb_theme_shape",
+  "theme_radius",
+  "theme_radius_card",
+  "cb_theme_shape",
+  "theme_radius_panel",
+  "sb_theme_advanced",
+  "theme_custom_css"
  ],
  "fields": [
   {
@@ -364,71 +389,220 @@
    "default": "overview"
   },
   {
-   "description": "Seed colours for the CRM's appearance. Blank means \"not themed\" — the compiled palette is used. Everything else (the ink scale, surfaces, hairlines, shadows, gradients, button and input colours) is derived from these.",
    "fieldname": "sb_theme",
    "fieldtype": "Section Break",
-   "label": "Theme"
+   "label": "Theme — Brand Colours",
+   "description": "Every theme field is optional. Blank means the CRM works the colour out for you from the others; with nothing set at all, the CRM looks exactly as shipped."
   },
   {
-   "description": "Which shipped preset was applied last. Cleared when a colour is edited by hand.",
-   "fieldname": "theme_preset",
-   "fieldtype": "Data",
-   "label": "Applied Preset",
-   "read_only": 1
-  },
-  {
-   "description": "The single signal colour — buttons, active states, primary chart series.",
    "fieldname": "theme_accent",
    "fieldtype": "Color",
-   "label": "Accent"
+   "label": "Accent",
+   "description": "Your brand colour. Used for highlights, badges, charts and the focus ring."
   },
   {
-   "description": "Darkest structural colour. Drives the text scale, hairlines and shadows.",
+   "fieldname": "theme_accent_dark",
+   "fieldtype": "Color",
+   "label": "Accent Dark",
+   "description": "A deeper version of your brand colour, for brand-coloured text on white and the dark end of buttons. Blank = worked out from Accent."
+  },
+  {
+   "fieldname": "theme_accent_soft",
+   "fieldtype": "Color",
+   "label": "Accent Soft",
+   "description": "A very pale version, used behind highlighted badges and selected rows. Blank = worked out from Accent."
+  },
+  {
+   "fieldname": "cb_theme_brand",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "theme_accent_primary",
+   "fieldtype": "Check",
+   "label": "Use Accent For Main Buttons",
+   "default": "0",
+   "description": "Off: main buttons are near-black and your brand colour is just trim. On: buttons, the focus ring and the active menu item use your brand colour."
+  },
+  {
+   "fieldname": "sb_theme_neutral",
+   "fieldtype": "Section Break",
+   "label": "Theme — Neutral Colours"
+  },
+  {
    "fieldname": "theme_ink",
    "fieldtype": "Color",
-   "label": "Ink"
+   "label": "Ink",
+   "description": "The main text colour. It also tints every grey and every shadow, so this one choice changes the feel of the whole app."
   },
   {
-   "description": "The most-visible grey. Seeded directly so its temperature is chosen, not averaged.",
    "fieldname": "theme_ink_muted",
    "fieldtype": "Color",
-   "label": "Ink Muted"
+   "label": "Muted Text",
+   "description": "Secondary text like dates, labels and hints. Pick a warm or cool grey to set the mood."
   },
   {
-   "description": "Page background. Card surfaces and hairlines are derived from it.",
    "fieldname": "theme_canvas",
    "fieldtype": "Color",
-   "label": "Canvas"
+   "label": "Page Canvas",
+   "description": "The background behind all the cards."
+  },
+  {
+   "fieldname": "cb_theme_neutral",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "theme_wash",
+   "fieldtype": "Color",
+   "label": "Muted Fill",
+   "description": "Slightly darker patches: row hover, quiet panels, the search box. Blank = worked out from Canvas."
+  },
+  {
+   "fieldname": "theme_border",
+   "fieldtype": "Color",
+   "label": "Border",
+   "description": "Thin lines around cards, inputs and between table rows. Blank = worked out from Canvas."
+  },
+  {
+   "fieldname": "theme_border_strong",
+   "fieldtype": "Color",
+   "label": "Border Strong",
+   "description": "Heavier dividers and the edge of outlined buttons. Blank = worked out from Canvas."
+  },
+  {
+   "fieldname": "sb_theme_status",
+   "fieldtype": "Section Break",
+   "label": "Theme — Status Colours",
+   "description": "Each one also makes its own pale badge background."
+  },
+  {
+   "fieldname": "theme_success",
+   "fieldtype": "Color",
+   "label": "Success",
+   "description": "Good news: won deals, paid invoices, completed tasks."
+  },
+  {
+   "fieldname": "theme_warning",
+   "fieldtype": "Color",
+   "label": "Warning",
+   "description": "Needs attention: overdue tasks, pending quotations."
   },
   {
    "fieldname": "cb_theme",
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "theme_success",
-   "fieldtype": "Color",
-   "label": "Success"
-  },
-  {
-   "fieldname": "theme_warning",
-   "fieldtype": "Color",
-   "label": "Warning"
-  },
-  {
    "fieldname": "theme_danger",
    "fieldtype": "Color",
-   "label": "Danger"
+   "label": "Danger",
+   "description": "Problems: lost deals, failed messages, errors."
   },
   {
    "fieldname": "theme_info",
    "fieldtype": "Color",
-   "label": "Info"
+   "label": "Info",
+   "description": "Neutral notes and secondary chart lines."
+  },
+  {
+   "fieldname": "sb_theme_fonts",
+   "fieldtype": "Section Break",
+   "label": "Theme — Fonts",
+   "description": "Bundled fonts need no internet connection. Choose Custom to use any Google font — give its family name and the stylesheet link."
+  },
+  {
+   "fieldname": "theme_font_sans",
+   "fieldtype": "Select",
+   "label": "Body Font",
+   "options": "\nPoppins\nInter\nIBM Plex Sans\nSpace Grotesk\nCustom",
+   "description": "The font for almost everything — text, buttons, tables."
+  },
+  {
+   "fieldname": "theme_font_sans_name",
+   "fieldtype": "Data",
+   "label": "Body Font — Custom Family",
+   "depends_on": "eval:doc.theme_font_sans=='Custom'"
+  },
+  {
+   "fieldname": "theme_font_display",
+   "fieldtype": "Select",
+   "label": "Headings Font",
+   "options": "\nFraunces\nPoppins\nInter\nSpace Grotesk\nCustom",
+   "description": "Big page titles and panel headings."
+  },
+  {
+   "fieldname": "theme_font_display_name",
+   "fieldtype": "Data",
+   "label": "Headings Font — Custom Family",
+   "depends_on": "eval:doc.theme_font_display=='Custom'"
+  },
+  {
+   "fieldname": "theme_font_mono",
+   "fieldtype": "Select",
+   "label": "Numbers Font",
+   "options": "\nIBM Plex Mono\nPoppins\nInter\nCustom",
+   "description": "Figures in KPI tiles and codes like invoice numbers."
+  },
+  {
+   "fieldname": "theme_font_mono_name",
+   "fieldtype": "Data",
+   "label": "Numbers Font — Custom Family",
+   "depends_on": "eval:doc.theme_font_mono=='Custom'"
+  },
+  {
+   "fieldname": "cb_theme_fonts",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "theme_google_fonts_url",
+   "fieldtype": "Data",
+   "label": "Google Fonts Link",
+   "description": "Only for Custom fonts. Must start https://fonts.googleapis.com — any other address is refused."
+  },
+  {
+   "fieldname": "sb_theme_shape",
+   "fieldtype": "Section Break",
+   "label": "Theme — Corners",
+   "description": "How rounded things are. A size like 8px or 0.5rem, or 0 for square corners."
+  },
+  {
+   "fieldname": "theme_radius",
+   "fieldtype": "Data",
+   "label": "Small Corners",
+   "description": "Buttons, inputs and badges. Blank = 12px."
+  },
+  {
+   "fieldname": "theme_radius_card",
+   "fieldtype": "Data",
+   "label": "Card Corners",
+   "description": "Cards, KPI tiles and tables. Blank = as shipped."
+  },
+  {
+   "fieldname": "cb_theme_shape",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "theme_radius_panel",
+   "fieldtype": "Data",
+   "label": "Panel Corners",
+   "description": "Dialogs, the sidebar and large panels. Blank = as shipped."
+  },
+  {
+   "fieldname": "sb_theme_advanced",
+   "fieldtype": "Section Break",
+   "label": "Theme — Advanced",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "theme_custom_css",
+   "fieldtype": "Code",
+   "label": "Custom CSS",
+   "options": "CSS",
+   "description": "For developers: CSS custom properties applied last, e.g. --ink-4: #54586b; — overrides anything above."
   }
  ],
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-28 12:00:00.000000",
+ "modified": "2026-09-28 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Upande CRM",
  "name": "Upande CRM Settings",

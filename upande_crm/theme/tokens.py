@@ -17,21 +17,64 @@ from that fitting are worth keeping in view:
 """
 
 import colorsys
+import re
 
-from upande_crm.theme import color
+from upande_crm.theme import color, fonts
 
 # Seed fields on Upande CRM Settings. Owned here because this is what consumes
 # them; transfer.py and the API import this rather than repeating the list.
 SEED_FIELDS = (
     "theme_accent",
+    "theme_accent_dark",
+    "theme_accent_soft",
     "theme_ink",
     "theme_ink_muted",
     "theme_canvas",
+    "theme_wash",
+    "theme_border",
+    "theme_border_strong",
     "theme_success",
     "theme_warning",
     "theme_danger",
     "theme_info",
 )
+
+# Seeds that pin one derived token family instead of feeding the derivation.
+# Blank = worked out from the seeds above, exactly as before they existed.
+PIN_FIELDS = ("theme_accent_dark", "theme_accent_soft", "theme_wash", "theme_border", "theme_border_strong")
+
+RADIUS_FIELDS = (
+    # (field, tokens it sets)
+    ("theme_radius", ("radius", "r-sm")),
+    ("theme_radius_card", ("r-card",)),
+    ("theme_radius_panel", ("r-panel",)),
+)
+# A bare CSS length: 0, or a non-negative number with px/rem/em.
+RADIUS_RE = re.compile(r"^(0|\d+(\.\d+)?(px|rem|em))$")
+
+# Every theme field on Upande CRM Settings, in form order. The API, the reset
+# and the tests all read this one list.
+THEME_FIELDS = SEED_FIELDS + (
+    "theme_accent_primary",
+    "theme_font_sans", "theme_font_sans_name",
+    "theme_font_display", "theme_font_display_name",
+    "theme_font_mono", "theme_font_mono_name",
+    "theme_google_fonts_url",
+    "theme_radius", "theme_radius_card", "theme_radius_panel",
+    "theme_custom_css",
+)
+
+# The shipped values of tokens the editor shows as "worked out for you" and the
+# contrast report falls back on when nothing overrides them. Mirrors
+# frontend/src/index.css; test_theme checks they agree.
+SHIPPED = {
+    "text": "#0a0a0a", "text-3": "#8a8780", "bg": "#f4f3ef", "surface": "#ffffff",
+    "surface-3": "#efede9", "line": "#e6e3dc", "line-2": "#cdc9bf",
+    "gold": "#d9a514", "gold-2": "#a87d0d", "gold-soft": "#f7edcd", "gold-text": "#8a6a10",
+    "on-accent": "#000000",
+    "good": "#3f8f4f", "good-soft": "#e7f1e9", "warn": "#96650f", "warn-soft": "#f7ecce",
+    "bad": "#c4302b", "bad-soft": "#f8e4e2", "info": "#175cd3", "info-soft": "#e0eaff",
+}
 
 DEFAULT_CANVAS = (244, 243, 239)
 
@@ -146,6 +189,94 @@ def get_tokens(settings):
         out[soft_token] = color.to_hex(color.mix(seed, color.WHITE, SOFT_MIX))
 
     out.update(_shadcn_channels(out, ink, canvas, _seed(settings, "theme_danger")))
+    _apply_pins(out, settings, accent)
+    _apply_fonts(out, settings)
+    _apply_radius(out, settings)
+    return out
+
+
+def _apply_pins(out, settings, accent):
+    """Hand-picked colours that override one derived family each."""
+    hsl = color.to_hsl_channels
+    dark = _seed(settings, "theme_accent_dark")
+    if dark:
+        out["gold-2"] = out["gold-text"] = color.to_hex(dark)
+        light = color.to_hex(_lighten(accent, ACCENT_LIGHT_LIFT)) if accent else "#edc23c"
+        out["grad-gold"] = f"linear-gradient(135deg, {out['gold-2']} 0%, {light} 100%)"
+    soft = _seed(settings, "theme_accent_soft")
+    if soft:
+        out["gold-soft"] = out["selected"] = color.to_hex(soft)
+    wash = _seed(settings, "theme_wash")
+    if wash:
+        out["surface-3"] = color.to_hex(wash)
+        out["secondary"] = out["muted"] = hsl(wash)
+    border = _seed(settings, "theme_border")
+    if border:
+        out["line"] = color.to_hex(border)
+        out["border"] = out["input"] = out["accent"] = hsl(border)
+        out["hairline"] = color.rgba(border, 0.6)
+    strong = _seed(settings, "theme_border_strong")
+    if strong:
+        out["line-2"] = color.to_hex(strong)
+
+    # The brand colour as the action colour: main buttons, focus ring, the
+    # active menu item. Needs an accent to act on.
+    if accent and settings.get("theme_accent_primary") and str(settings.get("theme_accent_primary")) != "0":
+        on = out.get("on-accent") or color.to_hex(
+            color.best_contrast((accent,), (color.BLACK, color.WHITE)))
+        out["primary"] = hsl(accent)
+        out["ring"] = hsl(accent)
+        out["primary-foreground"] = hsl(color.parse(on))
+        out["nav-active"] = color.to_hex(accent)
+        out["nav-active-fg"] = on
+
+
+def _apply_fonts(out, settings):
+    resolved = fonts.resolve(settings)
+    for role, _choice, _name, token in fonts.ROLES:
+        if resolved[role]:
+            out[token] = resolved[role]
+
+
+def _apply_radius(out, settings):
+    for field, tokens in RADIUS_FIELDS:
+        value = str(settings.get(field) or "").strip()
+        if value and RADIUS_RE.match(value):
+            for token in tokens:
+                out[token] = value
+
+
+# ---------------------------------------------------------------- contrast
+# (key, plain-English label, foreground token, background token)
+CONTRAST_PAIRS = (
+    ("text_on_bg", "Main text on the page", "text", "bg"),
+    ("muted_on_bg", "Muted text on the page", "text-3", "bg"),
+    ("text_on_surface", "Main text on cards", "text", "surface"),
+    ("on_accent", "Text on brand-coloured buttons", "on-accent", "gold"),
+    ("accent_text_on_soft", "Brand text on its pale tint", "gold-text", "gold-soft"),
+    ("good_badge", "Success badge", "good", "good-soft"),
+    ("warn_badge", "Warning badge", "warn", "warn-soft"),
+    ("bad_badge", "Danger badge", "bad", "bad-soft"),
+    ("info_badge", "Info badge", "info", "info-soft"),
+)
+
+
+def contrast_report(tokens):
+    """WCAG contrast for the pairs a non-designer is most likely to break.
+
+    ok >= 4.5 (readable at any size), warn >= 3 (large text only), bad below.
+    Tokens a theme does not set fall back to the shipped palette.
+    """
+    out = []
+    for key, label, fg_t, bg_t in CONTRAST_PAIRS:
+        fg = color.parse(tokens.get(fg_t) or SHIPPED[fg_t])
+        bg = color.parse(tokens.get(bg_t) or SHIPPED[bg_t])
+        if not fg or not bg:
+            continue
+        ratio = round(color.contrast(fg, bg), 2)
+        level = "ok" if ratio >= 4.5 else "warn" if ratio >= 3 else "bad"
+        out.append({"key": key, "label": label, "fg": color.to_hex(fg), "bg": color.to_hex(bg),
+                    "ratio": ratio, "level": level})
     return out
 
 
@@ -201,9 +332,23 @@ def _shadcn_channels(tokens, ink, canvas, danger):
 
 
 def get_theme_css(settings):
-    """The full <style> body, or '' when nothing is configured."""
+    """The full <style> body, or '' when nothing is configured.
+
+    Custom CSS goes last, inside the same :root, so it overrides anything the
+    derivation produced. The settings controller refuses any `<` in it, so it
+    cannot close the <style> element it is rendered into.
+    """
     tokens = get_tokens(settings)
-    if not tokens:
+    custom = str(settings.get("theme_custom_css") or "").strip()
+    if not tokens and not custom:
         return ""
-    body = "\n".join(f"  --{name}: {value};" for name, value in sorted(tokens.items()))
+    lines = [f"  --{name}: {value};" for name, value in sorted(tokens.items())]
+    if custom and "<" not in custom:
+        lines += ["  " + line.strip() for line in custom.splitlines() if line.strip()]
+    body = "\n".join(lines)
     return f":root {{\n{body}\n}}"
+
+
+def get_font_link(settings):
+    """The Google Fonts stylesheet URL to <link>, or None."""
+    return fonts.resolve(settings)["link"]

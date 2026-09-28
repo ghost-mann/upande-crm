@@ -170,3 +170,24 @@ class TestEnforcement(FrappeTestCase):
         from upande_crm.api.crm import crm_dashboard_leads
 
         self.assertIsInstance(crm_dashboard_leads(), dict)
+
+
+class TestBackfillBeforeModelSync(FrappeTestCase):
+    """setup() runs on before_migrate, before new fields reach the DocType meta.
+    The defaults must come from the shipped JSON, or the first migrate after an
+    upgrade leaves claim_sla_days unset and every settings save fails its bounds."""
+
+    def tearDown(self):
+        _clear()
+
+    def test_fields_missing_from_the_meta_are_still_backfilled(self):
+        from unittest.mock import patch
+
+        from upande_crm.patches import backfill_module_switches as B
+
+        frappe.db.sql("delete from `tabSingles` where doctype=%s and field='claim_sla_days'", S.SETTINGS_DOCTYPE)
+        real = frappe.get_meta(S.SETTINGS_DOCTYPE).fields
+        stale = [f for f in real if f.fieldname != "claim_sla_days"]
+        with patch.object(B, "_meta_fields", return_value=stale):
+            B.execute()
+        self.assertEqual(frappe.db.get_single_value(S.SETTINGS_DOCTYPE, "claim_sla_days"), 7)

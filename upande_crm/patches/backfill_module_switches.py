@@ -19,19 +19,40 @@ from upande_crm.modules import MODULES
 SETTINGS_DOCTYPE = "Upande CRM Settings"
 
 
+def _meta_fields():
+    return frappe.get_meta(SETTINGS_DOCTYPE).fields
+
+
 def _defaults():
-    """{field: default} from the doctype JSON, plus the module switches.
+    """{field: default}, from the shipped doctype JSON first, then the live meta,
+    plus the module switches.
+
+    The JSON on disk is the authority because setup() runs on before_migrate —
+    before model sync — so a field added in this release is not in the meta yet.
+    Reading only the meta left new fields unset on the first migrate after an
+    upgrade, and a bounded Int among them made every settings save fail.
 
     Module switches default to whether the module is built, which is what the
-    registry says — the JSON default and the registry are kept in step by
-    test_modules, but the registry is the authority.
+    registry says.
     """
+    import json
+    import os
+
+    skip = ("Section Break", "Column Break", "Tab Break", "HTML")
     out = {}
     try:
-        meta = frappe.get_meta(SETTINGS_DOCTYPE)
-        for f in meta.fields:
-            if f.default not in (None, "") and f.fieldtype not in ("Section Break", "Column Break", "Tab Break"):
-                out[f.fieldname] = f.default
+        path = os.path.join(frappe.get_app_path("upande_crm"), "upande_crm", "doctype",
+                            "upande_crm_settings", "upande_crm_settings.json")
+        with open(path, encoding="utf-8") as handle:
+            for f in json.load(handle).get("fields", []):
+                if f.get("default") not in (None, "") and f.get("fieldtype") not in skip:
+                    out[f["fieldname"]] = f["default"]
+    except Exception:
+        pass
+    try:
+        for f in _meta_fields():
+            if f.default not in (None, "") and f.fieldtype not in skip:
+                out.setdefault(f.fieldname, f.default)
     except Exception:
         pass
     for m in MODULES:

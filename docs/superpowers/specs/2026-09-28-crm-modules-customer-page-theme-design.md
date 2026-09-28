@@ -1,7 +1,7 @@
 # CRM Modules, Customer Page & Theme — Design
 
 **Date:** 2026-09-28
-**Status:** Approved design
+**Status:** Approved design — implemented 2026-09-28 (see Implementation notes)
 **Scope:** Sub-project 0 + 1 of the client CRM feature list, plus a theme rework.
 Later sub-projects (each its own spec): Claims tracking, Quotations, Visit logging,
 Pipeline stages & lead qualification, remaining reporting gaps.
@@ -306,3 +306,28 @@ tokens; fonts URL allow-list; radius and custom-CSS validation; empty settings e
 3. Theme: remove presets, new seeds + derivation, fonts, radius variables, new Theme tab.
 
 Each step leaves the app working and is committed separately.
+
+---
+
+## Implementation notes (2026-09-28)
+
+Where the build departed from this design, and why:
+
+- **Live preview uses the server, not a JS port.** `crm_theme_preview(seeds)` derives
+  a draft without saving, so preview and saved theme cannot disagree and there is no
+  second derivation to keep in step.
+- **Saved themes swap `<style id="crm-theme">`.** The payload carries the rendered CSS;
+  the SPA replaces the block (and the Custom-font `<link>`) in place. The old inline
+  token overrides never cleared on reset or when a field was blanked.
+- **Module backfill.** A Check added to an already-saved Single reads 0, not its
+  default, so `setup()` fills missing module rows on install and every migrate
+  (`patches/backfill_module_switches.py`). A saved choice is never overwritten.
+- **Customer page entry points** are the Customers tables and the Opportunities
+  customer cell. The top search is a table filter and territory panels list no
+  clickable customers, so neither links.
+- **No WhatsApp quick action** on the customer header: opening a conversation needs a
+  phone number the header does not carry. WhatsApp messages still show on the Timeline.
+- **Email timeline** is three indexed branches merged in Python (1.3s → 0.03s for a
+  customer with 5,600 emails).
+- **Corner radii** keep today's look: `--r-card` / `--r-panel` default to 24px and inner
+  shapes derive from them (KPI tiles −4px, tables −10px, dialogs −8px).

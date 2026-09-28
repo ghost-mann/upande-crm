@@ -81,6 +81,11 @@ GATED = {
         "upande_crm.api.quotations.crm_dashboard_quotations",
         "upande_crm.api.quotations.crm_customer_quotations",
     ],
+    "visits": [
+        "upande_crm.api.visits.crm_dashboard_visits",
+        "upande_crm.api.visits.crm_visit_save",
+        "upande_crm.api.visits.crm_customer_visits",
+    ],
     "claims": [
         "upande_crm.api.claims.crm_dashboard_claims",
         "upande_crm.api.claims.crm_claim_save",

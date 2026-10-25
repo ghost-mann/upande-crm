@@ -325,3 +325,130 @@ def crm_catalogue_links(name):
         for k in ("sent_on", "first_opened_on", "last_opened_on"):
             r[k] = str(r[k]) if r.get(k) else None
     return {"rows": rows}
+
+
+# ---------------------------------------------------------------- interests
+INTEREST_STATUSES = ("New", "Contacted", "Converted", "Dropped")
+INTEREST_FIELDS = ["name", "catalogue", "via_link", "party_type", "party", "status", "opportunity", "contact_name",
+                   "company_name", "email", "phone", "country", "currency", "creation"]
+
+
+def _owners(catalogues):
+    return dict(frappe.get_all(DOCTYPE, filters={"name": ["in", list(catalogues) or [""]]},
+                               fields=["name", "owner"], as_list=True))
+
+
+def _visible(rows):
+    """Interests the user may see: whoever can read the party, plus the
+    catalogue's owner and sales managers (spec: user's decision)."""
+    from upande_crm.api.visits import readable_parties
+
+    if is_manager():
+        return rows
+    owners = _owners({r["catalogue"] for r in rows})
+    me = frappe.session.user
+    readable = {r["name"] for r in readable_parties(rows)}
+    return [r for r in rows if r["name"] in readable or owners.get(r["catalogue"]) == me]
+
+
+def _interest_doc(name):
+    doc = frappe.get_doc(INTEREST, name)
+    if not _visible([{"name": doc.name, "catalogue": doc.catalogue, "party_type": doc.party_type,
+                      "party": doc.party}]):
+        frappe.throw(_("Not permitted to see this interest."), frappe.PermissionError)
+    return doc
+
+
+@frappe.whitelist()
+@requires_module("cat")
+def crm_catalogue_interests(catalogue=None, status=None, party_type=None, party=None):
+    _guard()
+    if not _has(INTEREST):
+        return {"rows": []}
+    filters = {k: v for k, v in {"catalogue": catalogue, "status": status, "party_type": party_type,
+                                 "party": party}.items() if v}
+    rows = _visible(frappe.get_all(INTEREST, filters=filters, fields=INTEREST_FIELDS, order_by="creation desc",
+                                   limit=1000))
+    if not rows:
+        return {"rows": []}
+    it = frappe.qb.DocType("CRM Catalogue Interest Item")
+    from frappe.query_builder.functions import Max, Sum
+
+    totals = {r[0]: r[1:] for r in (
+        frappe.qb.from_(it).select(it.parent, Count("*"), Sum(it.qty),
+                                   Max((it.frequency == "Weekly")))
+        .where(it.parent.isin([r["name"] for r in rows]) & (it.parenttype == INTEREST))
+        .groupby(it.parent).run())}
+    titles = dict(frappe.get_all(DOCTYPE, filters={"name": ["in", list({r["catalogue"] for r in rows})]},
+                                 fields=["name", "title"], as_list=True))
+    for r in rows:
+        n, boxes, weekly = totals.get(r["name"], (0, 0, 0))
+        r.update({"lines": n, "boxes": boxes or 0, "weekly": bool(weekly), "catalogue_title": titles.get(r["catalogue"]),
+                  "creation": str(r["creation"])})
+        r["party_name"] = _party_name(r["party_type"], r["party"]) if r.get("party") else None
+    return {"rows": rows}
+
+
+@frappe.whitelist()
+@requires_module("cat")
+def crm_catalogue_interest_get(name):
+    _guard()
+    doc = _interest_doc(name)
+    out = {f: doc.get(f) for f in INTEREST_FIELDS + ["message"]}
+    out["creation"] = str(doc.creation)
+    out["catalogue_title"] = frappe.db.get_value(DOCTYPE, doc.catalogue, "title")
+    out["party_name"] = _party_name(doc.party_type, doc.party) if doc.party else None
+    out["items"] = [{f: i.get(f) for f in ("item", "item_name", "grade", "box_type", "pack_qty", "qty", "frequency",
+                                           "price", "tier_price", "priced")} for i in doc.items]
+    return {"interest": out}
+
+
+@frappe.whitelist(methods=["POST"])
+@requires_module("cat")
+def crm_catalogue_interest_status(name, status):
+    _guard()
+    if status not in INTEREST_STATUSES:
+        frappe.throw(_("Unknown status {0}").format(status), frappe.ValidationError)
+    doc = _interest_doc(name)
+    doc.status = status
+    doc.save(ignore_permissions=True)
+    return {"status": doc.status}
+
+
+def _rate(item, tier_qty):
+    """The tier price when this line's boxes exceed the catalogue's threshold
+    (judged per line: user's decision), else the standard price."""
+    if not item.priced:
+        return 0
+    if tier_qty and item.qty > tier_qty and item.tier_price:
+        return item.tier_price
+    return item.price
+
+
+@frappe.whitelist(methods=["POST"])
+@requires_module("cat")
+def crm_catalogue_make_opportunity(name):
+    """An Opportunity for the interest's party with its lines. Weekly lines go
+    across as per-week quantities, marked Weekly, for sales to adjust."""
+    _guard()
+    doc = _interest_doc(name)
+    if doc.opportunity and frappe.db.exists("Opportunity", doc.opportunity):
+        return {"opportunity": doc.opportunity}
+    if not doc.party:
+        frappe.throw(_("This interest has no lead or customer to make an opportunity for."))
+    cat = frappe.get_doc(DOCTYPE, doc.catalogue)
+    tier_qty = frappe.utils.cint(cat.volume_tier_qty)
+    items = []
+    for i in doc.items:
+        units = i.qty * i.pack_qty if i.pack_qty else i.qty
+        items.append({"item_code": i.item, "qty": units, "rate": _rate(i, tier_qty),
+                      "description": f"{i.item_name or i.item} — {i.grade or ''} · {i.box_type or ''} · "
+                                     f"{frappe.utils.fmt_money(i.qty, precision=0)} boxes {i.frequency}"})
+    opp = frappe.get_doc({"doctype": "Opportunity", "opportunity_from": doc.party_type, "party_name": doc.party,
+                          "company": cat.company, "currency": doc.currency, "items": items,
+                          "contact_email": doc.email or None})
+    opp.flags.ignore_mandatory = True
+    opp.insert()
+    opp.add_comment("Info", _("Made from catalogue interest {0} ({1}).").format(doc.name, cat.title))
+    doc.db_set({"opportunity": opp.name, "status": "Converted"})
+    return {"opportunity": opp.name}

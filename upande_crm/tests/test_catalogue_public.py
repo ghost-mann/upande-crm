@@ -193,13 +193,15 @@ class TestSubmit(PublicCase):
         self.assertEqual(self.interests(), [])
 
     def test_lead_with_custom_mandatory_field_still_inserts(self):
-        cf = frappe.get_doc({"doctype": "Custom Field", "dt": "Lead", "fieldname": "cat_test_reqd",
-                             "label": "Cat Test Reqd", "fieldtype": "Data", "reqd": 1}).insert(ignore_permissions=True)
+        # Made mandatory on the cached meta only: a real Custom Field is DDL, which
+        # commits, and would outlive the test's rollback.
+        field = frappe.get_meta("Lead").get_field("company_name")
+        field.reqd = 1
         try:
-            self.submit()
+            self.submit(contact=contact(company=""))
             self.assertEqual(self.interests()[0].party_type, "Lead")
         finally:
-            frappe.delete_doc("Custom Field", cf.name, ignore_permissions=True)
+            field.reqd = 0
 
     def test_owner_notified(self):
         self.submit()

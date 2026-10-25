@@ -1,0 +1,178 @@
+{
+ "actions": [],
+ "creation": "2026-10-25 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Upande CRM",
+ "name": "CRM Catalogue",
+ "modified": "2026-10-25 12:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "states": [],
+ "field_order": [
+  "title",
+  "company",
+  "status",
+  "cb_1",
+  "valid_from",
+  "valid_to",
+  "currencies",
+  "volume_tier_qty",
+  "sb_terms",
+  "terms",
+  "sb_lines",
+  "lines",
+  "sb_share",
+  "public_token",
+  "views"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Draft\nLive\nClosed",
+   "default": "Draft",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "cb_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "valid_from",
+   "fieldtype": "Date",
+   "label": "Valid From"
+  },
+  {
+   "fieldname": "valid_to",
+   "fieldtype": "Date",
+   "label": "Valid To",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "currencies",
+   "fieldtype": "Data",
+   "label": "Currencies",
+   "reqd": 1,
+   "description": "Comma separated, e.g. USD, EUR. The first is the page's default."
+  },
+  {
+   "fieldname": "volume_tier_qty",
+   "fieldtype": "Int",
+   "label": "Volume Tier (boxes)",
+   "description": "The tier price applies above this many boxes on a line. Blank: no tier."
+  },
+  {
+   "fieldname": "sb_terms",
+   "fieldtype": "Section Break",
+   "label": "Terms"
+  },
+  {
+   "fieldname": "terms",
+   "fieldtype": "Text Editor",
+   "label": "Terms"
+  },
+  {
+   "fieldname": "sb_lines",
+   "fieldtype": "Section Break",
+   "label": "Lines"
+  },
+  {
+   "fieldname": "lines",
+   "fieldtype": "Table",
+   "label": "Lines",
+   "options": "CRM Catalogue Line"
+  },
+  {
+   "fieldname": "sb_share",
+   "fieldtype": "Section Break",
+   "label": "Sharing"
+  },
+  {
+   "fieldname": "public_token",
+   "fieldtype": "Data",
+   "label": "Public Token",
+   "read_only": 1,
+   "unique": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "views",
+   "fieldtype": "Int",
+   "label": "Views",
+   "read_only": 1,
+   "no_copy": 1,
+   "default": "0"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1,
+   "export": 1,
+   "delete": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1,
+   "export": 1,
+   "delete": 1
+  },
+  {
+   "role": "Sales User",
+   "read": 1,
+   "report": 1,
+   "create": 0,
+   "write": 0
+  },
+  {
+   "role": "Sales User",
+   "if_owner": 1,
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1,
+   "export": 0,
+   "delete": 0
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "autoname": "CAT-.YYYY.-.####",
+ "naming_rule": "Expression (old style)",
+ "title_field": "title",
+ "search_fields": "title,status",
+ "track_changes": 1
+}

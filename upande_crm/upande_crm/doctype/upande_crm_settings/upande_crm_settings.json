@@ -48,6 +48,7 @@
   "module_claims",
   "module_quotations",
   "module_visits",
+  "module_catalogues",
   "sb_custpage",
   "custpage_tabs",
   "cb_custpage",
@@ -99,7 +100,11 @@
   "cb_theme_shape",
   "theme_radius_panel",
   "sb_theme_advanced",
-  "theme_custom_css"
+  "theme_custom_css",
+  "sb_catalogues",
+  "catalogue_whatsapp_template",
+  "catalogue_email_subject",
+  "catalogue_email_body"
  ],
  "fields": [
   {
@@ -678,6 +683,36 @@
    "label": "Custom CSS",
    "options": "CSS",
    "description": "For developers: CSS custom properties applied last, e.g. --ink-4: #54586b; — overrides anything above."
+  },
+  {
+   "fieldname": "module_catalogues",
+   "fieldtype": "Check",
+   "label": "Catalogues",
+   "default": "1",
+   "description": "Share price catalogues by link and collect buyers' interest as leads."
+  },
+  {
+   "fieldname": "sb_catalogues",
+   "fieldtype": "Section Break",
+   "label": "Catalogues"
+  },
+  {
+   "fieldname": "catalogue_whatsapp_template",
+   "fieldtype": "Data",
+   "label": "Catalogue WhatsApp Template",
+   "description": "APPROVED template used to send a catalogue link outside WhatsApp's 24-hour window. The link fills its first body variable."
+  },
+  {
+   "fieldname": "catalogue_email_subject",
+   "fieldtype": "Data",
+   "label": "Catalogue Email Subject",
+   "default": "{catalogue}: our current offer"
+  },
+  {
+   "fieldname": "catalogue_email_body",
+   "fieldtype": "Small Text",
+   "label": "Catalogue Email Body",
+   "default": "Hello {name},\n\nOur current offer is here: {link}\n\nTick what you'd like and send it back; we'll be in touch."
   }
  ],
  "index_web_pages_for_search": 0,

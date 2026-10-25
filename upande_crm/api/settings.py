@@ -64,6 +64,11 @@ DEFAULTS = {
     "visit_purposes": "Farm tour\nVariety showcase\nRelationship check-in\nComplaint follow-up\nPrice negotiation\nOther",
     "opportunity_stages": "Prospecting\nSample Dispatch\nQuotation\nNegotiation",
     "lead_channels": "Email\nPhone Call\nTrade Event\nReferral\nWebsite",
+    # Catalogues (see docs/superpowers/specs/2026-10-25-crm-catalogues-design.md).
+    "catalogue_whatsapp_template": "",
+    "catalogue_email_subject": "{catalogue}: our current offer",
+    "catalogue_email_body": "Hello {name},\n\nOur current offer is here: {link}\n\n"
+                            "Tick what you'd like and send it back; we'll be in touch.",
 }
 
 # Theme fields. Blank means "not themed" — the compiled palette is used and no

@@ -1,0 +1,105 @@
+{
+ "actions": [],
+ "creation": "2026-10-25 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Upande CRM",
+ "name": "CRM Catalogue Line",
+ "modified": "2026-10-25 12:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "states": [],
+ "field_order": [
+  "item",
+  "item_name",
+  "grade",
+  "box_type",
+  "color",
+  "vbn",
+  "cb_1",
+  "pack_qty",
+  "bunch",
+  "weight",
+  "info_url",
+  "prices"
+ ],
+ "fields": [
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "label": "Item",
+   "options": "Item",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Item Name",
+   "fetch_from": "item.item_name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grade",
+   "fieldtype": "Data",
+   "label": "Grade",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "box_type",
+   "fieldtype": "Data",
+   "label": "Box Type",
+   "default": "Standard",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "color",
+   "fieldtype": "Data",
+   "label": "Colour"
+  },
+  {
+   "fieldname": "vbn",
+   "fieldtype": "Data",
+   "label": "VBN"
+  },
+  {
+   "fieldname": "cb_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pack_qty",
+   "fieldtype": "Float",
+   "label": "Pack Qty",
+   "in_list_view": 1,
+   "description": "Units per box (packrate)."
+  },
+  {
+   "fieldname": "bunch",
+   "fieldtype": "Data",
+   "label": "Bunch"
+  },
+  {
+   "fieldname": "weight",
+   "fieldtype": "Float",
+   "label": "Weight",
+   "description": "Per box."
+  },
+  {
+   "fieldname": "info_url",
+   "fieldtype": "Data",
+   "label": "Info URL",
+   "options": "URL"
+  },
+  {
+   "fieldname": "prices",
+   "fieldtype": "JSON",
+   "label": "Prices",
+   "description": "{\"USD\": {\"price\": 0.23, \"tier\": 0.22}}"
+  }
+ ],
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "istable": 1,
+ "editable_grid": 1
+}

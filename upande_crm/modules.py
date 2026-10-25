@@ -61,6 +61,8 @@ MODULES = (
            "Log complaints and quality claims against customers and orders, and track them to resolution.", True),
     Module("visits", "module_visits", "Visits", ("visits",), "Communication",
            "Farm visits by customers and customer visits by sales staff, with outcomes and follow-ups.", True),
+    Module("cat", "module_catalogues", "Catalogues", ("cat",), "Pipeline",
+           "Share price catalogues by link and collect buyers' interest as leads.", True),
 )
 
 _BY_KEY = {m.key: m for m in MODULES}

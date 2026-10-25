@@ -96,4 +96,11 @@ GATED = {
         "upande_crm.api.claims.crm_claim_references",
         "upande_crm.api.claims.crm_customer_claims",
     ],
+    "cat": [
+        "upande_crm.api.catalogues.crm_catalogues",
+        "upande_crm.api.catalogues.crm_catalogue_get",
+        "upande_crm.api.catalogues.crm_catalogue_save",
+        "upande_crm.api.catalogues.crm_catalogue_status",
+        "upande_crm.api.catalogues.crm_catalogue_duplicate",
+    ],
 }

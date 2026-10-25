@@ -74,6 +74,9 @@ CRM_ROLE_PERMS = {
 		("Item", 0): "read",
 		("CRM Claim", 0): _USER,
 		("CRM Visit", 0): _USER,
+		("CRM Catalogue", 0): _USER,
+		("CRM Catalogue Link", 0): _USER,
+		("CRM Catalogue Interest", 0): _USER,
 	},
 	"CRM Manager": {
 		("Lead", 0): _MANAGER,
@@ -89,6 +92,9 @@ CRM_ROLE_PERMS = {
 		("Item", 0): "read",
 		("CRM Claim", 0): _MANAGER + ",delete",
 		("CRM Visit", 0): _MANAGER + ",delete",
+		("CRM Catalogue", 0): _MANAGER + ",delete",
+		("CRM Catalogue Link", 0): _MANAGER + ",delete",
+		("CRM Catalogue Interest", 0): _MANAGER + ",delete",
 	},
 }
 

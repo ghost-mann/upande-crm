@@ -6,6 +6,9 @@ app_email = "dev@upande.com"
 app_license = "mit"
 # required_apps = []
 
+# Animated logos play only on hover -- see the file.
+app_include_js = "/assets/upande_crm/js/hover_logos.js"
+
 # The CRM SPA is served at /customer-relationship-management by upande_crm/www/customer-relationship-management.{html,py}. The built
 # Vite assets live under upande_crm/public/frontend/ and are served by Frappe
 # at /assets/upande_crm/frontend/ (matching the frontend build `base`).

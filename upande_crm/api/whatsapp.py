@@ -546,8 +546,13 @@ def crm_whatsapp_send(to, message, reference_doctype=None, reference_name=None, 
 
 @frappe.whitelist()
 @requires_module("wa")
-def crm_whatsapp_send_template(to, template, reference_doctype=None, reference_name=None):
-    """Send an approved template. Valid regardless of the 24-hour window."""
+def crm_whatsapp_send_template(to, template, reference_doctype=None, reference_name=None, body_params=None):
+    """Send an approved template. Valid regardless of the 24-hour window.
+
+    `body_params` (a JSON list) fills the template's body variables in order —
+    {{1}}, {{2}}… — through frappe_whatsapp's `body_param`. Without it the
+    template's own field mapping applies, as before.
+    """
     _guard()
     if not _available():
         frappe.throw(_("WhatsApp is not configured on this site"))
@@ -573,6 +578,11 @@ def crm_whatsapp_send_template(to, template, reference_doctype=None, reference_n
         "reference_doctype": reference_doctype or None,
         "reference_name": reference_name or None,
     })
+    if body_params:
+        params = json.loads(body_params) if isinstance(body_params, str) else body_params
+        if not isinstance(params, list):
+            frappe.throw(_("Template parameters must be a list"))
+        doc.body_param = json.dumps({str(i + 1): str(v) for i, v in enumerate(params)})
     doc.insert(ignore_permissions=True)
     return {"name": doc.name, "status": doc.status or "sent"}
 

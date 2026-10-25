@@ -103,5 +103,8 @@ GATED = {
         "upande_crm.api.catalogues.crm_catalogue_status",
         "upande_crm.api.catalogues.crm_catalogue_duplicate",
         "upande_crm.api.catalogue_import.crm_catalogue_import",
+        "upande_crm.api.catalogues.crm_catalogue_share_options",
+        "upande_crm.api.catalogues.crm_catalogue_share",
+        "upande_crm.api.catalogues.crm_catalogue_links",
     ],
 }

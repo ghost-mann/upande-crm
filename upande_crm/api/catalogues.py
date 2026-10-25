@@ -170,3 +170,158 @@ def crm_catalogue_duplicate(name):
     new.title = _("{0} (copy)").format(new.title)
     new.insert(ignore_permissions=True)
     return {"name": new.name}
+
+
+# ---------------------------------------------------------------- sharing
+CHANNELS = ("Email", "WhatsApp", "Copied")
+
+
+def _party_contact(party_type, party):
+    """(email, phone) for a Lead or Customer: its own fields, else its contact's."""
+    if party_type == "Lead":
+        row = frappe.db.get_value("Lead", party, ["email_id", "mobile_no", "phone"], as_dict=True) or {}
+        email, phone = row.get("email_id"), row.get("mobile_no") or row.get("phone")
+    else:
+        row = frappe.db.get_value("Customer", party, ["email_id", "mobile_no"], as_dict=True) or {}
+        email, phone = row.get("email_id"), row.get("mobile_no")
+    if not (email and phone):
+        contacts = frappe.db.sql(
+            """select c.email_id, coalesce(nullif(c.mobile_no, ''), c.phone)
+               from `tabContact` c join `tabDynamic Link` dl on dl.parent = c.name and dl.parenttype = 'Contact'
+               where dl.link_doctype = %s and dl.link_name = %s
+               order by c.is_primary_contact desc, c.modified desc limit 1""", (party_type, party))
+        if contacts:
+            email, phone = email or contacts[0][0], phone or contacts[0][1]
+    return email or None, phone or None
+
+
+def _party_name(party_type, party):
+    field = "lead_name" if party_type == "Lead" else "customer_name"
+    return frappe.db.get_value(party_type, party, field) or party
+
+
+def _options(doc, party_type, party):
+    from upande_crm.api import whatsapp as wa
+    from upande_crm.api.settings import get_settings
+    from upande_crm.modules import is_enabled
+
+    email, phone = _party_contact(party_type, party)
+    reason = {}
+    can_email = bool(is_enabled("mail") and email)
+    if not can_email:
+        reason["email"] = _("Mail is switched off in CRM Settings.") if not is_enabled("mail") else \
+            _("No email address on record.")
+    mode = None
+    if not (is_enabled("wa") and wa._available()):
+        reason["whatsapp"] = _("WhatsApp is not set up on this site.")
+    elif not phone:
+        reason["whatsapp"] = _("No phone number on record.")
+    elif wa._window_open(wa._last_inbound_at(wa._norm(phone))):
+        mode = "text"
+    elif get_settings().get("catalogue_whatsapp_template"):
+        mode = "template"
+    else:
+        reason["whatsapp"] = _("They haven't messaged in 24 hours, and no catalogue template is set in CRM Settings.")
+    return {"email": email, "phone": phone,
+            "channels": {"email": can_email, "whatsapp": bool(mode), "whatsapp_mode": mode, "copy": True},
+            "reason": reason}
+
+
+def _check_party(party_type, party):
+    if party_type not in ("Lead", "Customer"):
+        frappe.throw(_("A catalogue can be sent to a Lead or a Customer."))
+    frappe.has_permission(party_type, "read", party, throw=True)
+
+
+@frappe.whitelist()
+@requires_module("cat")
+def crm_catalogue_share_options(name, party_type, party):
+    """Which channels can reach this party, and why not when one can't."""
+    _guard()
+    frappe.has_permission(DOCTYPE, "read", name, throw=True)
+    _check_party(party_type, party)
+    return _options(frappe.get_doc(DOCTYPE, name), party_type, party)
+
+
+def _fill(template, **values):
+    for k, v in values.items():
+        template = template.replace("{" + k + "}", str(v or ""))
+    return template
+
+
+@frappe.whitelist(methods=["POST"])
+@requires_module("cat")
+def crm_catalogue_share(name, party_type, party, channel, subject=None, body=None):
+    """Make (or reuse) the party's personal link and send it by `channel`."""
+    from upande_crm.api import whatsapp as wa
+    from upande_crm.api.crm import crm_send_email
+    from upande_crm.api.settings import get_settings
+
+    _guard()
+    if channel not in CHANNELS:
+        frappe.throw(_("Unknown channel {0}").format(channel))
+    frappe.has_permission(DOCTYPE, "read", name, throw=True)
+    _check_party(party_type, party)
+    doc = frappe.get_doc(DOCTYPE, name)
+    if doc.status != "Live":
+        frappe.throw(_("Put the catalogue live before sending it."))
+    opts = _options(doc, party_type, party)
+    if channel == "Email" and not opts["channels"]["email"]:
+        exc = frappe.PermissionError if "switched off" in opts["reason"].get("email", "") else frappe.ValidationError
+        frappe.throw(opts["reason"]["email"], exc)
+    if channel == "WhatsApp" and not opts["channels"]["whatsapp"]:
+        frappe.throw(opts["reason"]["whatsapp"])
+
+    existing = frappe.db.get_value(LINK, {"catalogue": name, "party_type": party_type, "party": party,
+                                          "sent_via": channel}, "name")
+    link = frappe.get_doc(LINK, existing) if existing else frappe.get_doc({
+        "doctype": LINK, "catalogue": name, "party_type": party_type, "party": party, "sent_via": channel})
+    link.update({"contact_email": opts["email"], "contact_phone": opts["phone"],
+                 "sent_by": frappe.session.user, "sent_on": frappe.utils.now_datetime()})
+    link.save(ignore_permissions=True) if existing else link.insert(ignore_permissions=True)
+    url = catalogue_url(link.token)
+
+    s = get_settings()
+    values = {"link": url, "name": _party_name(party_type, party), "catalogue": doc.title}
+    sent = False
+    if channel == "Email":
+        subject = _fill(subject or s.get("catalogue_email_subject") or "{catalogue}", **values)
+        text = _fill(body or s.get("catalogue_email_body") or "{link}", **values)
+        if url not in text:
+            text += "\n\n" + url
+        html = "".join(f"<p>{frappe.utils.escape_html(p).replace(chr(10), '<br>')}</p>" for p in text.split("\n\n"))
+        html = html.replace(frappe.utils.escape_html(url), f'<a href="{url}">{url}</a>')
+        crm_send_email(opts["email"], subject=subject, content=html, reference_doctype=party_type,
+                       reference_name=party)
+        sent = True
+    elif channel == "WhatsApp":
+        if opts["channels"]["whatsapp_mode"] == "text":
+            text = _fill(body or s.get("catalogue_email_body") or "{link}", **values)
+            wa.crm_whatsapp_send(to=opts["phone"], message=text if url in text else f"{text}\n{url}",
+                                 reference_doctype=party_type, reference_name=party)
+        else:
+            wa.crm_whatsapp_send_template(to=opts["phone"], template=s.get("catalogue_whatsapp_template"),
+                                          reference_doctype=party_type, reference_name=party,
+                                          body_params=json.dumps([url]))
+        sent = True
+    return {"link": link.name, "url": url, "sent": sent}
+
+
+@frappe.whitelist()
+@requires_module("cat")
+def crm_catalogue_links(name):
+    """Personal links sent for a catalogue, with who opened them."""
+    from upande_crm.api.visits import readable_parties
+
+    _guard()
+    frappe.has_permission(DOCTYPE, "read", name, throw=True)
+    rows = frappe.get_all(LINK, filters={"catalogue": name},
+                          fields=["name", "party_type", "party", "contact_email", "contact_phone", "sent_via",
+                                  "sent_by", "sent_on", "first_opened_on", "last_opened_on", "open_count"],
+                          order_by="sent_on desc", limit=500)
+    rows = readable_parties(rows)
+    for r in rows:
+        r["party_name"] = _party_name(r.party_type, r.party)
+        for k in ("sent_on", "first_opened_on", "last_opened_on"):
+            r[k] = str(r[k]) if r.get(k) else None
+    return {"rows": rows}

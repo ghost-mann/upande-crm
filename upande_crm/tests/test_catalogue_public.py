@@ -208,3 +208,36 @@ class TestSubmit(PublicCase):
         name = self.interests()[0].name
         self.assertTrue(frappe.db.exists("Email Queue", {"reference_name": name}))
         self.assertTrue(frappe.db.exists("Notification Log", {"document_name": name, "for_user": self.cat.owner}))
+
+
+class TestReviewFixes(PublicCase):
+    def test_stale_line_name_falls_back_to_item_grade_box(self):
+        line = self.cat.lines[0]
+        picks = json.dumps([{"line": "gone-after-a-save", "qty": 3, "item": line.item, "grade": line.grade,
+                             "box_type": line.box_type}])
+        self.submit(lines=picks)
+        self.assertEqual(frappe.get_doc(INTEREST, self.interests()[0].name).items[0].line_ref, line.name)
+
+    def test_formatted_stored_phone_matches(self):
+        self.customer_contact(phone="+254 712 345 678")
+        self.submit(contact=contact(email="other@else.example", phone="0712345678"))
+        row = self.interests()[0]
+        self.assertEqual((row.party_type, row.party), ("Customer", self.customer))
+
+    def test_customer_mobile_no_matches(self):
+        frappe.db.set_value("Customer", self.customer, "mobile_no", "+254-733-111-222")
+        self.submit(contact=contact(email="other2@else.example", phone="0733 111 222"))
+        row = self.interests()[0]
+        self.assertEqual((row.party_type, row.party), ("Customer", self.customer))
+
+    def test_personal_link_without_email_matches_by_phone(self):
+        link = frappe.get_doc({"doctype": "CRM Catalogue Link", "catalogue": self.cat.name,
+                               "party_type": "Customer", "party": self.customer, "contact_email": None,
+                               "contact_phone": "+254 799 000 111", "sent_via": "WhatsApp"}
+                              ).insert(ignore_permissions=True)
+        frappe.db.set_value("Customer", self.customer, "email_id", None)
+        before = frappe.db.count("Lead")
+        self.submit(token=link.token, contact=contact(email="typed@buyer.example", phone="0799000111"))
+        row = self.interests()[0]
+        self.assertEqual((row.party_type, row.party), ("Customer", self.customer))
+        self.assertEqual(frappe.db.count("Lead"), before)

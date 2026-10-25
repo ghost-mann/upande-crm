@@ -43,6 +43,16 @@ def can_edit(doc):
     return doc.owner == frappe.session.user or is_manager()
 
 
+def catalogue_has_permission(doc, ptype=None, user=None, debug=False):
+    """has_permission hook: anyone with read may read; only the owner and sales
+    managers may change a catalogue — through desk and REST too, not only the
+    CRM's endpoints."""
+    user = user or frappe.session.user
+    if ptype in (None, "read", "select", "print", "email", "report", "export", "share"):
+        return True
+    return doc.owner == user or is_manager(user)
+
+
 def _check_edit(doc):
     if not can_edit(doc):
         frappe.throw(_("Only the catalogue's owner or a sales manager can change it."), frappe.PermissionError)
@@ -135,12 +145,23 @@ def crm_catalogue_save(catalogue=None):
         doc = frappe.new_doc(DOCTYPE)
     doc.update({k: v for k, v in payload.items() if k in EDITABLE})
     if "lines" in payload:
-        doc.set("lines", [])
+        # Rows that come back with their own `name` keep it: a buyer with the
+        # page open submits against line names, so re-keying every line on save
+        # would make their submission fail. A name from another catalogue is
+        # ignored and the row is added as new.
+        existing = {l.name: l for l in doc.lines or []} if name else {}
+        rows = []
         for line in payload.get("lines") or []:
-            row = {k: line.get(k) for k in LINE_FIELDS if k in line}
-            if isinstance(row.get("prices"), dict):
-                row["prices"] = json.dumps(row["prices"])
-            doc.append("lines", row)
+            values = {k: line.get(k) for k in LINE_FIELDS if k in line}
+            if isinstance(values.get("prices"), dict):
+                values["prices"] = json.dumps(values["prices"])
+            row = existing.pop(line.get("name"), None)
+            if row:
+                row.update(values)
+                rows.append(row)
+            else:
+                rows.append(values)
+        doc.set("lines", rows)
     # Ownership is enforced above; DocPerms for the CRM roles vary by site.
     doc.save(ignore_permissions=True) if name else doc.insert(ignore_permissions=True)
     return {"catalogue": _serialise(doc), "public_url": catalogue_url(doc.public_token)}
@@ -219,7 +240,13 @@ def _options(doc, party_type, party):
     elif wa._window_open(wa._last_inbound_at(wa._norm(phone))):
         mode = "text"
     elif get_settings().get("catalogue_whatsapp_template"):
-        mode = "template"
+        # The link travels as the template's first body variable; a template
+        # without one would arrive without the link and still report "sent".
+        if wa.template_body_params(get_settings().get("catalogue_whatsapp_template")) == 1:
+            mode = "template"
+        else:
+            reason["whatsapp"] = _("The catalogue WhatsApp template must have exactly one body variable "
+                                   "for the link. Pick another in CRM Settings → Catalogues.")
     else:
         reason["whatsapp"] = _("They haven't messaged in 24 hours, and no catalogue template is set in CRM Settings.")
     return {"email": email, "phone": phone,
@@ -349,6 +376,48 @@ def _visible(rows):
     me = frappe.session.user
     readable = {r["name"] for r in readable_parties(rows)}
     return [r for r in rows if r["name"] in readable or owners.get(r["catalogue"]) == me]
+
+
+def _readable_by(row, user):
+    if is_manager(user):
+        return True
+    if frappe.db.get_value(DOCTYPE, row.get("catalogue"), "owner") == user:
+        return True
+    pt, party = row.get("party_type"), row.get("party")
+    return bool(pt and party and frappe.has_permission(pt, "read", party, user=user))
+
+
+def interest_has_permission(doc, ptype=None, user=None, debug=False):
+    """has_permission hook for CRM Catalogue Interest and CRM Catalogue Link:
+    the same rule as the CRM list (spec: user's decision)."""
+    return _readable_by(doc, user or frappe.session.user)
+
+
+def interest_query_conditions(user=None, doctype=INTEREST):
+    """permission_query_conditions for interests and links. User Permissions
+    skip Dynamic Links, so a restricted user's readable parties are listed
+    explicitly; an unrestricted user is limited only by their own reads."""
+    user = user or frappe.session.user
+    if user == "Administrator" or is_manager(user):
+        return ""
+    table = f"`tab{doctype}`"
+    esc = frappe.db.escape
+    parts = [f"{table}.catalogue in (select name from `tab{DOCTYPE}` where owner = {esc(user)})"]
+    restricted = bool(frappe.permissions.get_user_permissions(user))
+    for pt in ("Customer", "Lead"):
+        if not frappe.has_permission(pt, "read", user=user):
+            continue
+        if not restricted:
+            parts.append(f"{table}.party_type = {esc(pt)}")
+            continue
+        names = frappe.get_list(pt, pluck="name", limit=0, user=user)
+        if names:
+            parts.append(f"({table}.party_type = {esc(pt)} and {table}.party in ({', '.join(esc(n) for n in names)}))")
+    return "(" + " or ".join(parts) + ")"
+
+
+def link_query_conditions(user=None):
+    return interest_query_conditions(user, LINK)
 
 
 def _interest_doc(name):

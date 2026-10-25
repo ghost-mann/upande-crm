@@ -23,22 +23,27 @@ def interest(cat, party_type, party, qty=5, frequency="Weekly", priced=1):
     }).insert(ignore_permissions=True)
 
 
+def _setup_users(cls):
+    """Shared by both classes: two customers, a plain and a restricted sales user."""
+    frappe.set_user("Administrator")
+    from upande_crm.setup import ensure_crm_role_permissions
+
+    ensure_crm_role_permissions()
+    cls.mine, cls.theirs = frappe.get_all("Customer", pluck="name", limit=2)
+    sales_user()
+    sales_user(RESTRICTED)
+    if not frappe.db.exists("User Permission", {"user": RESTRICTED, "allow": "Customer"}):
+        frappe.get_doc({"doctype": "User Permission", "user": RESTRICTED, "allow": "Customer",
+                        "for_value": cls.mine, "apply_to_all_doctypes": 1}).insert(ignore_permissions=True)
+    frappe.db.commit()
+    frappe.clear_cache(user=RESTRICTED)
+
+
 class TestInterests(FrappeTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        frappe.set_user("Administrator")
-        from upande_crm.setup import ensure_crm_role_permissions
-
-        ensure_crm_role_permissions()
-        cls.mine, cls.theirs = frappe.get_all("Customer", pluck="name", limit=2)
-        sales_user()
-        sales_user(RESTRICTED)
-        if not frappe.db.exists("User Permission", {"user": RESTRICTED, "allow": "Customer"}):
-            frappe.get_doc({"doctype": "User Permission", "user": RESTRICTED, "allow": "Customer",
-                            "for_value": cls.mine, "apply_to_all_doctypes": 1}).insert(ignore_permissions=True)
-        frappe.db.commit()
-        frappe.clear_cache(user=RESTRICTED)
+        _setup_users(cls)
 
     def setUp(self):
         frappe.set_user("Administrator")
@@ -103,3 +108,33 @@ class TestInterests(FrappeTestCase):
         name = interest(self.cat, "Customer", self.mine).name
         first = C.crm_catalogue_make_opportunity(name)["opportunity"]
         self.assertEqual(C.crm_catalogue_make_opportunity(name)["opportunity"], first)
+
+
+class TestInterestDeskPermissions(FrappeTestCase):
+    """Review fix: desk/REST must apply the same visibility as the CRM."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        _setup_users(cls)
+
+    setUp = TestInterests.setUp
+    tearDown = TestInterests.tearDown
+
+    def test_list_and_doc_permission_hide_unreadable_party(self):
+        a = interest(self.cat, "Customer", self.mine).name
+        b = interest(self.cat, "Customer", self.theirs).name
+        frappe.set_user(RESTRICTED)
+        names = set(frappe.get_list("CRM Catalogue Interest", pluck="name", limit=0))
+        self.assertIn(a, names)
+        self.assertNotIn(b, names)
+        self.assertFalse(frappe.has_permission("CRM Catalogue Interest", "read", b))
+
+    def test_owner_sees_interest_on_own_catalogue_via_desk(self):
+        frappe.set_user(RESTRICTED)
+        own = make_catalogue(status="Live")
+        frappe.set_user("Administrator")
+        b = interest(own, "Customer", self.theirs).name
+        frappe.set_user(RESTRICTED)
+        self.assertIn(b, frappe.get_list("CRM Catalogue Interest", pluck="name", limit=0))
+        self.assertTrue(frappe.has_permission("CRM Catalogue Interest", "read", b))

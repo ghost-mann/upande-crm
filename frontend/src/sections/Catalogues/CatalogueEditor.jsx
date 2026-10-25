@@ -78,7 +78,8 @@ export default function CatalogueEditor({ name, onBack, onOpen }) {
   async function save() {
     setSaving(true); setErr(''); setNote('');
     try {
-      const payload = { ...doc, lines: doc.lines.map(({ _k, item_name, name: _n, ...l }) => l) };
+      // Lines keep their `name`: buyers with the page open submit against it.
+      const payload = { ...doc, lines: doc.lines.map(({ _k, item_name, ...l }) => l) };
       delete payload.can_edit;
       const res = await catalogueSaveApi(payload);
       take(res);

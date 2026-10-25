@@ -82,6 +82,7 @@ class TestShare(FrappeTestCase):
         _settings(catalogue_whatsapp_template="catalogue_offer", whatsapp_enabled=1)
         with patch.object(wa, "_available", return_value=True), \
              patch.object(wa, "_last_inbound_at", return_value=None), \
+             patch.object(wa, "template_body_params", return_value=1), \
              patch.object(wa, "crm_whatsapp_send_template", return_value={"name": "x"}) as send:
             out = self.share("WhatsApp")
         self.assertEqual(send.call_args.kwargs["template"], "catalogue_offer")
@@ -128,3 +129,17 @@ class TestTemplateParams(FrappeTestCase):
         with patch("frappe.model.document.Document.insert", fake_insert):
             wa.crm_whatsapp_send_template("+254700111222", tpl, body_params=json.dumps(["https://x/catalogue/abc"]))
         self.assertEqual(json.loads(captured["body_param"]), {"1": "https://x/catalogue/abc"})
+
+
+class TestTemplateMustCarryTheLink(FrappeTestCase):
+    setUp = TestShare.setUp
+    tearDown = TestShare.tearDown
+
+    def test_template_without_a_body_variable_is_refused(self):
+        _settings(catalogue_whatsapp_template="no_vars", whatsapp_enabled=1)
+        with patch.object(wa, "_available", return_value=True), \
+             patch.object(wa, "_last_inbound_at", return_value=None), \
+             patch.object(wa, "template_body_params", return_value=0):
+            opts = C.crm_catalogue_share_options(self.cat.name, "Lead", self.lead)
+        self.assertFalse(opts["channels"]["whatsapp"])
+        self.assertIn("variable", opts["reason"]["whatsapp"])

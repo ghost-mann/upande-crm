@@ -21,6 +21,8 @@ from frappe import _
 from frappe.rate_limiter import rate_limit
 from frappe.utils import cint, escape_html, flt, now_datetime, strip_html
 
+from upande_crm.api.whatsapp import _suffix
+
 DOCTYPE = "CRM Catalogue"
 LINK = "CRM Catalogue Link"
 INTEREST = "CRM Catalogue Interest"
@@ -123,24 +125,27 @@ def _parties_by_email(email):
 
 
 def _parties_by_phone(phone):
+    """(party_type, party) whose number ends in the same digits. Stored numbers
+    are compared with their punctuation stripped — "+254 712 345 678" and
+    "0712345678" are the same phone."""
     from upande_crm.api.whatsapp import _suffix
 
     want = _suffix(phone)
     if len(want) < 7:
         return []
-    tail = want[-4:]
-    found = []
-    for dt, name, number in frappe.db.sql(
-        """select dl.link_doctype, dl.link_name, cp.phone
-           from `tabContact Phone` cp
-           join `tabDynamic Link` dl on dl.parent = cp.parent and dl.parenttype = 'Contact'
-           where dl.link_doctype in ('Customer', 'Lead') and cp.phone like %s""", f"%{tail}"):
-        if _suffix(number) == want:
-            found.append((dt, name))
-    for col in ("mobile_no", "phone"):
-        for name, number in frappe.db.sql(f"select name, {col} from tabLead where {col} like %s", f"%{tail}"):
-            if _suffix(number) == want:
-                found.append(("Lead", name))
+    like = f"%{want}"
+    digits = "regexp_replace({0}, '[^0-9]', '')"
+    found = list(frappe.db.sql(
+        f"""select dl.link_doctype, dl.link_name
+            from `tabContact Phone` cp
+            join `tabDynamic Link` dl on dl.parent = cp.parent and dl.parenttype = 'Contact'
+            where dl.link_doctype in ('Customer', 'Lead') and {digits.format('cp.phone')} like %s""", like))
+    for dt, cols in (("Customer", ("mobile_no", "phone")), ("Lead", ("mobile_no", "phone"))):
+        for col in cols:
+            if not frappe.db.has_column(dt, col):
+                continue
+            found += [(dt, n) for (n,) in frappe.db.sql(
+                f"select name from `tab{dt}` where {digits.format(col)} like %s", like)]
     return found
 
 
@@ -189,9 +194,14 @@ def _contact(raw):
 def _wanted_lines(doc, raw, currency):
     picks = json.loads(raw) if isinstance(raw, str) else (raw or [])
     by_name = {l.name: l for l in doc.lines}
+    # A page opened before the catalogue was re-saved may carry line names that
+    # no longer exist; the same item, grade and box type is the same line.
+    by_key = {(l.item, l.grade or "", l.box_type or ""): l for l in doc.lines}
     rows = []
     for p in picks if isinstance(picks, list) else []:
-        line = by_name.get(p.get("line"))
+        if not isinstance(p, dict):
+            frappe.throw(_("Malformed line"))
+        line = by_name.get(p.get("line")) or by_key.get((p.get("item"), p.get("grade") or "", p.get("box_type") or ""))
         if not line:
             frappe.throw(_("That line is not in this catalogue."))
         qty = flt(p.get("qty"))
@@ -237,8 +247,12 @@ def catalogue_submit(token, contact, lines, currency=None, website=""):
 
     party_type = party = None
     if link:
-        known = {_clean_email(link.contact_email), _clean_email(_party_details(link.party_type, link.party)["email"])}
-        if not c["email"] or c["email"] in known:
+        details = _party_details(link.party_type, link.party)
+        known = {_clean_email(link.contact_email), _clean_email(details["email"])} - {""}
+        phones = {_suffix(link.contact_phone), _suffix(details.get("phone"))} - {""}
+        # The link's own buyer: no email typed, the email on record, or — for a
+        # party we only know by phone — the same phone number.
+        if not c["email"] or c["email"] in known or (c["phone"] and _suffix(c["phone"]) in phones):
             party_type, party = link.party_type, link.party
     if not party:
         if not c["email"]:

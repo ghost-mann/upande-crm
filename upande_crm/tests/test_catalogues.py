@@ -105,3 +105,52 @@ class TestCatalogues(FrappeTestCase):
         frappe.clear_document_cache(S.SETTINGS_DOCTYPE, S.SETTINGS_DOCTYPE)
         with self.assertRaises(frappe.PermissionError):
             C.crm_catalogues()
+
+
+class TestLineIdentity(FrappeTestCase):
+    """Review fix: saving must not re-key lines, or a buyer with the page open
+    can no longer submit."""
+
+    def tearDown(self):
+        frappe.set_user("Administrator")
+        frappe.db.rollback()
+
+    def test_save_keeps_line_names(self):
+        out = C.crm_catalogue_save(payload())["catalogue"]
+        line = dict(out["lines"][0])
+        line["prices"] = {"USD": {"price": 0.3}}
+        again = C.crm_catalogue_save(payload(name=out["name"], lines=[line]))["catalogue"]
+        self.assertEqual(again["lines"][0]["name"], line["name"])
+        self.assertEqual(again["lines"][0]["prices"], {"USD": {"price": 0.3}})
+
+    def test_foreign_line_name_is_not_adopted(self):
+        a = C.crm_catalogue_save(payload())["catalogue"]
+        b = C.crm_catalogue_save(payload())["catalogue"]
+        stolen = dict(a["lines"][0])
+        out = C.crm_catalogue_save(payload(name=b["name"], lines=[stolen]))["catalogue"]
+        self.assertNotEqual(out["lines"][0]["name"], stolen["name"])
+        self.assertEqual(len(frappe.get_doc("CRM Catalogue", a["name"]).lines), 1)
+
+
+class TestDeskPermissions(FrappeTestCase):
+    """Review fix: the owner-only and party-visibility rules must hold through
+    desk and REST, not only through the CRM's own endpoints."""
+
+    def setUp(self):
+        frappe.set_user("Administrator")
+        sales_user()
+
+    def tearDown(self):
+        frappe.set_user("Administrator")
+        frappe.db.rollback()
+
+    def test_sales_user_cannot_write_others_catalogue_via_desk(self):
+        doc = make_catalogue()
+        frappe.set_user(SALES)
+        self.assertTrue(frappe.has_permission("CRM Catalogue", "read", doc.name))
+        self.assertFalse(frappe.has_permission("CRM Catalogue", "write", doc.name))
+
+    def test_sales_user_can_create_via_desk(self):
+        frappe.set_user(SALES)
+        doc = frappe.new_doc("CRM Catalogue")
+        self.assertTrue(frappe.has_permission("CRM Catalogue", "create", doc))

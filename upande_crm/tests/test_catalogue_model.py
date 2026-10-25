@@ -75,3 +75,14 @@ class TestCatalogueModel(FrappeTestCase):
 
     def test_module_registered(self):
         self.assertIn("cat", enabled_map())
+
+
+class TestInfoUrl(FrappeTestCase):
+    def tearDown(self):
+        frappe.db.rollback()
+
+    def test_only_web_links_are_kept(self):
+        doc = make_catalogue(lines=[{"item": _item(), "info_url": "javascript:alert(1)"},
+                                    {"item": _item(), "info_url": "https://www.marginpar.com/x"}])
+        self.assertIsNone(doc.lines[0].info_url)
+        self.assertEqual(doc.lines[1].info_url, "https://www.marginpar.com/x")

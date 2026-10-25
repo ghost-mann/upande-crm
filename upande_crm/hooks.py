@@ -49,6 +49,20 @@ add_to_apps_screen = [
 # link token (see www/catalogue.py).
 website_route_rules = [{"from_route": "/catalogue/<token>", "to_route": "catalogue"}]
 
+# Catalogue records follow the CRM's own rules in desk and REST too: only a
+# catalogue's owner or a sales manager changes it, and an interest (or a
+# personal link) is visible to whoever can read its lead or customer, plus the
+# catalogue's owner. See api/catalogues.py.
+has_permission = {
+	"CRM Catalogue": "upande_crm.api.catalogues.catalogue_has_permission",
+	"CRM Catalogue Interest": "upande_crm.api.catalogues.interest_has_permission",
+	"CRM Catalogue Link": "upande_crm.api.catalogues.interest_has_permission",
+}
+permission_query_conditions = {
+	"CRM Catalogue Interest": "upande_crm.api.catalogues.interest_query_conditions",
+	"CRM Catalogue Link": "upande_crm.api.catalogues.link_query_conditions",
+}
+
 after_install = "upande_crm.setup.setup"
 before_migrate = "upande_crm.setup.setup"
 

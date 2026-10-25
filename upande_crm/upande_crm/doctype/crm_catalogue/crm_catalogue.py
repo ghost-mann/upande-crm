@@ -45,6 +45,9 @@ class CRMCatalogue(Document):
     def _validate_prices(self):
         allowed = set(self.currency_list())
         for line in self.lines or []:
+            # Shown to buyers as a link: only web addresses, never javascript: or data:.
+            if line.info_url and not line.info_url.strip().lower().startswith(("http://", "https://")):
+                line.info_url = None
             prices = _prices(line)
             clean = {}
             for cur, p in prices.items():

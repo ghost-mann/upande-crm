@@ -475,6 +475,19 @@ def _validate_ref(doctype, name):
             frappe.throw(_("Linked {0} not found").format(doctype))
 
 
+def template_body_params(template):
+    """How many body variables an approved template takes, from frappe_whatsapp's
+    `sample_values` (it only fills `body_param` when that is set); None when
+    the template is unknown."""
+    try:
+        row = frappe.db.get_value("WhatsApp Templates", template, ["sample_values"], as_dict=True)
+    except Exception:
+        return None
+    if not row:
+        return None
+    return len([v for v in (row.sample_values or "").split(",") if v.strip()])
+
+
 def _last_inbound_at(party):
     try:
         return frappe.db.sql(

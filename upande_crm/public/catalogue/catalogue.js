@@ -84,7 +84,7 @@
     const d = state.data;
     const groups = d.groups.map((g) => {
       const colors = [...new Set(g.lines.map((l) => l.color).filter(Boolean))];
-      const more = (g.lines.find((l) => l.info_url) || {}).info_url;
+      const more = (g.lines.find((l) => /^https?:\/\//i.test(l.info_url || '')) || {}).info_url;
       const img = g.image ? `<img class="cat-img" src="${esc(g.image)}" alt="" loading="lazy">`
         : '<div class="cat-img" aria-hidden="true"></div>';
       return `
@@ -205,7 +205,12 @@
     if (!f.name || !f.name.trim()) { state.error = 'Please give your name.'; render(); return; }
     if (!state.data.personal && !(f.email || '').includes('@')) { state.error = 'Please give your email address.'; render(); return; }
     state.sending = true; state.error = ''; render();
-    const lines = picked().map(([line, p]) => ({ line, qty: Number(p.qty), frequency: p.frequency }));
+    const idx = lineIndex();
+    // item/grade/box ride along so a submission still lands if the catalogue was
+    // re-saved while this page was open.
+    const lines = picked().map(([line, p]) => ({
+      line, qty: Number(p.qty), frequency: p.frequency,
+      item: idx[line].group.item, grade: idx[line].line.grade, box_type: idx[line].line.box_type }));
     call('catalogue_submit', {
       token, currency: state.currency, website: f.website || '',
       contact: JSON.stringify({ name: f.name, company: f.company, email: f.email, phone: f.phone,

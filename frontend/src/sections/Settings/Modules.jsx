@@ -19,7 +19,7 @@ const GROUP_NOTE = {
 
 const TAB_LABELS = {
   overview: 'Overview', timeline: 'Timeline', orders: 'Orders', quotations: 'Quotations', pricing: 'Pricing',
-  claims: 'Claims', visits: 'Visits', contracts: 'Contracts',
+  claims: 'Claims', visits: 'Visits', interests: 'Catalogue interest', contracts: 'Contracts',
 };
 const TAB_KEYS = Object.keys(TAB_LABELS);
 const CUSTPAGE_KEYS = ['custpage_tabs', 'custpage_default_tab'];

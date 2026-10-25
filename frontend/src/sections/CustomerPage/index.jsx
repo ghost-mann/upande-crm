@@ -11,6 +11,7 @@ import Contracts from './Contracts';
 import Quotations from './Quotations';
 import Claims from './Claims';
 import Visits from './Visits';
+import Interests from './Interests';
 
 // One customer's page. The customer's name rides in the store's `table` slot
 // (`#custpage/<name>`), so it is bookmarkable and Back returns to the list.
@@ -24,6 +25,7 @@ const TABS = {
   pricing: { label: 'Pricing', Comp: Pricing },
   claims: { label: 'Claims', Comp: Claims },
   visits: { label: 'Visits', Comp: Visits },
+  interests: { label: 'Catalogue interest', Comp: Interests },
   contracts: { label: 'Contracts', Comp: Contracts },
 };
 

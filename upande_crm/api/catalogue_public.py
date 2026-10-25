@@ -14,6 +14,7 @@ authorisation, and nothing outside the token's catalogue is read or written.
 """
 
 import json
+from urllib.parse import quote
 
 import frappe
 from frappe import _
@@ -208,7 +209,7 @@ def _wanted_lines(doc, raw, currency):
 
 def _notify(doc, interest, who):
     subject = _("New interest from {0} — {1}").format(who, doc.title)
-    url = frappe.utils.get_url(f"/customer-relationship-management#cat/interests/{interest.name}")
+    url = frappe.utils.get_url("/customer-relationship-management#cat/" + quote(f"interest:{interest.name}"))
     boxes = sum(flt(i.qty) for i in interest.items)
     body = _("{0} sent interest in {1} line(s), {2} box(es), from {3}.").format(
         escape_html(who), len(interest.items), frappe.utils.fmt_money(boxes, precision=0), escape_html(doc.title))

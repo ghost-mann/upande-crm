@@ -391,7 +391,7 @@
    "fieldname": "custpage_tabs",
    "fieldtype": "Small Text",
    "label": "Customer Page Tabs",
-   "default": "overview\ntimeline\norders\nquotations\npricing\nclaims\nvisits\ncontracts",
+   "default": "overview\ntimeline\norders\nquotations\npricing\nclaims\nvisits\ninterests\ncontracts",
    "description": "One per line, in the order shown. Any of: overview, timeline, orders, quotations, pricing, claims, visits, contracts."
   },
   {
@@ -402,7 +402,7 @@
    "fieldname": "custpage_default_tab",
    "fieldtype": "Select",
    "label": "Opens On Tab",
-   "options": "overview\ntimeline\norders\nquotations\npricing\nclaims\nvisits\ncontracts",
+   "options": "overview\ntimeline\norders\nquotations\npricing\nclaims\nvisits\ninterests\ncontracts",
    "default": "overview"
   },
   {

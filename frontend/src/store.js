@@ -148,6 +148,7 @@ export const SECTION_META = {
   quotes:   { title: 'Quotations',          sub: 'Offers sent · conversion · follow-ups' },
   claims:   { title: 'Claims',              sub: 'Complaints · quality claims · resolution' },
   visits:   { title: 'Visits',              sub: 'Farm visits · sales visits · follow-ups' },
+  cat:      { title: 'Catalogues',          sub: 'Offers shared by link · interest from buyers' },
   mail:     { title: 'Inbox',              sub: 'Email · folders · threads' },
   wa:       { title: 'WhatsApp',            sub: 'Conversations · templates · delivery' },
   leads:    { title: 'Leads',              sub: 'Inbound · qualification · conversion' },

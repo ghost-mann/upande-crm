@@ -50,6 +50,8 @@ export const NAV = [
         subs: [{ table: '', label: 'Dashboard' }, { table: 'followup', label: 'Needs follow-up' }, { table: 'rows', label: 'All Quotations' }] },
       { type: 'group', section: 'prosp', icon: 'travel_explore', label: 'Prospects',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'mine', label: 'My prospects', mine: true }, { table: 'rows', label: 'All Prospects' }, { table: 'emails', label: 'Emails' }] },
+      { type: 'group', section: 'cat', icon: 'menu_book', label: 'Catalogues',
+        subs: [{ table: '', label: 'Catalogues' }, { table: 'interests', label: 'Interests' }] },
       { type: 'group', section: 'cust', icon: 'storefront', label: 'Customers',
         subs: [{ table: '', label: 'Dashboard' }, { table: 'mine', label: 'My customers', mine: true }, { table: 'rows', label: 'All Customers' }, { table: 'top', label: 'Top Revenue' }, { table: 'emails', label: 'Emails' }] },
     ],
@@ -118,6 +120,7 @@ export const NAV = [
           { table: 'pipeline', label: 'Pipeline' },
           { table: 'activity', label: 'Events & Tasks' },
           { table: 'wa', label: 'WhatsApp' },
+          { table: 'catalogues', label: 'Catalogues' },
           { table: 'theme', label: 'Theme' },
           { table: 'health', label: 'Integrations' },
         ] },
@@ -135,7 +138,7 @@ export const SECTION_MODULE = {
   custpage: 'customer_page', leads: 'leads', opps: 'opps', prosp: 'prosp',
   mail: 'mail', wa: 'wa', calls: 'calls', evt: 'evt', act: 'act', camp: 'camp',
   anl: 'anl', rep: 'rep', terr: 'terr', corr: 'corr',
-  quotes: 'quotations', claims: 'claims', visits: 'visits',
+  quotes: 'quotations', claims: 'claims', visits: 'visits', cat: 'cat',
 };
 
 // True unless `modules` says this section's module is off. `modules` is null

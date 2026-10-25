@@ -68,10 +68,10 @@ MODULES = (
 _BY_KEY = {m.key: m for m in MODULES}
 
 # Tabs the customer page can show, in display order.
-CUSTPAGE_TABS = ("overview", "timeline", "orders", "quotations", "pricing", "claims", "visits", "contracts")
+CUSTPAGE_TABS = ("overview", "timeline", "orders", "quotations", "pricing", "claims", "visits", "interests", "contracts")
 
 # Customer page tabs that belong to a switchable module; hidden while it is off.
-CUSTPAGE_TAB_MODULE = {"quotations": "quotations", "claims": "claims", "visits": "visits"}
+CUSTPAGE_TAB_MODULE = {"quotations": "quotations", "claims": "claims", "visits": "visits", "interests": "cat"}
 
 
 def _settings(settings):

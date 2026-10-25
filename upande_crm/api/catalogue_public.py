@@ -84,7 +84,8 @@ def _record_open(doc, link):
         frappe.db.sql(f"update `tab{DOCTYPE}` set views = ifnull(views, 0) + 1 where name = %s", doc.name)
 
 
-@frappe.whitelist(allow_guest=True)
+# POST only: it records the open, and Frappe does not commit a GET request's writes.
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def catalogue_view(token):
     doc, link = resolve_token(token)
     company = frappe.db.get_value("Company", doc.company, ["company_name", "company_logo"], as_dict=True) or {}

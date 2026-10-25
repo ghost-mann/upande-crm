@@ -45,6 +45,10 @@ add_to_apps_screen = [
 # Creates the two CRM roles the workspaces gate on, and the Custom HTML Block
 # the parent workspace renders. `before_migrate` rather than `after_migrate`,
 # because sync_all() imports the workspace fixtures that reference both.
+# The buyer's catalogue page: one www page serving every catalogue and personal
+# link token (see www/catalogue.py).
+website_route_rules = [{"from_route": "/catalogue/<token>", "to_route": "catalogue"}]
+
 after_install = "upande_crm.setup.setup"
 before_migrate = "upande_crm.setup.setup"
 

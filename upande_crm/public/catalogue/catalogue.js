@@ -113,13 +113,18 @@
     } else {
       const imgs = [];
       d.groups.forEach((g) => g.products.forEach((p) => { if (safeUrl(p.image) && !imgs.includes(p.image)) imgs.push(p.image); }));
-      const tiles = [0, 1, 2].map((i) => (imgs[i]
-        ? `<div><img src="${esc(imgs[i])}" alt=""></div>`
-        : `<div style="background:${esc((d.groups[i] || {}).swatch || '')}"></div>`)).join('');
-      art = `<div class="collage" aria-hidden="true">${tiles}</div>`;
+      // A collage needs pictures or colours; with neither, the headline takes
+      // the whole cover rather than sitting next to three empty tiles.
+      const swatches = d.groups.map((g) => g.swatch).filter(Boolean);
+      if (imgs.length || swatches.length) {
+        const tiles = [0, 1, 2].map((i) => (imgs[i]
+          ? `<div><img src="${esc(imgs[i])}" alt=""></div>`
+          : `<div style="background:${esc(swatches[i] || '')}"></div>`)).join('');
+        art = `<div class="collage" aria-hidden="true">${tiles}</div>`;
+      }
     }
     return `
-      <header class="cover"><div class="wrap">
+      <header class="cover${art ? '' : ' solo'}"><div class="wrap">
         <div class="left">
           ${logo}
           ${x.issue ? `<div class="issue">${esc(x.issue)}</div>` : ''}
@@ -186,7 +191,9 @@
 
   function packText(l) {
     const x = t();
-    return [l.pack_qty ? `${num(l.pack_qty)} per ${esc(x.pack)}` : '',
+    // Priced per pack (unit = pack, e.g. per carton): "1 per carton" says nothing.
+    const perPack = l.pack_qty && !(Number(l.pack_qty) === 1 && x.unit === x.pack);
+    return [perPack ? `${num(l.pack_qty)} per ${esc(x.pack)}` : '',
       l.bunch && x.bunch ? `${esc(x.bunch.toLowerCase())} ${esc(l.bunch)}` : '',
       l.weight ? `${num(l.weight, 2)} ${esc(x.weight)}` : ''].filter(Boolean).join(' · ');
   }
@@ -415,5 +422,8 @@
   call('catalogue_public.catalogue_view', { token }).then((d) => {
     if (!d.groups.length && !d.open) { unavailable('It may have been withdrawn. Please ask whoever sent you the link.'); return; }
     take(d);
-  }).catch(() => unavailable('The link may be mistyped, or the offer withdrawn.'));
+  }).catch((e) => {
+    if (window.console) console.error(e); // a render fault, not only a bad link
+    unavailable('The link may be mistyped, or the offer withdrawn.');
+  });
 })();

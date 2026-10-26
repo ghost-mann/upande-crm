@@ -146,6 +146,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @media (min-width: 760px) {
   .cover .wrap { grid-template-columns: 1.1fr 1fr; align-items: stretch; padding-top: 28px; padding-bottom: 34px; }
   .cover .left { display: flex; flex-direction: column; }
+  .cover.solo .wrap { grid-template-columns: 1fr; min-height: 380px; }
+  .cover.solo h1 { max-width: 14ch; }
   .cover h1 { margin-top: auto; }
   .letter { grid-template-columns: 170px 1fr; }
   .var { grid-template-columns: 210px 46px 1fr; }

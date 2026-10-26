@@ -9,6 +9,18 @@
   {
    "child": 0,
    "collapsible": 1,
+   "icon": "layout-dashboard",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "CRM Dashboard",
+   "link_type": "URL",
+   "show_arrow": 0,
+   "type": "Link",
+   "url": "/customer-relationship-management"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
    "icon": "handshake",
    "indent": 0,
    "keep_closed": 0,
@@ -463,21 +475,9 @@
    "link_type": "DocType",
    "show_arrow": 0,
    "type": "Link"
-  },
-  {
-   "child": 0,
-   "collapsible": 1,
-   "icon": "layout-dashboard",
-   "indent": 0,
-   "keep_closed": 0,
-   "label": "CRM Dashboard",
-   "link_type": "URL",
-   "show_arrow": 0,
-   "type": "Link",
-   "url": "/customer-relationship-management"
   }
  ],
- "modified": "2026-09-28 23:30:00.000000",
+ "modified": "2026-10-26 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "Upande CRM",
  "name": "Upande CRM",

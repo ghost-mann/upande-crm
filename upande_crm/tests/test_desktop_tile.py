@@ -59,6 +59,16 @@ class TestDesktopTile(FrappeTestCase):
     def test_the_workspace_sidebar_exists(self):
         self.assertTrue(frappe.db.exists("Workspace Sidebar", "Upande CRM"))
 
+    def test_tile_opens_the_dashboard(self):
+        # desktop.js routes an App tile to its sidebar's first Link item, so the
+        # dashboard must lead the shipped sidebar.
+        path = os.path.join(frappe.get_app_path("upande_crm"), "workspace_sidebar", "upande_crm.json")
+        with open(path, encoding="utf-8") as handle:
+            items = json.load(handle)["items"]
+        first = next(i for i in items if i["type"] == "Link")
+        self.assertEqual(first["link_type"], "URL")
+        self.assertEqual(first["url"], "/customer-relationship-management")
+
 
 class TestAnimatedLogo(FrappeTestCase):
     """The desk tile and sidebar header draw the tile's logo as an <img>, so an

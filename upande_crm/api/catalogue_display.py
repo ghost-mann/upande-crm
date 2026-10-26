@@ -139,6 +139,12 @@ def _theme(doc, template, company_logo):
     }
 
 
+def _image_url(url):
+    """A site file or an http(s) URL; anything else (javascript:, data:) is dropped."""
+    url = (url or "").strip()
+    return url if url.startswith("/files/") or re.match(r"https?://", url, re.I) else None
+
+
 def build_display(doc, template, preview=False):
     """Everything the buyer's page renders, as plain data."""
     tier_qty = cint(doc.volume_tier_qty) or None
@@ -149,6 +155,7 @@ def build_display(doc, template, preview=False):
                              "ink": b.ink or _value(template, "brand_ink")} for b in template.badges or []}
     accent = {"background": _value(template, "accent"), "ink": _value(template, "accent_ink")}
     swatches = {g.label: (g.swatch, g.swatch_ink) for g in template.colour_groups or []}
+    photos = {g.label: _image_url(g.get("image")) for g in template.colour_groups or []}
     order = [g.label for g in template.colour_groups or []]
 
     items = {i.name: i for i in frappe.get_all(
@@ -177,7 +184,8 @@ def build_display(doc, template, preview=False):
                        for s in specs if s["display"] == "Badge" and pspecs.get(s["key"]) not in (None, "")]
         desc = strip_html(it.description or "").strip()
         note = (prod.get("note") or (desc if desc and desc != it.item_name else "")) if sections["notes"] else ""
-        return {"item": item, "item_name": it.item_name or item, "image": it.image, "note": note, "badges": badges,
+        return {"item": item, "item_name": it.item_name or item,
+                "image": _image_url(prod.get("image")) or it.image, "note": note, "badges": badges,
                 "subtitle": [{"label": s["label"], "value": pspecs[s["key"]]} for s in specs
                              if s["display"] == "Subtitle" and pspecs.get(s["key"]) not in (None, "")],
                 "lines": []}
@@ -189,7 +197,8 @@ def build_display(doc, template, preview=False):
         line_group[line.name] = key
         if key not in groups:
             sw = swatches.get(key, (None, None))
-            groups[key] = {"key": key, "label": key, "swatch": sw[0], "swatch_ink": sw[1], "products": {}}
+            groups[key] = {"key": key, "label": key, "swatch": sw[0], "swatch_ink": sw[1],
+                           "image": photos.get(key), "products": {}}
         cards = groups[key]["products"]
         if line.item not in cards:
             cards[line.item] = card(line.item)

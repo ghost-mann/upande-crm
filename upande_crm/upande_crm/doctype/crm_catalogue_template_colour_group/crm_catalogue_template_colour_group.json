@@ -5,7 +5,7 @@
  "engine": "InnoDB",
  "module": "Upande CRM",
  "name": "CRM Catalogue Template Colour Group",
- "modified": "2026-10-26 12:00:00.000000",
+ "modified": "2026-10-26 21:30:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "states": [],
@@ -13,7 +13,8 @@
   "label",
   "swatch",
   "swatch_ink",
-  "keywords"
+  "keywords",
+  "image"
  ],
  "fields": [
   {
@@ -43,6 +44,12 @@
    "label": "Keywords",
    "in_list_view": 1,
    "description": "Comma separated colour words, e.g. white, cream, ivory"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Photo",
+   "description": "Shown behind the group's heading on the catalogue page"
   }
  ],
  "permissions": [],

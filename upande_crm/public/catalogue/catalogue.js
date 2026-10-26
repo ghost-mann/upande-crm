@@ -130,6 +130,7 @@
     } else {
       const imgs = [];
       d.groups.forEach((g) => g.products.forEach((p) => { if (safeUrl(p.image) && !imgs.includes(p.image)) imgs.push(p.image); }));
+      d.groups.forEach((g) => { if (safeUrl(g.image) && !imgs.includes(g.image)) imgs.push(g.image); });
       // A collage needs pictures or colours; with neither, the headline takes
       // the whole cover rather than sitting next to three empty tiles.
       const swatches = d.groups.map((g) => g.swatch).filter(Boolean);
@@ -263,8 +264,13 @@
     if (!d.groups.length) return `<p class="wrap cat-notice">${esc(P('empty'))}</p>`;
     return d.groups.map((g, i) => {
       const lines = g.products.reduce((s, p) => s + p.lines.length, 0);
+      // A group photo sits behind the heading, washed from the left in the
+      // group's swatch so the name stays readable on any picture.
+      const pic = safeUrl(g.image) ? ` photo" style="--sw:${esc(g.swatch || 'var(--brand)')};--swink:${esc(g.swatch_ink || 'var(--brand-ink)')}`
+        : '';
+      const img = pic ? `<img src="${esc(g.image)}" alt="" loading="lazy">` : '';
       return `<section class="wrap">
-        <div class="band" id="grp-${i}"><h2>${esc(g.label)}</h2>
+        <div class="band${pic}" id="grp-${i}">${img}<h2>${esc(g.label)}</h2>
           <span>${esc(plural(g.products.length, 'item_one', 'item_many'))} · ${esc(plural(lines, 'line_one', 'line_many'))}</span></div>
         ${g.products.map((p) => productHtml(g, p)).join('')}</section>`;
     }).join('');

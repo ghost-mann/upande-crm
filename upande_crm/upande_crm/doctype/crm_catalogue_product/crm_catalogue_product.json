@@ -5,12 +5,13 @@
  "engine": "InnoDB",
  "module": "Upande CRM",
  "name": "CRM Catalogue Product",
- "modified": "2026-10-26 12:00:00.000000",
+ "modified": "2026-10-26 21:40:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "states": [],
  "field_order": [
   "item",
+  "image",
   "badges",
   "note",
   "specs"
@@ -23,6 +24,12 @@
    "options": "Item",
    "reqd": 1,
    "in_list_view": 1
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Photo",
+   "description": "This catalogue's photo for the product; blank uses the Item's image"
   },
   {
    "fieldname": "badges",

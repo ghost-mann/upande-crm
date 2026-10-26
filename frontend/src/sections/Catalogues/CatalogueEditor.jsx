@@ -301,13 +301,28 @@ export default function CatalogueEditor({ name, onBack, onOpen }) {
       {groups.length > 0 && (
         <Card className="mt-4">
           <CardHeader><div><CardTitle>Products on the page</CardTitle>
-            <CardSub>Badges, a note and {productSpecs.length ? productSpecs.map((c) => c.label).join(', ') : 'details'} — shown once per product</CardSub></div></CardHeader>
+            <CardSub>A photo, badges, a note and {productSpecs.length ? productSpecs.map((c) => c.label).join(', ') : 'details'} — shown once per product</CardSub></div></CardHeader>
           <div className="px-5 pb-4 grid gap-3">
             {groups.map((g) => {
               const p = productOf(g.item);
               return (
                 <div key={g.item} className="grid grid-cols-1 md:grid-cols-[220px_1fr_1fr] gap-3 items-start border-t border-hairline pt-3">
-                  <div className="font-semibold text-[13px] text-ink">{g.item_name}</div>
+                  <div>
+                    <div className="font-semibold text-[13px] text-ink">{g.item_name}</div>
+                    <span className="mt-1.5 flex items-center gap-2">
+                      {p.image && <img src={p.image} alt="" className="h-10 w-10 object-cover rounded bg-surface-2" />}
+                      <label className={`text-[12px] text-gold-text ${editable ? 'cursor-pointer hover:underline' : 'opacity-50'}`}
+                        title="This catalogue's photo; blank uses the item's image">
+                        {p.image ? 'Replace photo' : 'Add photo'}
+                        <input type="file" accept="image/*" className="hidden" disabled={!editable} onChange={async (e) => {
+                          const f = e.target.files[0]; if (!f) return;
+                          try { setProduct(g.item, { image: await uploadPublic(f) }); } catch (x) { setErr(x.message); }
+                        }} />
+                      </label>
+                      {p.image && editable && <button type="button" className="text-[12px] text-ink-3 hover:text-bad"
+                        onClick={() => setProduct(g.item, { image: null })}>Remove</button>}
+                    </span>
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
                     {(tpl?.badges || []).map((b) => {
                       const on = (p.badges || []).includes(b.label);

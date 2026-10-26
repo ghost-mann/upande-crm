@@ -11,6 +11,7 @@ CRM roles' permissions are granted per site by `setup.ensure_crm_role_permission
 """
 
 import json
+import re
 
 import frappe
 from frappe import _
@@ -107,7 +108,7 @@ def _serialise(doc):
                                  fields=["name", "item_group"], as_list=True))
     for row, line in zip(out["lines"], doc.lines or []):
         row["group"] = group_key(line, groups.get(line.item), tpl)
-    out["products"] = [{"item": p.item, "badges": [b for b in (p.badges or "").split("\n") if b],
+    out["products"] = [{"item": p.item, "image": p.image, "badges": [b for b in (p.badges or "").split("\n") if b],
                         "note": p.note, "specs": _loads(p.specs, {})} for p in doc.get("products") or []]
     out["mixes"] = [{"title": m.title, "summary": m.summary, "items": _loads(m.items, [])}
                     for m in doc.get("mixes") or []]
@@ -218,6 +219,8 @@ def _set_product(row, p):
     badges = p.get("badges")
     row.badges = "\n".join(badges) if isinstance(badges, list) else (badges or None)
     row.note = p.get("note") or None
+    image = (p.get("image") or "").strip()
+    row.image = image if image.startswith("/files/") or re.match(r"https?://", image, re.I) else None
     row.specs = json.dumps(p["specs"]) if isinstance(p.get("specs"), dict) and p["specs"] else None
 
 

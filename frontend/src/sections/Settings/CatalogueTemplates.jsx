@@ -55,7 +55,7 @@ function Colour({ value, onChange, disabled }) {
 }
 
 // A small editable table for a child table of the template.
-function Rows({ rows, cols, onChange, disabled, addLabel, blank }) {
+function Rows({ rows, cols, onChange, disabled, addLabel, blank, onError }) {
   const set = (i, patch) => onChange(rows.map((r, n) => (n === i ? { ...r, ...patch } : r)));
   return (
     <div className="grid gap-1.5">
@@ -69,6 +69,18 @@ function Rows({ rows, cols, onChange, disabled, addLabel, blank }) {
               : kind === 'check'
                 ? <label key={k} className="text-[12px] flex items-center gap-1"><input type="checkbox" checked={!!Number(r[k])} disabled={disabled}
                     onChange={(e) => set(i, { [k]: e.target.checked ? 1 : 0 })} />{label}</label>
+              : kind === 'image'
+                ? <span key={k} className="flex items-center gap-1.5 shrink-0" title={label}>
+                    {r[k] && <img src={r[k]} alt="" className="h-8 w-10 object-cover rounded bg-surface-2" />}
+                    <label className={cn('text-[12px] text-gold-text', disabled ? 'opacity-50' : 'cursor-pointer hover:underline')}>
+                      {r[k] ? 'Replace' : label}
+                      <input type="file" accept="image/*" className="hidden" disabled={disabled} onChange={async (e) => {
+                        const f = e.target.files[0]; if (!f) return;
+                        try { set(i, { [k]: await uploadPublic(f) }); } catch (x) { onError?.(x.message); }
+                      }} />
+                    </label>
+                    {r[k] && !disabled && <button type="button" className="text-[12px] text-ink-3 hover:text-bad" onClick={() => set(i, { [k]: null })}>×</button>}
+                  </span>
                 : <input key={k} className={cn(INPUT, kind === 'wide' ? 'flex-[2]' : 'flex-1')} placeholder={label} value={r[k] || ''}
                     disabled={disabled} onChange={(e) => set(i, { [k]: e.target.value })} />))}
           {!disabled && (
@@ -258,7 +270,7 @@ export default function CatalogueTemplates() {
                   <div className="mt-3 text-[12.5px] font-medium text-ink">Colour groups</div>
                   <div className="text-[11.5px] text-ink-mute mb-2">In tab order. A line goes to the first group whose words match its colour.</div>
                   <Rows rows={draft.colour_groups || []} disabled={ro} addLabel="Add a colour group" blank={{ label: '', swatch: '#DDDDDD', swatch_ink: '#111111', keywords: '' }}
-                    cols={[['label', 'Group'], ['swatch', 'Swatch', 'colour'], ['swatch_ink', 'Text', 'colour'], ['keywords', 'Colour words, comma separated', 'wide']]}
+                    cols={[['label', 'Group'], ['swatch', 'Swatch', 'colour'], ['swatch_ink', 'Text', 'colour'], ['keywords', 'Colour words, comma separated', 'wide'], ['image', 'Photo', 'image']]} onError={setErr}
                     onChange={(v) => set({ colour_groups: v })} />
                 </>
               )}

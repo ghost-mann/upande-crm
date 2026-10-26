@@ -79,6 +79,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .band { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 30px 0 12px; scroll-margin-top: 76px; }
 .band h2 { font: 900 clamp(34px, 9vw, 56px)/.9 var(--font-head); margin: 0; letter-spacing: -.01em; }
 .band span { color: var(--mute); font-size: 13px; text-align: right; }
+.band.photo { position: relative; overflow: hidden; border-radius: 4px; margin-top: 24px; padding: 72px 20px 16px; margin-bottom: 14px; min-height: 180px; color: var(--swink);
+  background: color-mix(in srgb, var(--sw) 35%, var(--paper)); }
+.band.photo > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+.band.photo::before { content: ""; position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(90deg, var(--sw) 0%, color-mix(in srgb, var(--sw) 70%, transparent) 45%, transparent 85%); }
+.band.photo h2, .band.photo span { position: relative; z-index: 2; color: var(--swink); }
+.band.photo { flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 6px; }
+.band.photo span { opacity: .9; text-align: left; }
 
 /* product cards */
 .var { background: var(--card); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 12px; overflow: hidden;
@@ -180,6 +188,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .alm.density-compact .var { margin-bottom: 8px; }
 .alm.density-compact .var .body { padding: 10px 12px; }
 .alm.density-compact .band { padding: 18px 0 8px; }
+.alm.density-compact .band.photo { padding: 48px 16px 12px; min-height: 130px; }
 .alm.density-compact .var .note { margin: 3px 0 6px; }
 .alm.density-compact .specs td { padding-top: 4px; padding-bottom: 4px; }
 .alm.density-compact .q input, .alm.density-compact .q select { min-height: 36px; }

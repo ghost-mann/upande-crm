@@ -73,6 +73,13 @@ class TestCatalogueModel(FrappeTestCase):
         doc.status = "Closed"
         self.assertFalse(doc.is_open())
 
+    def test_product_photo_survives_save(self):
+        doc = make_catalogue()
+        doc.products[0].image = "/files/aster.jpg"
+        doc.save()
+        doc.reload()
+        self.assertEqual(doc.products[0].image, "/files/aster.jpg")
+
     def test_module_registered(self):
         self.assertIn("cat", enabled_map())
 

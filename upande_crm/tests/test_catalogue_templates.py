@@ -182,13 +182,14 @@ class TestTemplateApi(TemplateCase):
             "title": "Coffee", "company": frappe.db.get_value("Company", {}, "name"), "currencies": "USD",
             "template": "Coffee lots",
             "lines": [{"item": a, "grade": "AA", "specs": {"process": "Washed"}, "prices": {"USD": {"price": 9.6}}}],
-            "products": [{"item": a, "badges": ["Microlot"], "note": "Bright", "specs": {"cup_score": "86"}}],
+            "products": [{"item": a, "image": "/files/lot.jpg", "badges": ["Microlot"], "note": "Bright",
+                          "specs": {"cup_score": "86"}}],
         }))["catalogue"]
         line = out["lines"][0]["name"]
         out = C.crm_catalogue_save(frappe.as_json({**out, "mixes": [{"title": "Lot pair",
                                                                     "items": [{"line": line, "boxes": 2}]}]}))["catalogue"]
         got = C.crm_catalogue_get(out["name"])["catalogue"]
-        self.assertEqual(got["products"], [{"item": a, "badges": ["Microlot"], "note": "Bright",
+        self.assertEqual(got["products"], [{"item": a, "image": "/files/lot.jpg", "badges": ["Microlot"], "note": "Bright",
                                             "specs": {"cup_score": "86"}}])
         self.assertEqual([(i["line"], i["boxes"]) for i in got["mixes"][0]["items"]], [(line, 2)])
         self.assertEqual(got["lines"][0]["specs"], {"process": "Washed"})

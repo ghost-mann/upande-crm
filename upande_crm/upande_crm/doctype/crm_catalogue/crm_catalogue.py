@@ -50,7 +50,7 @@ class CRMCatalogue(Document):
         for item in items:
             row = kept.get(item) or frappe._dict(item=item)
             specs = {k: v for k, v in _json(row.get("specs")).items() if v not in (None, "")}
-            rows.append({"item": item, "note": row.get("note"), "badges": row.get("badges") or None,
+            rows.append({"item": item, "image": row.get("image") or None, "note": row.get("note"), "badges": row.get("badges") or None,
                          "specs": json.dumps(specs) if specs else None, "name": row.get("name")})
         self.set("products", [])
         for r in rows:

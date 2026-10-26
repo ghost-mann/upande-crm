@@ -19,6 +19,10 @@ def _items(n=2):
     return frappe.get_all("Item", filters={"disabled": 0}, pluck="name", limit=n)
 
 
+def _image_or_none(url):
+    return D._image_url(url)
+
+
 def price(p, tier=None):
     out = {"price": p}
     if tier is not None:
@@ -73,6 +77,31 @@ class TestColourGroups(DisplayCase):
         self.assertEqual([g["label"] for g in self.groups(doc)], ["Whites", "Purples"])
         whites = self.groups(doc)[0]
         self.assertEqual((whites["swatch"], whites["swatch_ink"]), ("#E8EEF3", "#10233A"))
+
+    def test_group_photo(self):
+        # A colour group can carry a photo; only a site file or http(s) URL is served.
+        a, b = _items(2)
+        t = frappe.get_doc(TEMPLATE, "Flowers almanac")
+        for g in t.colour_groups:
+            if g.label == "Whites":
+                g.image = "/files/whites.jpg"
+            if g.label == "Purples":
+                g.image = "javascript:alert(1)"
+        doc = make_catalogue(lines=[{"item": a, "color": "White", "prices": price(0.2)},
+                                    {"item": b, "color": "Purple", "prices": price(0.2)}])
+        groups = {g["label"]: g for g in self.groups(doc, t)}
+        self.assertEqual(groups["Whites"]["image"], "/files/whites.jpg")
+        self.assertIsNone(groups["Purples"]["image"])
+
+    def test_product_photo_overrides_item_image(self):
+        a, b = _items(2)
+        doc = make_catalogue(lines=[{"item": a, "color": "White", "prices": price(0.2)},
+                                    {"item": b, "color": "White", "prices": price(0.2)}])
+        doc.products[0].image = "https://example.com/a.jpg"
+        doc.products[1].image = "javascript:alert(1)"
+        cards = {p["item"]: p for p in self.groups(doc)[0]["products"]}
+        self.assertEqual(cards[a]["image"], "https://example.com/a.jpg")
+        self.assertEqual(cards[b]["image"], _image_or_none(frappe.db.get_value("Item", b, "image")))
 
     def test_group_by_grade_and_item_group(self):
         a, b = _items(2)

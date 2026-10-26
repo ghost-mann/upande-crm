@@ -54,7 +54,22 @@ FIELDS = [
 ]
 
 
+def release_child_icons():
+	"""Keep the tile a link, not a folder.
+
+	Frappe's create_desktop_icons_from_workspace() files a Link icon for each
+	public workspace under its app's App icon. Once the tile has a child the desk
+	opens it as a folder - on Marginpar that folder held only "WhatsApp" - so the
+	CRM's workspace icons are hidden and detached, as Frappe itself does for a
+	portal app. They stay, so the generator does not make them again.
+	"""
+	for name in frappe.get_all("Desktop Icon", filters={"parent_icon": ICON, "standard": 0}, pluck="name"):
+		frappe.db.set_value("Desktop Icon", name, {"hidden": 1, "parent_icon": None})
+	frappe.cache.delete_value("desktop_icons")
+
+
 def sync_desktop_tile():
+	release_child_icons()
 	icon = frappe.db.get_value("Desktop Icon", ICON, FIELDS, as_dict=True)
 	if not icon:
 		# Fixture has not synced yet; the next migrate reconciles.

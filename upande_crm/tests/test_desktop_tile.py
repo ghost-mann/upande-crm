@@ -59,6 +59,21 @@ class TestDesktopTile(FrappeTestCase):
     def test_the_workspace_sidebar_exists(self):
         self.assertTrue(frappe.db.exists("Workspace Sidebar", "Upande CRM"))
 
+    def test_workspace_icons_do_not_turn_the_tile_into_a_folder(self):
+        # Frappe's create_desktop_icons_from_workspace() files a Link icon for a
+        # public workspace under its app's App icon; with a child the tile opens
+        # as a folder (live Marginpar showed only "WhatsApp" in it).
+        from upande_crm import apps_screen
+
+        setup.ensure_desktop_icon()
+        stray = frappe.get_doc({"doctype": "Desktop Icon", "label": "Test CRM Child", "icon_type": "Link",
+                                "link_type": "Workspace Sidebar", "link_to": "Upande CRM",
+                                "parent_icon": setup.DESKTOP_ICON, "app": "upande_crm", "hidden": 0}).insert()
+        apps_screen.sync_desktop_tile()
+        hidden, parent = frappe.db.get_value("Desktop Icon", stray.name, ["hidden", "parent_icon"])
+        self.assertEqual(hidden, 1)
+        self.assertFalse(parent)
+
     def test_tile_opens_the_dashboard(self):
         # desktop.js routes an App tile to its sidebar's first Link item, so the
         # dashboard must lead the shipped sidebar.

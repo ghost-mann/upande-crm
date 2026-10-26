@@ -13,8 +13,25 @@ from frappe.utils import escape_html
 no_cache = 1
 
 
+def _asset_version():
+	"""A short hash of the page's script and stylesheet. /assets is cached for
+	hours, so without it a browser that opened an earlier version keeps the old
+	script after an update, and the old script cannot read the new payload."""
+	import hashlib
+	import os
+
+	base = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public", "catalogue")
+	h = hashlib.md5()
+	for name in ("catalogue.js", "catalogue.css"):
+		with open(os.path.join(base, name), "rb") as fh:
+			h.update(fh.read())
+	return h.hexdigest()[:10]
+
+
 def get_context(context):
 	from upande_crm.api.catalogue_public import resolve_token
+
+	context.asset_v = _asset_version()
 
 	token = (frappe.form_dict.get("token") or "").strip()
 	context.token = escape_html(token)

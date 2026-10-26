@@ -6,12 +6,12 @@
   <meta name="robots" content="noindex">
   <link rel="icon" href="data:,">
   <title>{{ page_title }}</title>
-  <link rel="stylesheet" href="/assets/upande_crm/catalogue/catalogue.css">
+  <link rel="stylesheet" href="/assets/upande_crm/catalogue/catalogue.css?v={{ asset_v }}">
 </head>
 <body>
   <div id="cat-app" data-token="{{ token }}" data-csrf="{{ csrf_token }}" data-preview="{{ preview_name }}">
     <div class="cat-loading">Loading the offer…</div>
   </div>
-  <script src="/assets/upande_crm/catalogue/catalogue.js"></script>
+  <script src="/assets/upande_crm/catalogue/catalogue.js?v={{ asset_v }}"></script>
 </body>
 </html>

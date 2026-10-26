@@ -1,0 +1,5 @@
+/* Bundled, SIL OFL 1.1 (see ../LICENSES.md). Latin subset from Fontsource. */
+@font-face { font-family: 'Bodoni Moda'; font-style: normal; font-weight: 700; font-display: swap; src: url('./bodoni-moda-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Bodoni Moda'; font-style: italic; font-weight: 400; font-display: swap; src: url('./bodoni-moda-400-italic.woff2') format('woff2'); }
+@font-face { font-family: 'Work Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('./work-sans-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Work Sans'; font-style: normal; font-weight: 600; font-display: swap; src: url('./work-sans-600-normal.woff2') format('woff2'); }

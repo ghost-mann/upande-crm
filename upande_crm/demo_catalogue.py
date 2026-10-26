@@ -87,3 +87,44 @@ def seed(path=SHEET):
     print(f"items created: {len(made)}; catalogue {cat.name}: {len(cat.lines)} lines")
     print(f"public link: {frappe.utils.get_url('/catalogue/' + cat.public_token)}")
     return cat.name
+
+
+# ---------------------------------------------------------------- magazine
+FLOWER_NOTES = {
+    "Agapanthus 'Gletsjer'": ("Bestseller", "Ice-white heads that open evenly and hold two weeks in the vase."),
+    "Aster (Novi Belgii Grp) Dark Milka": ("New this season", "Deep violet sprays — a filler that photographs."),
+    "Aster (Novi-belgii Grp) Double Date Pink": ("Limited", "Fully double pink buttons, cut in small volumes."),
+}
+FLOWER_MIXES = [
+    ("Cool whites", "White"),
+    ("Purple & blush", ("Purple", "Pink")),
+]
+
+
+def dress_flowers(name=None):
+    """Give the Marginpar catalogue its magazine dressing in place — template,
+    badges, notes and two mixes — without touching its lines, links or
+    interests. Safe to re-run."""
+    name = name or frappe.db.get_value("CRM Catalogue", {"title": TITLE}, "name")
+    doc = frappe.get_doc("CRM Catalogue", name)
+    doc.template = "Flowers almanac"
+    doc.save(ignore_permissions=True)  # syncs one product row per item
+    names = {frappe.db.get_value("Item", p.item, "item_name"): p for p in doc.products}
+    for item_name, (badge, note) in FLOWER_NOTES.items():
+        row = names.get(item_name)
+        if row:
+            row.badges, row.note = badge, note
+    doc.set("mixes", [])
+    for title, colours in FLOWER_MIXES:
+        colours = (colours,) if isinstance(colours, str) else colours
+        picks, seen = [], set()
+        for line in doc.lines:
+            if line.color in colours and line.box_type == "Standard" and line.item not in seen and len(picks) < 3:
+                picks.append({"line": line.name, "boxes": 1})
+                seen.add(line.item)
+        if picks:
+            doc.append("mixes", {"title": title, "items": frappe.as_json(picks)})
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+    print(f"{doc.name}: {len(doc.products)} products, {len(doc.mixes)} mixes")
+    return doc.name

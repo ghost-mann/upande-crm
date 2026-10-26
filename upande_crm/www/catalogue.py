@@ -19,10 +19,21 @@ def get_context(context):
 	token = (frappe.form_dict.get("token") or "").strip()
 	context.token = escape_html(token)
 	context.csrf_token = frappe.sessions.get_csrf_token() if frappe.session.user != "Guest" else ""
+	context.preview_name = ""
 	try:
 		doc, _link = resolve_token(token)
 		company = frappe.db.get_value("Company", doc.company, "company_name") or doc.company
 		context.page_title = escape_html(f"{doc.title} · {company}") if doc.status != "Draft" else "Offer"
+		# Preview mode (the template editor's iframe): CRM users only; the page
+		# then reads crm_catalogue_preview, which records nothing.
+		if frappe.form_dict.get("preview") and _is_crm_user():
+			context.preview_name = escape_html(doc.name)
 	except frappe.DoesNotExistError:
 		context.page_title = "Offer not available"
 	context.no_breadcrumbs = 1
+
+
+def _is_crm_user():
+	from upande_crm.api.crm import CRM_ROLES
+
+	return frappe.session.user != "Guest" and bool(set(frappe.get_roles()) & CRM_ROLES)

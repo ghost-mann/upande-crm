@@ -147,3 +147,22 @@ class TestMatch(FrappeTestCase):
         out = I.match_items([{"product": "Aster (5 varieties) nowhere", "vbn": None}])
         self.assertIsNone(out[0]["item"])
         self.assertIsNone(out[0]["match"])
+
+
+class TestSpecImport(FrappeTestCase):
+    def test_import_fills_spec_columns(self):
+        wb = openpyxl.load_workbook(BytesIO(sample_sheet()))
+        for title in ("USD", "Euro"):
+            ws = wb[title]
+            ws["P14"] = "Vase life"
+            ws["P17"] = "14 days"
+        buf = BytesIO()
+        wb.save(buf)
+        lines = I.parse_offer_sheet(buf.getvalue(), ["USD"], spec_headers={"vase_life": ["vase life"]})["lines"]
+        std = _line(lines, "Agapanthus 'Gletsjer'", "50 cm")
+        self.assertEqual(std["specs"], {"vase_life": "14 days"})
+        self.assertEqual(_line(lines, "Agapanthus 'Gletsjer'", "60 cm")["specs"], {})
+
+    def test_without_spec_headers_unchanged(self):
+        lines = I.parse_offer_sheet(sample_sheet(), ["USD"])["lines"]
+        self.assertNotIn("specs", lines[0])

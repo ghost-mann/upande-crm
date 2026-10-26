@@ -15,7 +15,7 @@ import json
 import frappe
 from frappe import _
 from frappe.query_builder.functions import Count
-from frappe.utils import cint, get_url
+from frappe.utils import cint, flt, get_url
 
 from upande_crm.api.crm import _guard, _has
 from upande_crm.modules import requires_module
@@ -25,8 +25,10 @@ LINK = "CRM Catalogue Link"
 INTEREST = "CRM Catalogue Interest"
 MANAGER_ROLES = {"System Manager", "Sales Manager", "CRM Manager"}
 STATUSES = ("Draft", "Live", "Closed")
-EDITABLE = {"title", "company", "status", "valid_from", "valid_to", "currencies", "volume_tier_qty", "terms"}
-LINE_FIELDS = ("item", "grade", "box_type", "color", "vbn", "pack_qty", "bunch", "weight", "info_url", "prices")
+EDITABLE = {"title", "company", "status", "valid_from", "valid_to", "currencies", "volume_tier_qty", "terms",
+            "template", "cover_image"}
+LINE_FIELDS = ("item", "grade", "box_type", "color", "vbn", "pack_qty", "bunch", "weight", "info_url", "prices",
+               "specs", "colour_group")
 ROW_FIELDS = ["name", "title", "company", "status", "valid_from", "valid_to", "currencies", "owner", "views",
               "public_token", "modified"]
 
@@ -74,8 +76,22 @@ def _counts(doctype, names, where=None):
     return dict(q.run())
 
 
+def _loads(raw, empty):
+    if not raw:
+        return empty
+    if isinstance(raw, (dict, list)):
+        return raw
+    try:
+        return json.loads(raw)
+    except (TypeError, ValueError):
+        return empty
+
+
 def _serialise(doc):
-    out = {f: doc.get(f) for f in ROW_FIELDS + ["volume_tier_qty", "terms"]}
+    from upande_crm.api.catalogue_display import group_key
+    from upande_crm.catalogue_templates import DEFAULT_TEMPLATE, TEMPLATE
+
+    out = {f: doc.get(f) for f in ROW_FIELDS + ["volume_tier_qty", "terms", "template", "cover_image"]}
     for k in ("valid_from", "valid_to", "modified"):
         out[k] = str(out[k]) if out.get(k) else None
     out["lines"] = []
@@ -83,8 +99,18 @@ def _serialise(doc):
         row = {f: line.get(f) for f in LINE_FIELDS}
         row["name"] = line.name
         row["item_name"] = line.item_name
-        row["prices"] = json.loads(line.prices) if isinstance(line.prices, str) and line.prices else (line.prices or {})
+        row["prices"] = _loads(line.prices, {})
+        row["specs"] = _loads(line.specs, {})
         out["lines"].append(row)
+    tpl = frappe.get_cached_doc(TEMPLATE, doc.template or DEFAULT_TEMPLATE)
+    groups = dict(frappe.get_all("Item", filters={"name": ["in", [l.item for l in doc.lines] or [""]]},
+                                 fields=["name", "item_group"], as_list=True))
+    for row, line in zip(out["lines"], doc.lines or []):
+        row["group"] = group_key(line, groups.get(line.item), tpl)
+    out["products"] = [{"item": p.item, "badges": [b for b in (p.badges or "").split("\n") if b],
+                        "note": p.note, "specs": _loads(p.specs, {})} for p in doc.get("products") or []]
+    out["mixes"] = [{"title": m.title, "summary": m.summary, "items": _loads(m.items, [])}
+                    for m in doc.get("mixes") or []]
     out["can_edit"] = can_edit(doc)
     return out
 
@@ -161,10 +187,36 @@ def crm_catalogue_save(catalogue=None):
                 rows.append(row)
             else:
                 rows.append(values)
+        for row in rows:
+            if isinstance(row, dict) and isinstance(row.get("specs"), dict):
+                row["specs"] = json.dumps(row["specs"])
+            elif not isinstance(row, dict) and isinstance(row.get("specs"), dict):
+                row.specs = json.dumps(row.specs)
         doc.set("lines", rows)
+    if "products" in payload:
+        # Merged by item: the controller keeps one row per item in the lines.
+        given = {p.get("item"): p for p in payload.get("products") or [] if isinstance(p, dict)}
+        for row in doc.get("products") or []:
+            p = given.pop(row.item, None)
+            if p is not None:
+                _set_product(row, p)
+        for item, p in given.items():
+            _set_product(doc.append("products", {"item": item}), p)
+    if "mixes" in payload:
+        doc.set("mixes", [{"title": m.get("title"), "summary": m.get("summary"),
+                           "items": json.dumps([{"line": i.get("line"), "boxes": flt(i.get("boxes")) or 1}
+                                                for i in m.get("items") or [] if isinstance(i, dict)])}
+                          for m in payload.get("mixes") or [] if isinstance(m, dict) and m.get("title")])
     # Ownership is enforced above; DocPerms for the CRM roles vary by site.
     doc.save(ignore_permissions=True) if name else doc.insert(ignore_permissions=True)
     return {"catalogue": _serialise(doc), "public_url": catalogue_url(doc.public_token)}
+
+
+def _set_product(row, p):
+    badges = p.get("badges")
+    row.badges = "\n".join(badges) if isinstance(badges, list) else (badges or None)
+    row.note = p.get("note") or None
+    row.specs = json.dumps(p["specs"]) if isinstance(p.get("specs"), dict) and p["specs"] else None
 
 
 @frappe.whitelist(methods=["POST"])
@@ -550,3 +602,131 @@ def crm_catalogue_make_opportunity(name):
     opp.add_comment("Info", _("Made from catalogue interest {0} ({1}).").format(doc.name, cat.title))
     doc.db_set({"opportunity": opp.name, "status": "Converted"})
     return {"opportunity": opp.name}
+
+
+# ---------------------------------------------------------------- templates
+TEMPLATE_DT = "CRM Catalogue Template"
+TEMPLATE_TABLES = ("frequencies", "colour_groups", "spec_columns", "badges")
+
+
+def _can_write_templates():
+    from upande_crm.api.settings import WRITE_ROLES
+
+    return bool(set(frappe.get_roles()) & WRITE_ROLES)
+
+
+def _check_template_write():
+    if not _can_write_templates():
+        frappe.throw(_("Only a sales manager can change catalogue templates."), frappe.PermissionError)
+
+
+def _luminance(hex_colour):
+    def channel(c):
+        c = c / 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+    r, g, b = (int(hex_colour[i:i + 2], 16) for i in (1, 3, 5))
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+
+
+def contrast_ratio(a, b):
+    """WCAG 2 contrast ratio between two #RRGGBB colours."""
+    la, lb = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def _contrast_warnings(t):
+    pairs = [("text on paper", t.ink, t.paper), ("cover text on brand", t.brand_ink, t.brand),
+             ("accent text", t.accent_ink, t.accent)]
+    pairs += [(f"badge {b.label}", b.ink, b.background) for b in t.badges or [] if b.ink and b.background]
+    out = []
+    for label, fg, bg in pairs:
+        try:
+            ratio = contrast_ratio(fg, bg)
+        except (TypeError, ValueError):
+            continue
+        if ratio < 4.5:
+            out.append(_("Low contrast for {0}: {1}:1 (aim for 4.5:1 or more).").format(label, round(ratio, 2)))
+    return out
+
+
+def _template_dict(doc):
+    out = doc.as_dict(no_default_fields=True)
+    for t in TEMPLATE_TABLES:
+        out[t] = [{k: v for k, v in r.items() if k not in ("name", "parent", "parentfield", "parenttype", "doctype",
+                                                           "idx", "owner", "creation", "modified", "modified_by",
+                                                           "docstatus")} for r in out.get(t) or []]
+    out["name"] = doc.name
+    return out
+
+
+@frappe.whitelist()
+@requires_module("cat")
+def crm_catalogue_templates():
+    from upande_crm.catalogue_templates import FONT_PAIRS
+
+    _guard()
+    rows = frappe.get_all(TEMPLATE_DT, fields=["name", "preset", "group_by", "brand", "paper", "is_standard"],
+                          order_by="template_name asc")
+    t = frappe.qb.DocType(DOCTYPE)
+    from frappe.query_builder.functions import Count
+
+    used = dict(frappe.qb.from_(t).select(t.template, Count("*")).groupby(t.template).run())
+    for r in rows:
+        r["catalogues_using"] = used.get(r.name, 0)
+    return {"rows": rows, "font_pairs": {k: {x: v[x] for x in ("label", "head", "text", "note")}
+                                         for k, v in FONT_PAIRS.items()},
+            "can_edit": _can_write_templates()}
+
+
+@frappe.whitelist()
+@requires_module("cat")
+def crm_catalogue_template_get(name):
+    _guard()
+    return {"template": _template_dict(frappe.get_doc(TEMPLATE_DT, name))}
+
+
+@frappe.whitelist(methods=["POST"])
+@requires_module("cat")
+def crm_catalogue_template_save(template):
+    """Create or update a template. Low-contrast colours save, with warnings."""
+    _guard()
+    _check_template_write()
+    data = json.loads(template) if isinstance(template, str) else template
+    if not isinstance(data, dict):
+        frappe.throw(_("Malformed template"))
+    name = data.get("name")
+    skip = {"name", "doctype", "creation", "modified", "modified_by", "owner", "docstatus", "idx", "is_standard"}
+    values = {k: v for k, v in data.items() if k not in skip}
+    if name and frappe.db.exists(TEMPLATE_DT, name):
+        doc = frappe.get_doc(TEMPLATE_DT, name)
+        values.pop("template_name", None)  # the name is the key; copy to rename
+        doc.update({k: v for k, v in values.items() if k not in TEMPLATE_TABLES})
+        for t in TEMPLATE_TABLES:
+            if t in values:
+                doc.set(t, values[t] or [])
+        doc.save(ignore_permissions=True)
+    else:
+        doc = frappe.get_doc({**values, "doctype": TEMPLATE_DT}).insert(ignore_permissions=True)
+    return {"template": _template_dict(doc), "warnings": _contrast_warnings(doc)}
+
+
+@frappe.whitelist(methods=["POST"])
+@requires_module("cat")
+def crm_catalogue_template_copy(name, new_name):
+    _guard()
+    _check_template_write()
+    doc = frappe.copy_doc(frappe.get_doc(TEMPLATE_DT, name))
+    doc.template_name = (new_name or "").strip() or _("{0} (copy)").format(name)
+    doc.is_standard = 0
+    doc.insert(ignore_permissions=True)
+    return {"name": doc.name}
+
+
+@frappe.whitelist(methods=["POST"])
+@requires_module("cat")
+def crm_catalogue_template_delete(name):
+    _guard()
+    _check_template_write()
+    frappe.delete_doc(TEMPLATE_DT, name, ignore_permissions=True)
+    return {"deleted": name}

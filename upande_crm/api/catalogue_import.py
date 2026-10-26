@@ -105,8 +105,12 @@ def _url(cell):
     return t if t.startswith("http") else None
 
 
-def parse_offer_sheet(content, currencies):
-    """{"lines": [...], "terms": html} from the workbook bytes. Pure: no DB."""
+def parse_offer_sheet(content, currencies, spec_headers=None):
+    """{"lines": [...], "terms": html} from the workbook bytes. Pure: no DB.
+
+    `spec_headers` ({spec key: [sheet header, ...]}) reads a template's spec
+    columns too, from the group-header row; each line then carries `specs`.
+    """
     import openpyxl
     from io import BytesIO
 
@@ -124,6 +128,8 @@ def parse_offer_sheet(content, currencies):
         terms = terms or _terms(ws, hrow)
         blocks = _blocks(ws, hrow, labels)
         photo_col = next((c for k, c in labels.items() if k.startswith("photo")), None)
+        spec_cols = {key: next((labels[_key(h)] for h in heads if _key(h) in labels), None)
+                     for key, heads in (spec_headers or {}).items()}
         for r in range(hrow + 2, ws.max_row + 1):
             product = _text(ws.cell(row=r, column=labels["product"]).value)
             if not product:
@@ -146,6 +152,8 @@ def parse_offer_sheet(content, currencies):
                     pack = get(cols.get("pack_qty"))
                     weight = get(cols.get("weight"))
                     line = {**base, "box_type": kind,
+                            **({"specs": {k: _text(get(c)) for k, c in spec_cols.items() if c and _text(get(c))}}
+                               if spec_headers is not None else {}),
                             "pack_qty": flt(pack) if isinstance(pack, (int, float)) else None,
                             "bunch": _text(get(cols.get("bunch"))) or std_bunch,
                             "weight": flt(weight) if isinstance(weight, (int, float)) else None,
@@ -192,15 +200,33 @@ def match_items(rows):
 
 @frappe.whitelist(methods=["POST"])
 @requires_module("cat")
-def crm_catalogue_import(file_url, currencies):
-    """Preview an uploaded offer sheet as catalogue lines; nothing is saved."""
+def crm_catalogue_import(file_url, currencies, catalogue=None, template=None):
+    """Preview an uploaded offer sheet as catalogue lines; nothing is saved.
+
+    With a template (or a catalogue, whose template is used) the template's
+    spec columns are read from the sheet headers named in `import_headers`:
+    Column specs stay on the lines, Badge/Subtitle specs come back per item in
+    `products`.
+    """
     _guard()
     if isinstance(currencies, str):
         currencies = json.loads(currencies) if currencies.startswith("[") else currencies.split(",")
     currencies = [c.strip().upper() for c in currencies if c.strip()]
     f = frappe.get_doc("File", {"file_url": file_url})
     f.check_permission("read")
-    out = parse_offer_sheet(f.get_content(), currencies)
+    template = template or (frappe.db.get_value("CRM Catalogue", catalogue, "template") if catalogue else None)
+    specs = frappe.get_doc("CRM Catalogue Template", template).spec_columns if template else []
+    headers = {s.key: [h.strip() for h in (s.import_headers or s.label).split(",") if h.strip()] for s in specs}
+    out = parse_offer_sheet(f.get_content(), currencies, spec_headers=headers if template else None)
     rows = match_items(out["lines"])
+    products = {}
+    if template:
+        product_keys = {s.key for s in specs if s.display != "Column"}
+        for r in rows:
+            found = r.get("specs") or {}
+            r["specs"] = {k: v for k, v in found.items() if k not in product_keys}
+            if r["item"]:
+                products.setdefault(r["item"], {}).update({k: v for k, v in found.items() if k in product_keys})
     return {"lines": [r for r in rows if r["item"]], "unmatched": [r for r in rows if not r["item"]],
-            "terms": out["terms"]}
+            "terms": out["terms"],
+            "products": [{"item": k, "specs": v} for k, v in products.items() if v]}

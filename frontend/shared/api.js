@@ -86,8 +86,20 @@ async function callJson(method, payload) {
   return { ok: res.ok, status: res.status, data };
 }
 
+// The readable reason: frappe.throw's message travels in _server_messages
+// (a JSON list of JSON objects); the exception type alone ("ValidationError")
+// tells the user nothing.
+function serverMessage(data) {
+  try {
+    const list = JSON.parse(data?._server_messages || '[]');
+    const last = list.length ? JSON.parse(list[list.length - 1]) : null;
+    const text = last?.message ? String(last.message).replace(/<[^>]+>/g, '') : '';
+    return text || null;
+  } catch (e) { return null; }
+}
+
 function detailFrom(r) {
-  return r.data?._error_message || r.data?.exc_type || `HTTP ${r.status}`;
+  return r.data?._error_message || serverMessage(r.data) || r.data?.exc_type || `HTTP ${r.status}`;
 }
 
 // Form-encoded POST (Frappe's default whitelisted-method calling convention),

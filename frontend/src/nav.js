@@ -121,6 +121,7 @@ export const NAV = [
           { table: 'activity', label: 'Events & Tasks' },
           { table: 'wa', label: 'WhatsApp' },
           { table: 'catalogues', label: 'Catalogues' },
+          { table: 'templates', label: 'Catalogue templates' },
           { table: 'theme', label: 'Theme' },
           { table: 'health', label: 'Integrations' },
         ] },

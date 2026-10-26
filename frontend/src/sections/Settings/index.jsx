@@ -7,6 +7,7 @@ import Pipeline from './Pipeline';
 import Activity from './Activity';
 import WhatsAppSettings from './WhatsApp';
 import CatalogueSettings from './Catalogues';
+import CatalogueTemplates from './CatalogueTemplates';
 import Theme from './Theme';
 import Integrations from './Integrations';
 
@@ -21,6 +22,7 @@ const TABS = {
   activity: Activity,
   wa: WhatsAppSettings,
   catalogues: CatalogueSettings,
+  templates: CatalogueTemplates,
   theme: Theme,
   health: Integrations,
 };

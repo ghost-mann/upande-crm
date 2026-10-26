@@ -8,7 +8,7 @@ import { LABEL } from '../../components/DialogShell';
 import ShareDialog from './ShareDialog';
 import {
   catalogueGetApi, catalogueSaveApi, catalogueStatusApi, catalogueDuplicateApi, catalogueImportApi,
-  uploadPrivate, copyText, CATALOGUE_TONE,
+  uploadPrivate, uploadPublic, copyText, templatesApi, templateGetApi, CATALOGUE_TONE,
 } from '@/lib/catalogues';
 
 // One catalogue: its header, its lines grouped by item, the offer-sheet import,
@@ -18,7 +18,8 @@ const NUM = `${INPUT} text-right tabular-nums`;
 const AREA = 'w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-[13px] outline-none focus:ring-1 focus:ring-ring h-28';
 const W = { grade: 'min-w-[84px]', box: 'min-w-[96px]', colour: 'min-w-[84px]', pack: 'min-w-[72px]', bunch: 'min-w-[64px]', weight: 'min-w-[72px]', price: 'min-w-[84px]', url: 'min-w-[180px]' };
 
-const blank = () => ({ title: '', currencies: 'USD', status: 'Draft', volume_tier_qty: '', terms: '', lines: [] });
+const blank = () => ({ title: '', currencies: 'USD', status: 'Draft', volume_tier_qty: '', terms: '', lines: [],
+  template: 'Flowers almanac', products: [], mixes: [] });
 const curList = (s) => String(s || '').split(',').map((c) => c.trim().toUpperCase()).filter(Boolean);
 let seq = 0;
 const key = () => `k${++seq}`;
@@ -33,7 +34,10 @@ export default function CatalogueEditor({ name, onBack, onOpen }) {
   const [unmatched, setUnmatched] = useState([]);
   const [importing, setImporting] = useState(false);
   const [share, setShare] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [tpl, setTpl] = useState(null);
   const file = useRef(null);
+  const cover = useRef(null);
 
   function take(res) {
     const c = res.catalogue;
@@ -45,6 +49,10 @@ export default function CatalogueEditor({ name, onBack, onOpen }) {
   useEffect(() => {
     if (name) catalogueGetApi(name).then(take).catch((e) => setErr(e.message || 'Could not load'));
   }, [name]);
+  useEffect(() => { templatesApi().then((d) => setTemplates(d.rows)).catch(() => setTemplates([])); }, []);
+  useEffect(() => {
+    if (doc?.template) templateGetApi(doc.template).then((d) => setTpl(d.template)).catch(() => setTpl(null));
+  }, [doc?.template]);
 
   const currencies = useMemo(() => curList(doc?.currencies), [doc?.currencies]);
   const groups = useMemo(() => {
@@ -59,6 +67,20 @@ export default function CatalogueEditor({ name, onBack, onOpen }) {
 
   if (!doc) return <div className="crm-empty">{err || 'Loading…'}</div>;
   const editable = doc.can_edit !== false;
+  const lineSpecs = (tpl?.spec_columns || []).filter((c) => c.display === 'Column');
+  const productSpecs = (tpl?.spec_columns || []).filter((c) => c.display !== 'Column');
+  const colourGroups = tpl?.group_by === 'Colour' ? (tpl.colour_groups || []) : [];
+  const extraCols = lineSpecs.length + 1;
+  const products = doc.products || [];
+  const productOf = (item) => products.find((p) => p.item === item) || { item, badges: [], note: '', specs: {} };
+  const setProduct = (item, patch) => {
+    const has = products.some((p) => p.item === item);
+    set({ products: has ? products.map((p) => (p.item === item ? { ...p, ...patch } : p))
+      : [...products, { ...productOf(item), ...patch }] });
+  };
+  const mixes = doc.mixes || [];
+  const setMix = (i, patch) => set({ mixes: mixes.map((m, n) => (n === i ? { ...m, ...patch } : m)) });
+  const lineLabel = (l) => `${l.item_name || l.item} · ${l.grade || '—'} · ${l.box_type || ''}`;
 
   const set = (patch) => { setDoc((d) => ({ ...d, ...patch })); setDirty(true); };
   const setLine = (i, patch) => set({ lines: doc.lines.map((l, n) => (n === i ? { ...l, ...patch } : l)) });
@@ -109,9 +131,16 @@ export default function CatalogueEditor({ name, onBack, onOpen }) {
     setImporting(true); setErr(''); setNote('');
     try {
       const fileUrl = await uploadPrivate(f);
-      const res = await catalogueImportApi(fileUrl, currencies);
+      const res = await catalogueImportApi(fileUrl, currencies, doc.name, doc.template);
       const lines = res.lines.map((l) => ({ ...l, item_name: l.product, _k: key() }));
-      set({ lines, ...(res.terms && !doc.terms ? { terms: res.terms } : {}) });
+      // Badge/Subtitle specs come back per item: merge them onto the products.
+      const prods = [...products];
+      (res.products || []).forEach((rp) => {
+        const at = prods.findIndex((p) => p.item === rp.item);
+        if (at >= 0) prods[at] = { ...prods[at], specs: { ...(prods[at].specs || {}), ...rp.specs } };
+        else prods.push({ item: rp.item, badges: [], note: '', specs: rp.specs });
+      });
+      set({ lines, products: prods, ...(res.terms && !doc.terms ? { terms: res.terms } : {}) });
       setUnmatched(res.unmatched.map((u) => ({ ...u, _k: key() })));
       setNote(`Imported ${fmt(lines.length)} lines${res.unmatched.length ? ` · ${res.unmatched.length} need an item` : ''} — review, then Save.`);
     } catch (e) { setErr(e.message); } finally { setImporting(false); if (file.current) file.current.value = ''; }
@@ -152,6 +181,12 @@ export default function CatalogueEditor({ name, onBack, onOpen }) {
             <Button size="sm" className={gold} onClick={() => setShare(true)}><Icon name="ios_share" className="text-[16px]" />Send to…</Button>
           </>
         )}
+        {doc.name && doc.public_token && (
+          <Button size="sm" variant="outline" className={btn} title="Opens the buyer's page in preview mode (nothing is recorded)"
+            onClick={() => window.open(`/catalogue/${doc.public_token}?preview=1`, '_blank', 'noopener')}>
+            <Icon name="visibility" className="text-[16px]" />Preview
+          </Button>
+        )}
         {doc.name && <Button size="sm" variant="ghost" className={btn} onClick={duplicate}><Icon name="file_copy" className="text-[16px]" />Duplicate</Button>}
       </div>
       {(err || note) && <div className={`mb-3 text-[12.5px] ${err ? 'text-bad' : 'text-ink-mute'}`}>{err || note}</div>}
@@ -168,6 +203,24 @@ export default function CatalogueEditor({ name, onBack, onOpen }) {
             <input type="date" className={INPUT} value={doc.valid_from || ''} disabled={!editable} onChange={(e) => set({ valid_from: e.target.value || null })} /></label>
           <label><span className={LABEL}>Valid to</span>
             <input type="date" className={INPUT} value={doc.valid_to || ''} disabled={!editable} onChange={(e) => set({ valid_to: e.target.value || null })} /></label>
+          <label><span className={LABEL}>Magazine template</span>
+            <select className={INPUT} value={doc.template || ''} disabled={!editable} onChange={(e) => set({ template: e.target.value })}>
+              {templates.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+            </select></label>
+          <label><span className={LABEL}>Cover picture (overrides the template's)</span>
+            <span className="flex items-center gap-2">
+              <input ref={cover} type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                const f = e.target.files[0]; if (!f) return;
+                try { set({ cover_image: await uploadPublic(f) }); } catch (x) { setErr(x.message); }
+              }} />
+              <Button size="sm" variant="outline" className={btn} disabled={!editable} onClick={() => cover.current?.click()}>
+                <Icon name="image" className="text-[16px]" />{doc.cover_image ? 'Replace' : 'Upload'}
+              </Button>
+              {doc.cover_image && <>
+                <img src={doc.cover_image} alt="" className="h-8 w-12 object-cover rounded" />
+                {editable && <button type="button" className="text-ink-3 hover:text-bad text-[12px]" onClick={() => set({ cover_image: null })}>Remove</button>}
+              </>}
+            </span></label>
           <label><span className={LABEL}>Tier price above (boxes)</span>
             <input type="number" min="0" className={NUM} value={doc.volume_tier_qty || ''} disabled={!editable} onChange={(e) => set({ volume_tier_qty: e.target.value === '' ? null : Number(e.target.value) })} placeholder="e.g. 4" /></label>
           <label className="md:col-span-3"><span className={LABEL}>Ordering terms (shown to buyers)</span>
@@ -200,14 +253,15 @@ export default function CatalogueEditor({ name, onBack, onOpen }) {
           <table className="tbl">
             <thead>
               <tr>
-                <th>Grade</th><th>Box</th><th>Colour</th><th className="cell-num">Pack</th><th>Bunch</th><th className="cell-num">Weight</th>
+                <th>Grade</th><th>Box</th><th>Colour</th><th>Group</th>{lineSpecs.map((c) => <th key={c.key}>{c.label}</th>)}
+                <th className="cell-num">Pack</th><th>Bunch</th><th className="cell-num">Weight</th>
                 {currencies.map((c) => <th key={c} className="cell-num" colSpan={2}>{c} price · tier</th>)}
                 <th>Info link</th><th />
               </tr>
             </thead>
             <tbody>
               {groups.length ? groups.map((g) => [
-                <tr key={`${g.item}-h`}><td colSpan={8 + currencies.length * 2} className="!bg-surface-2 font-semibold text-ink">{g.item_name}</td></tr>,
+                <tr key={`${g.item}-h`}><td colSpan={8 + extraCols + currencies.length * 2} className="!bg-surface-2 font-semibold text-ink">{g.item_name}</td></tr>,
                 ...g.rows.map((i) => {
                   const l = doc.lines[i];
                   return (
@@ -215,6 +269,15 @@ export default function CatalogueEditor({ name, onBack, onOpen }) {
                       <td><input className={`${INPUT} ${W.grade}`} disabled={!editable} value={l.grade || ''} onChange={(e) => setLine(i, { grade: e.target.value })} /></td>
                       <td><input className={`${INPUT} ${W.box}`} disabled={!editable} value={l.box_type || ''} onChange={(e) => setLine(i, { box_type: e.target.value })} /></td>
                       <td><input className={`${INPUT} ${W.colour}`} disabled={!editable} value={l.color || ''} onChange={(e) => setLine(i, { color: e.target.value })} /></td>
+                      <td>{colourGroups.length ? (
+                        <select className={`${INPUT} min-w-[120px]`} disabled={!editable} value={l.colour_group || ''} onChange={(e) => setLine(i, { colour_group: e.target.value || null })}>
+                          <option value="">{l.group ? `Auto: ${l.group}` : 'Auto'}</option>
+                          {colourGroups.map((cg) => <option key={cg.label}>{cg.label}</option>)}
+                        </select>) : <span className="text-ink-mute text-[12px] whitespace-nowrap">{l.group || '—'}</span>}</td>
+                      {lineSpecs.map((c) => (
+                        <td key={c.key}><input className={`${INPUT} min-w-[90px]`} disabled={!editable} value={l.specs?.[c.key] ?? ''}
+                          onChange={(e) => setLine(i, { specs: { ...(l.specs || {}), [c.key]: e.target.value } })} /></td>
+                      ))}
                       <td><input className={`${NUM} ${W.pack}`} disabled={!editable} type="number" value={l.pack_qty ?? ''} onChange={(e) => setLine(i, { pack_qty: e.target.value === '' ? null : Number(e.target.value) })} /></td>
                       <td><input className={`${INPUT} ${W.bunch}`} disabled={!editable} value={l.bunch || ''} onChange={(e) => setLine(i, { bunch: e.target.value })} /></td>
                       <td><input className={`${NUM} ${W.weight}`} disabled={!editable} type="number" value={l.weight ?? ''} onChange={(e) => setLine(i, { weight: e.target.value === '' ? null : Number(e.target.value) })} /></td>
@@ -228,12 +291,89 @@ export default function CatalogueEditor({ name, onBack, onOpen }) {
                   );
                 }),
               ]) : (
-                <tr><td colSpan={8 + currencies.length * 2}><div className="crm-empty">No lines — import an offer sheet or add an item</div></td></tr>
+                <tr><td colSpan={8 + extraCols + currencies.length * 2}><div className="crm-empty">No lines — import an offer sheet or add an item</div></td></tr>
               )}
             </tbody>
           </table>
         </div>
       </Card>
+
+      {groups.length > 0 && (
+        <Card className="mt-4">
+          <CardHeader><div><CardTitle>Products on the page</CardTitle>
+            <CardSub>Badges, a note and {productSpecs.length ? productSpecs.map((c) => c.label).join(', ') : 'details'} — shown once per product</CardSub></div></CardHeader>
+          <div className="px-5 pb-4 grid gap-3">
+            {groups.map((g) => {
+              const p = productOf(g.item);
+              return (
+                <div key={g.item} className="grid grid-cols-1 md:grid-cols-[220px_1fr_1fr] gap-3 items-start border-t border-hairline pt-3">
+                  <div className="font-semibold text-[13px] text-ink">{g.item_name}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(tpl?.badges || []).map((b) => {
+                      const on = (p.badges || []).includes(b.label);
+                      return (
+                        <button key={b.label} type="button" disabled={!editable}
+                          onClick={() => setProduct(g.item, { badges: on ? p.badges.filter((x) => x !== b.label) : [...(p.badges || []), b.label] })}
+                          className="rounded px-2 py-0.5 text-[11.5px] font-semibold border"
+                          style={on ? { background: b.background, color: b.ink, borderColor: b.background } : { opacity: 0.55 }}>
+                          {b.label}
+                        </button>
+                      );
+                    })}
+                    {productSpecs.map((c) => (
+                      <input key={c.key} className={`${INPUT} w-[150px]`} placeholder={c.label} disabled={!editable} value={p.specs?.[c.key] ?? ''}
+                        onChange={(e) => setProduct(g.item, { specs: { ...(p.specs || {}), [c.key]: e.target.value } })} />
+                    ))}
+                  </div>
+                  <textarea className={`${INPUT} h-14 py-1`} placeholder="Note — blank uses the item's description" disabled={!editable}
+                    value={p.note || ''} onChange={(e) => setProduct(g.item, { note: e.target.value })} />
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {doc.lines.length > 0 && (
+        <Card className="mt-4">
+          <CardHeader><div><CardTitle>Mixes</CardTitle><CardSub>Ready-made combinations buyers add in one tap</CardSub></div>
+            {editable && <Button size="sm" variant="outline" className={btn} onClick={() => set({ mixes: [...mixes, { title: '', items: [] }] })}>
+              <Icon name="add" className="text-[16px]" />Add a mix</Button>}
+          </CardHeader>
+          <div className="px-5 pb-4 grid gap-4">
+            {!mixes.length && <div className="text-[12.5px] text-ink-mute">No mixes yet.</div>}
+            {mixes.map((m, i) => (
+              <div key={i} className="grid gap-2 border-t border-hairline pt-3">
+                <div className="flex gap-2 items-center">
+                  <input className={`${INPUT} w-[240px] font-semibold`} placeholder="Mix name, e.g. Cool whites" disabled={!editable}
+                    value={m.title || ''} onChange={(e) => setMix(i, { title: e.target.value })} />
+                  <input className={`${INPUT} flex-1`} placeholder="Summary (blank: the variety names)" disabled={!editable}
+                    value={m.summary || ''} onChange={(e) => setMix(i, { summary: e.target.value })} />
+                  {editable && <button type="button" className="text-ink-3 hover:text-bad" title="Remove mix" onClick={() => set({ mixes: mixes.filter((_, n) => n !== i) })}>
+                    <Icon name="delete" className="text-[16px]" /></button>}
+                </div>
+                {(m.items || []).map((it, j) => (
+                  <div key={j} className="flex gap-2 items-center pl-4">
+                    <select className={`${INPUT} flex-1`} disabled={!editable} value={it.line}
+                      onChange={(e) => setMix(i, { items: m.items.map((x, n) => (n === j ? { ...x, line: e.target.value } : x)) })}>
+                      {!doc.lines.some((l) => l.name === it.line) && <option value={it.line}>(removed line)</option>}
+                      {doc.lines.filter((l) => l.name).map((l) => <option key={l.name} value={l.name}>{lineLabel(l)}</option>)}
+                    </select>
+                    <input type="number" min="1" className={`${NUM} w-[80px]`} disabled={!editable} value={it.boxes ?? 1}
+                      onChange={(e) => setMix(i, { items: m.items.map((x, n) => (n === j ? { ...x, boxes: Number(e.target.value) || 1 } : x)) })} />
+                    {editable && <button type="button" className="text-ink-3 hover:text-bad" onClick={() => setMix(i, { items: m.items.filter((_, n) => n !== j) })}>
+                      <Icon name="close" className="text-[16px]" /></button>}
+                  </div>
+                ))}
+                {editable && (doc.lines.some((l) => l.name) ? (
+                  <button type="button" className="text-[12.5px] text-gold-text hover:underline justify-self-start pl-4"
+                    onClick={() => setMix(i, { items: [...(m.items || []), { line: doc.lines.find((l) => l.name).name, boxes: 1 }] })}>+ Add a line</button>
+                ) : <div className="text-[12px] text-ink-mute pl-4">Save the catalogue first to pick its lines.</div>)}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {share && <ShareDialog catalogue={doc} onClose={() => setShare(false)} />}
     </>

@@ -10,8 +10,14 @@ export const catalogueGetApi = (name) => api(C + 'crm_catalogue_get', { name });
 export const catalogueSaveApi = (catalogue) => api(C + 'crm_catalogue_save', { catalogue: json(catalogue) });
 export const catalogueStatusApi = (name, status) => api(C + 'crm_catalogue_status', { name, status });
 export const catalogueDuplicateApi = (name) => api(C + 'crm_catalogue_duplicate', { name });
-export const catalogueImportApi = (file_url, currencies) =>
-  api('upande_crm.api.catalogue_import.crm_catalogue_import', { file_url, currencies: json(currencies) });
+export const catalogueImportApi = (file_url, currencies, catalogue, template) =>
+  api('upande_crm.api.catalogue_import.crm_catalogue_import', {
+    file_url, currencies: json(currencies), catalogue: catalogue || '', template: template || '' });
+export const templatesApi = () => api(C + 'crm_catalogue_templates', {});
+export const templateGetApi = (name) => api(C + 'crm_catalogue_template_get', { name });
+export const templateSaveApi = (template) => api(C + 'crm_catalogue_template_save', { template: json(template) });
+export const templateCopyApi = (name, new_name) => api(C + 'crm_catalogue_template_copy', { name, new_name });
+export const templateDeleteApi = (name) => api(C + 'crm_catalogue_template_delete', { name });
 export const shareOptionsApi = (name, party_type, party) => api(C + 'crm_catalogue_share_options', { name, party_type, party });
 export const shareApi = (args) => api(C + 'crm_catalogue_share', args);
 export const catalogueLinksApi = (name) => api(C + 'crm_catalogue_links', { name });
@@ -23,12 +29,16 @@ export const makeOpportunityApi = (name) => api(C + 'crm_catalogue_make_opportun
 export const CATALOGUE_TONE = { Draft: 'bdg-other', Live: 'bdg-good', Closed: 'bdg-bad' };
 export const INTEREST_TONE = { New: 'bdg-info', Contacted: 'bdg-warn', Converted: 'bdg-good', Dropped: 'bdg-other' };
 
-// Upload a private file through Frappe's standard endpoint; resolves to its file_url.
-export async function uploadPrivate(file) {
+// Upload a file through Frappe's standard endpoint; resolves to its file_url.
+// Cover images are shown to guests, so they go up public.
+export const uploadPublic = (file) => uploadFile(file, false);
+export const uploadPrivate = (file) => uploadFile(file, true);
+
+async function uploadFile(file, isPrivate) {
   const { getCsrfToken } = await import('@shared/api');
   const fd = new FormData();
   fd.append('file', file, file.name);
-  fd.append('is_private', '1');
+  fd.append('is_private', isPrivate ? '1' : '0');
   fd.append('folder', 'Home');
   const res = await fetch('/api/method/upload_file', {
     method: 'POST', body: fd, credentials: 'same-origin',

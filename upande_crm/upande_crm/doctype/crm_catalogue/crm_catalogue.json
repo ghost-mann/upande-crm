@@ -18,10 +18,14 @@
   "valid_to",
   "currencies",
   "volume_tier_qty",
+  "template",
+  "cover_image",
   "sb_terms",
   "terms",
   "sb_lines",
   "lines",
+  "products",
+  "mixes",
   "sb_share",
   "public_token",
   "views"
@@ -120,6 +124,30 @@
    "read_only": 1,
    "no_copy": 1,
    "default": "0"
+  },
+  {
+   "fieldname": "template",
+   "fieldtype": "Link",
+   "label": "Template",
+   "options": "CRM Catalogue Template"
+  },
+  {
+   "fieldname": "cover_image",
+   "fieldtype": "Attach Image",
+   "label": "Cover Image",
+   "description": "Overrides the template's cover image"
+  },
+  {
+   "fieldname": "products",
+   "fieldtype": "Table",
+   "label": "Products",
+   "options": "CRM Catalogue Product"
+  },
+  {
+   "fieldname": "mixes",
+   "fieldtype": "Table",
+   "label": "Mixes",
+   "options": "CRM Catalogue Mix"
   }
  ],
  "permissions": [

@@ -1,0 +1,44 @@
+{
+ "actions": [],
+ "creation": "2026-10-26 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Upande CRM",
+ "name": "CRM Catalogue Template Frequency",
+ "modified": "2026-10-26 12:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "states": [],
+ "field_order": [
+  "label",
+  "period_text",
+  "recurring"
+ ],
+ "fields": [
+  {
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "label": "Label",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "period_text",
+   "fieldtype": "Data",
+   "label": "Period Text",
+   "in_list_view": 1,
+   "description": "Estimate wording, e.g. \"a week\". Blank = \"once\"."
+  },
+  {
+   "fieldname": "recurring",
+   "fieldtype": "Check",
+   "label": "Recurring",
+   "in_list_view": 1
+  }
+ ],
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "istable": 1,
+ "editable_grid": 1
+}

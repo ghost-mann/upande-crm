@@ -1,0 +1,53 @@
+{
+ "actions": [],
+ "creation": "2026-10-26 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Upande CRM",
+ "name": "CRM Catalogue Template Colour Group",
+ "modified": "2026-10-26 12:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "states": [],
+ "field_order": [
+  "label",
+  "swatch",
+  "swatch_ink",
+  "keywords"
+ ],
+ "fields": [
+  {
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "label": "Label",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "swatch",
+   "fieldtype": "Data",
+   "label": "Swatch",
+   "in_list_view": 1,
+   "description": "#RRGGBB"
+  },
+  {
+   "fieldname": "swatch_ink",
+   "fieldtype": "Data",
+   "label": "Swatch Ink",
+   "in_list_view": 1,
+   "description": "#RRGGBB"
+  },
+  {
+   "fieldname": "keywords",
+   "fieldtype": "Small Text",
+   "label": "Keywords",
+   "in_list_view": 1,
+   "description": "Comma separated colour words, e.g. white, cream, ivory"
+  }
+ ],
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "istable": 1,
+ "editable_grid": 1
+}

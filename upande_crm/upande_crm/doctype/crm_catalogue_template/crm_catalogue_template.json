@@ -1,0 +1,438 @@
+{
+ "actions": [],
+ "creation": "2026-10-26 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Upande CRM",
+ "name": "CRM Catalogue Template",
+ "modified": "2026-10-26 12:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "states": [],
+ "field_order": [
+  "template_name",
+  "preset",
+  "is_standard",
+  "group_by",
+  "sb_colours",
+  "brand",
+  "brand_ink",
+  "cb_c1",
+  "paper",
+  "ink",
+  "cb_c2",
+  "accent",
+  "accent_ink",
+  "font_pair",
+  "sb_cover",
+  "cover_mode",
+  "cover_image",
+  "logo",
+  "cb_cv",
+  "issue_title",
+  "headline",
+  "dek",
+  "letter_heading",
+  "letter_signoff",
+  "sb_wording",
+  "unit_label",
+  "pack_label",
+  "pack_label_plural",
+  "grade_label",
+  "bunch_label",
+  "weight_label",
+  "cb_w",
+  "price_label",
+  "tier_label",
+  "qty_label",
+  "cta_label",
+  "thank_you_text",
+  "closed_text",
+  "frequencies",
+  "sb_group",
+  "fallback_group_label",
+  "colour_groups",
+  "sb_specs",
+  "spec_columns",
+  "badges",
+  "sb_sections",
+  "show_cover",
+  "show_letter",
+  "show_tabs",
+  "show_mixes",
+  "show_badges",
+  "cb_s",
+  "show_notes",
+  "show_estimate",
+  "show_codes",
+  "show_weight",
+  "show_more_info"
+ ],
+ "fields": [
+  {
+   "fieldname": "template_name",
+   "fieldtype": "Data",
+   "label": "Template Name",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "preset",
+   "fieldtype": "Select",
+   "label": "Preset",
+   "options": "Almanac\nField guide\nMarket sheet",
+   "default": "Almanac",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "is_standard",
+   "fieldtype": "Check",
+   "label": "Is Standard",
+   "read_only": 1,
+   "description": "Shipped with the app. Can be edited or copied."
+  },
+  {
+   "fieldname": "group_by",
+   "fieldtype": "Select",
+   "label": "Group By",
+   "options": "Colour\nItem Group\nGrade",
+   "default": "Colour",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sb_colours",
+   "fieldtype": "Section Break",
+   "label": "Colours"
+  },
+  {
+   "fieldname": "brand",
+   "fieldtype": "Data",
+   "label": "Brand",
+   "default": "#1E4D3A"
+  },
+  {
+   "fieldname": "brand_ink",
+   "fieldtype": "Data",
+   "label": "Brand Ink",
+   "default": "#F3F6EF"
+  },
+  {
+   "fieldname": "cb_c1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "paper",
+   "fieldtype": "Data",
+   "label": "Paper",
+   "default": "#F6F6F1"
+  },
+  {
+   "fieldname": "ink",
+   "fieldtype": "Data",
+   "label": "Ink",
+   "default": "#18181A"
+  },
+  {
+   "fieldname": "cb_c2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "accent",
+   "fieldtype": "Data",
+   "label": "Accent",
+   "default": "#F2E3B6"
+  },
+  {
+   "fieldname": "accent_ink",
+   "fieldtype": "Data",
+   "label": "Accent Ink",
+   "default": "#6A4A06"
+  },
+  {
+   "fieldname": "font_pair",
+   "fieldtype": "Select",
+   "label": "Font Pair",
+   "options": "almanac\norchard\nroastery\nfieldguide\nmarket\ngazette",
+   "default": "almanac"
+  },
+  {
+   "fieldname": "sb_cover",
+   "fieldtype": "Section Break",
+   "label": "Cover"
+  },
+  {
+   "fieldname": "cover_mode",
+   "fieldtype": "Select",
+   "label": "Cover Mode",
+   "options": "Collage\nImage",
+   "default": "Collage"
+  },
+  {
+   "fieldname": "cover_image",
+   "fieldtype": "Attach Image",
+   "label": "Cover Image"
+  },
+  {
+   "fieldname": "logo",
+   "fieldtype": "Attach Image",
+   "label": "Logo"
+  },
+  {
+   "fieldname": "cb_cv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "issue_title",
+   "fieldtype": "Data",
+   "label": "Issue Title"
+  },
+  {
+   "fieldname": "headline",
+   "fieldtype": "Data",
+   "label": "Headline"
+  },
+  {
+   "fieldname": "dek",
+   "fieldtype": "Small Text",
+   "label": "Dek"
+  },
+  {
+   "fieldname": "letter_heading",
+   "fieldtype": "Data",
+   "label": "Letter Heading",
+   "default": "From the farm"
+  },
+  {
+   "fieldname": "letter_signoff",
+   "fieldtype": "Data",
+   "label": "Letter Signoff"
+  },
+  {
+   "fieldname": "sb_wording",
+   "fieldtype": "Section Break",
+   "label": "Wording"
+  },
+  {
+   "fieldname": "unit_label",
+   "fieldtype": "Data",
+   "label": "Unit Label",
+   "default": "stem"
+  },
+  {
+   "fieldname": "pack_label",
+   "fieldtype": "Data",
+   "label": "Pack Label",
+   "default": "box"
+  },
+  {
+   "fieldname": "pack_label_plural",
+   "fieldtype": "Data",
+   "label": "Pack Label Plural",
+   "default": "boxes"
+  },
+  {
+   "fieldname": "grade_label",
+   "fieldtype": "Data",
+   "label": "Grade Label",
+   "default": "Length"
+  },
+  {
+   "fieldname": "bunch_label",
+   "fieldtype": "Data",
+   "label": "Bunch Label",
+   "default": "Bunch"
+  },
+  {
+   "fieldname": "weight_label",
+   "fieldtype": "Data",
+   "label": "Weight Label",
+   "default": "kg"
+  },
+  {
+   "fieldname": "cb_w",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "price_label",
+   "fieldtype": "Data",
+   "label": "Price Label",
+   "default": "Per {unit}"
+  },
+  {
+   "fieldname": "tier_label",
+   "fieldtype": "Data",
+   "label": "Tier Label",
+   "default": "Above {n} {packs}"
+  },
+  {
+   "fieldname": "qty_label",
+   "fieldtype": "Data",
+   "label": "Qty Label",
+   "default": "{Packs}"
+  },
+  {
+   "fieldname": "cta_label",
+   "fieldtype": "Data",
+   "label": "Cta Label",
+   "default": "Send my interest"
+  },
+  {
+   "fieldname": "thank_you_text",
+   "fieldtype": "Small Text",
+   "label": "Thank You Text"
+  },
+  {
+   "fieldname": "closed_text",
+   "fieldtype": "Small Text",
+   "label": "Closed Text"
+  },
+  {
+   "fieldname": "frequencies",
+   "fieldtype": "Table",
+   "label": "Frequencies",
+   "options": "CRM Catalogue Template Frequency"
+  },
+  {
+   "fieldname": "sb_group",
+   "fieldtype": "Section Break",
+   "label": "Grouping"
+  },
+  {
+   "fieldname": "fallback_group_label",
+   "fieldtype": "Data",
+   "label": "Fallback Group Label",
+   "default": "Mixed"
+  },
+  {
+   "fieldname": "colour_groups",
+   "fieldtype": "Table",
+   "label": "Colour Groups",
+   "options": "CRM Catalogue Template Colour Group"
+  },
+  {
+   "fieldname": "sb_specs",
+   "fieldtype": "Section Break",
+   "label": "Spec columns and badges"
+  },
+  {
+   "fieldname": "spec_columns",
+   "fieldtype": "Table",
+   "label": "Spec Columns",
+   "options": "CRM Catalogue Template Spec"
+  },
+  {
+   "fieldname": "badges",
+   "fieldtype": "Table",
+   "label": "Badges",
+   "options": "CRM Catalogue Template Badge"
+  },
+  {
+   "fieldname": "sb_sections",
+   "fieldtype": "Section Break",
+   "label": "Sections"
+  },
+  {
+   "fieldname": "show_cover",
+   "fieldtype": "Check",
+   "label": "Show Cover",
+   "default": "1"
+  },
+  {
+   "fieldname": "show_letter",
+   "fieldtype": "Check",
+   "label": "Show Letter",
+   "default": "1"
+  },
+  {
+   "fieldname": "show_tabs",
+   "fieldtype": "Check",
+   "label": "Show Tabs",
+   "default": "1"
+  },
+  {
+   "fieldname": "show_mixes",
+   "fieldtype": "Check",
+   "label": "Show Mixes",
+   "default": "1"
+  },
+  {
+   "fieldname": "show_badges",
+   "fieldtype": "Check",
+   "label": "Show Badges",
+   "default": "1"
+  },
+  {
+   "fieldname": "cb_s",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "show_notes",
+   "fieldtype": "Check",
+   "label": "Show Notes",
+   "default": "1"
+  },
+  {
+   "fieldname": "show_estimate",
+   "fieldtype": "Check",
+   "label": "Show Estimate",
+   "default": "1"
+  },
+  {
+   "fieldname": "show_codes",
+   "fieldtype": "Check",
+   "label": "Show Codes",
+   "default": "0"
+  },
+  {
+   "fieldname": "show_weight",
+   "fieldtype": "Check",
+   "label": "Show Weight",
+   "default": "1"
+  },
+  {
+   "fieldname": "show_more_info",
+   "fieldtype": "Check",
+   "label": "Show More Info",
+   "default": "1"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1,
+   "export": 1,
+   "delete": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1,
+   "export": 1,
+   "delete": 1
+  },
+  {
+   "role": "Sales User",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "autoname": "field:template_name",
+ "naming_rule": "By fieldname",
+ "title_field": "template_name",
+ "search_fields": "group_by",
+ "track_changes": 1
+}

@@ -25,6 +25,39 @@ class CRMCatalogue(Document):
         self._validate_currencies()
         self._validate_dates()
         self._validate_prices()
+        self._follow_template()
+
+    def _follow_template(self):
+        """Keep products, badges and specs in step with the lines and the
+        template: one product row per item in the lines (values kept), badges
+        only from the template's list, and each spec on the record its display
+        kind belongs to — Column specs on lines, Badge/Subtitle on products."""
+        from upande_crm.catalogue_templates import DEFAULT_TEMPLATE, TEMPLATE
+
+        if not self.template and frappe.db.exists(TEMPLATE, DEFAULT_TEMPLATE):
+            self.template = DEFAULT_TEMPLATE
+        tpl = frappe.get_cached_doc(TEMPLATE, self.template) if self.template else None
+        line_keys = {s.key for s in tpl.spec_columns if s.display == "Column"} if tpl else set()
+        product_keys = {s.key for s in tpl.spec_columns if s.display != "Column"} if tpl else set()
+        badges = {b.label for b in tpl.badges} if tpl else set()
+
+        for line in self.lines or []:
+            specs = _json(line.get("specs"))
+            specs = {k: v for k, v in specs.items() if k in line_keys and v not in (None, "")}
+            line.specs = json.dumps(specs) if specs else None
+
+        items = list(dict.fromkeys(l.item for l in self.lines or [] if l.item))
+        kept = {p.item: p for p in self.products or [] if p.item in items}
+        rows = []
+        for item in items:
+            row = kept.get(item) or frappe._dict(item=item)
+            picked = [b.strip() for b in (row.get("badges") or "").split("\n") if b.strip() in badges]
+            specs = {k: v for k, v in _json(row.get("specs")).items() if k in product_keys and v not in (None, "")}
+            rows.append({"item": item, "note": row.get("note"), "badges": "\n".join(picked) or None,
+                         "specs": json.dumps(specs) if specs else None, "name": row.get("name")})
+        self.set("products", [])
+        for r in rows:
+            self.append("products", {k: v for k, v in r.items() if v is not None})
 
     def currency_list(self):
         return [c.strip().upper() for c in (self.currencies or "").split(",") if c.strip()]
@@ -77,6 +110,18 @@ class CRMCatalogue(Document):
         if self.valid_to and today > getdate(self.valid_to):
             return False
         return True
+
+
+def _json(raw):
+    if not raw:
+        return {}
+    if isinstance(raw, dict):
+        return raw
+    try:
+        val = json.loads(raw)
+    except (TypeError, ValueError):
+        return {}
+    return val if isinstance(val, dict) else {}
 
 
 def _prices(line):

@@ -21,6 +21,8 @@
   "bunch",
   "weight",
   "info_url",
+  "colour_group",
+  "specs",
   "prices"
  ],
  "fields": [
@@ -95,6 +97,17 @@
    "fieldtype": "JSON",
    "label": "Prices",
    "description": "{\"USD\": {\"price\": 0.23, \"tier\": 0.22}}"
+  },
+  {
+   "fieldname": "colour_group",
+   "fieldtype": "Data",
+   "label": "Colour Group",
+   "description": "Blank: derived from the colour word"
+  },
+  {
+   "fieldname": "specs",
+   "fieldtype": "JSON",
+   "label": "Specs"
   }
  ],
  "permissions": [],

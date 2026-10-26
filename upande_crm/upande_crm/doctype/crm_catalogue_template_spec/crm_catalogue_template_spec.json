@@ -1,0 +1,55 @@
+{
+ "actions": [],
+ "creation": "2026-10-26 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Upande CRM",
+ "name": "CRM Catalogue Template Spec",
+ "modified": "2026-10-26 12:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "states": [],
+ "field_order": [
+  "key",
+  "label",
+  "display",
+  "import_headers"
+ ],
+ "fields": [
+  {
+   "fieldname": "key",
+   "fieldtype": "Data",
+   "label": "Key",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "label": "Label",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "display",
+   "fieldtype": "Select",
+   "label": "Display",
+   "options": "Column\nBadge\nSubtitle",
+   "default": "Column",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "import_headers",
+   "fieldtype": "Small Text",
+   "label": "Import Headers",
+   "in_list_view": 1,
+   "description": "Comma separated sheet headers to import it from"
+  }
+ ],
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "istable": 1,
+ "editable_grid": 1
+}

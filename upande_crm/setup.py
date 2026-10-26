@@ -77,6 +77,7 @@ CRM_ROLE_PERMS = {
 		("CRM Catalogue", 0): _USER,
 		("CRM Catalogue Link", 0): _USER,
 		("CRM Catalogue Interest", 0): _USER,
+		("CRM Catalogue Template", 0): "read,report",
 	},
 	"CRM Manager": {
 		("Lead", 0): _MANAGER,
@@ -95,6 +96,7 @@ CRM_ROLE_PERMS = {
 		("CRM Catalogue", 0): _MANAGER + ",delete",
 		("CRM Catalogue Link", 0): _MANAGER + ",delete",
 		("CRM Catalogue Interest", 0): _MANAGER + ",delete",
+		("CRM Catalogue Template", 0): _MANAGER + ",delete",
 	},
 }
 
@@ -278,3 +280,9 @@ def setup():
     from upande_crm.api.board import ensure_pipeline_records
 
     ensure_pipeline_records()
+    # On after_install the model already exists, so the starters can be made
+    # here too; on before_migrate this is a no-op until the doctype is synced.
+    from upande_crm.catalogue_templates import assign_default_template, ensure_starters
+
+    ensure_starters()
+    assign_default_template()

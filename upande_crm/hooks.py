@@ -70,7 +70,9 @@ before_migrate = "upande_crm.setup.setup"
 # `after_migrate`, because it reads back the `Desktop Icon` that sync_all() has
 # just imported. See upande_crm/apps_screen.py for why this is a hook and not a
 # one-shot patch.
-after_migrate = "upande_crm.apps_screen.sync_desktop_tile"
+# Starter magazine templates are created after the model sync (before_migrate
+# runs too early for the template doctype); see catalogue_templates.py.
+after_migrate = ["upande_crm.apps_screen.sync_desktop_tile", "upande_crm.catalogue_templates.after_migrate"]
 
 # The one document hook in this app. `Prospect.make_opportunity` maps four fields
 # and Prospect owns no contact field, so an opportunity raised from a prospect used

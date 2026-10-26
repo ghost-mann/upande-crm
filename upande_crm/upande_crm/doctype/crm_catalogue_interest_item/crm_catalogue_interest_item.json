@@ -66,10 +66,8 @@
   },
   {
    "fieldname": "frequency",
-   "fieldtype": "Select",
+   "fieldtype": "Data",
    "label": "Frequency",
-   "options": "One-off\nWeekly",
-   "default": "One-off",
    "in_list_view": 1
   },
   {

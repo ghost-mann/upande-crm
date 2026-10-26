@@ -199,3 +199,42 @@ class TestReviewFixes(DisplayCase):
         doc = make_catalogue(lines=[{"item": a, "color": "Burgundy Red", "prices": price(0.2)}])
         line = self.groups(doc)[0]["products"][0]["lines"][0]
         self.assertEqual(line["color"], "Burgundy Red")
+
+
+class TestEditableEverything(DisplayCase):
+    """Every visible phrase, the block order, the layout and the fonts come
+    from the template (follow-up to the magazine design, 2026-10-26)."""
+
+    def test_page_text_defaults_and_overrides(self):
+        tpl = copy_of(new="Words", page_text={"mixes_heading": "Our bundles", "field_name": "  ",
+                                               "nonsense_key": "x"}).insert()
+        page = D.build_display(make_catalogue(template=tpl.name), tpl)["text"]["page"]
+        self.assertEqual(page["mixes_heading"], "Our bundles")
+        self.assertEqual(page["field_name"], "Your name")  # blank keeps the default
+        self.assertEqual(page["form_title"], "Your details")
+        self.assertNotIn("nonsense_key", page)
+        self.assertEqual(set(page), set(D.PAGE_TEXT))
+
+    def test_page_text_placeholders_filled(self):
+        doc = make_catalogue(volume_tier_qty=4)
+        page = D.build_display(doc, self.flowers)["text"]["page"]
+        self.assertEqual(page["bar_empty"], "Enter boxes on the lines you want")
+
+    def test_layout_and_order_reach_the_page(self):
+        tpl = copy_of(new="Compact", card_style="Photo top", density="Compact", heading_size="Large",
+                      section_order="products,letter,mixes").insert()
+        layout = D.build_display(make_catalogue(template=tpl.name), tpl)["layout"]
+        self.assertEqual(layout, {"card_style": "Photo top", "density": "Compact", "heading_size": "Large",
+                                  "order": ["products", "letter", "mixes"]})
+
+    def test_layout_defaults(self):
+        layout = D.build_display(make_catalogue(), self.flowers)["layout"]
+        self.assertEqual(layout, {"card_style": "Photo left", "density": "Airy", "heading_size": "Medium",
+                                  "order": ["letter", "mixes", "products"]})
+
+    def test_uploaded_fonts_override_the_pair_per_role(self):
+        tpl = copy_of(new="Own fonts", font_head_file="/files/brand-head.woff2").insert()
+        fonts = D.build_display(make_catalogue(template=tpl.name), tpl)["theme"]["fonts"]
+        self.assertEqual(fonts["head_url"], "/files/brand-head.woff2")
+        self.assertIsNone(fonts["text_url"])
+        self.assertEqual(fonts["text"], "Archivo Narrow")

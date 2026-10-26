@@ -232,3 +232,24 @@ class TestMixesSurvive(TemplateCase):
         ref = out["mixes"][0]["items"][0]["line"]
         self.assertIn(ref, [l["name"] for l in out["lines"]])
         self.assertEqual(next(l for l in out["lines"] if l["name"] == ref)["grade"], "60 cm")
+
+
+class TestEditableValidation(TemplateCase):
+    def test_section_order_must_be_the_three_blocks(self):
+        with self.assertRaises(frappe.ValidationError):
+            copy_of(new="Bad order", section_order="letter,products").insert()
+        with self.assertRaises(frappe.ValidationError):
+            copy_of(new="Bad order 2", section_order="letter,mixes,cover").insert()
+        self.assertEqual(copy_of(new="Good order", section_order="mixes, products ,letter").insert().section_order,
+                         "mixes,products,letter")
+
+    def test_font_files_must_be_fonts_on_this_site(self):
+        with self.assertRaises(frappe.ValidationError):
+            copy_of(new="Bad font", font_head_file="/files/logo.png").insert()
+        with self.assertRaises(frappe.ValidationError):
+            copy_of(new="Remote font", font_text_file="https://evil.example/x.woff2").insert()
+        copy_of(new="Ok font", font_note_file="/files/note.ttf").insert()
+
+    def test_page_text_must_be_strings(self):
+        with self.assertRaises(frappe.ValidationError):
+            copy_of(new="Bad text", page_text={"form_title": {"html": "<b>x</b>"}}).insert()

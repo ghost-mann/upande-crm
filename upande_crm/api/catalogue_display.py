@@ -26,6 +26,28 @@ from frappe.utils import cint, flt, strip_html
 from upande_crm.catalogue_templates import DEFAULT_TEMPLATE, FONT_PAIRS, STARTERS
 
 FONT_CSS = "/assets/upande_crm/catalogue/fonts/{0}/fonts.css"
+BLOCKS = ("letter", "mixes", "products")
+
+# Every fixed phrase on the buyer page, with its default. A template's
+# `page_text` overrides any of them; blank keeps the default. Placeholders:
+# {unit} {pack} {packs} {Packs} {n} are filled here; {name} {currencies}
+# {from} {to} {count} are filled by the page.
+PAGE_TEXT = {
+    "mixes_heading": "Mixes we like this season", "mix_add": "Add this mix", "mix_added": "Added",
+    "pack_heading": "Pack", "per_pack": "{count} per {pack}", "more_about": "More about {name}",
+    "item_one": "item", "item_many": "items", "line_one": "line", "line_many": "lines",
+    "prices_in": "prices in {currencies}", "valid_range": "valid {from} – {to}", "valid_until": "valid until {to}",
+    "estimate_prefix": "about", "bar_empty": "Enter {packs} on the lines you want",
+    "form_title": "Your details", "form_title_personal": "Check your details",
+    "form_hint": "We'll get back to you about these lines.",
+    "field_name": "Your name", "field_company": "Company", "field_email": "Email",
+    "field_phone": "Phone / WhatsApp", "field_country": "Country", "field_message": "Anything we should know?",
+    "back": "Back to the offer", "sending": "Sending…", "thanks_heading": "Thank you",
+    "error_name": "Please give your name.", "error_email": "Please give your email address.",
+    "unavailable_title": "This offer isn't available",
+    "unavailable_withdrawn": "It may have been withdrawn. Please ask whoever sent you the link.",
+    "empty": "Nothing in this offer yet.",
+}
 SECTIONS = ("cover", "letter", "tabs", "mixes", "badges", "notes", "estimate", "codes", "weight", "more_info")
 _DEFAULTS = next(s for s in STARTERS if s["template_name"] == DEFAULT_TEMPLATE)
 
@@ -76,6 +98,14 @@ def template_text(template, tier_qty=None):
     packs = template.get("pack_label_plural") or (_DEFAULTS["pack_label_plural"] if pack == _DEFAULTS["pack_label"]
                                                   else f"{pack}s")
 
+    def sub(s):
+        return (s.replace("{unit}", unit).replace("{packs}", packs).replace("{Packs}", packs[:1].upper() + packs[1:])
+                .replace("{pack}", pack).replace("{n}", str(tier_qty or "")))
+
+    overrides = _json(template.get("page_text"), {})
+    page = {k: sub(overrides[k]) if isinstance(overrides.get(k), str) and overrides[k].strip() else sub(v)
+            for k, v in PAGE_TEXT.items()}
+
     def fill(field):
         s = _value(template, field) or ""
         return (s.replace("{unit}", unit).replace("{packs}", packs).replace("{Packs}", packs[:1].upper() + packs[1:])
@@ -89,7 +119,7 @@ def template_text(template, tier_qty=None):
         "cta": fill("cta_label"), "thank_you": fill("thank_you_text"), "closed": fill("closed_text"),
         "issue": template.get("issue_title") or "", "headline": template.get("headline") or "",
         "dek": template.get("dek") or "", "letter_heading": _value(template, "letter_heading"),
-        "letter_signoff": template.get("letter_signoff") or "",
+        "letter_signoff": template.get("letter_signoff") or "", "page": page,
     }
 
 
@@ -97,6 +127,9 @@ def _theme(doc, template, company_logo):
     pair = template.font_pair if template.font_pair in FONT_PAIRS else "almanac"
     fonts = {k: FONT_PAIRS[pair][k] for k in ("head", "text", "note")}
     fonts["css"] = FONT_CSS.format(pair)
+    # Uploaded fonts replace the pair's per role; validated as /files/ fonts.
+    for role in ("head", "text", "note"):
+        fonts[f"{role}_url"] = template.get(f"font_{role}_file") or None
     return {
         **{c: _value(template, c) for c in ("brand", "brand_ink", "paper", "ink", "accent", "accent_ink")},
         # A catalogue's own cover picture always wins, whatever the template's mode.
@@ -195,6 +228,11 @@ def build_display(doc, template, preview=False):
         "valid_to": str(doc.valid_to) if doc.valid_to else None, "preview": bool(preview),
         "theme": _theme(doc, template, company.get("company_logo")), "text": template_text(template, tier_qty),
         "sections": sections, "specs": specs,
+        "layout": {"card_style": template.get("card_style") or "Photo left",
+                   "density": template.get("density") or "Airy",
+                   "heading_size": template.get("heading_size") or "Medium",
+                   "order": [b for b in (template.get("section_order") or ",".join(BLOCKS)).split(",") if b in BLOCKS]
+                   or list(BLOCKS)},
         "frequencies": [{"label": f.label, "period_text": f.period_text or "", "recurring": cint(f.recurring)}
                         for f in template.frequencies or []],
         "groups": out_groups, "mixes": mixes,

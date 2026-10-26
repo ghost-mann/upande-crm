@@ -3,6 +3,7 @@ with. Values reach a guest page, so the checks here are what keep that page
 safe and readable: colours are strict hex, spec keys are slugs, and there is
 always at least one frequency to order at."""
 
+import json
 import re
 
 import frappe
@@ -11,6 +12,7 @@ from frappe.model.document import Document
 
 HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 SLUG = re.compile(r"^[a-z][a-z0-9_]{0,30}$")
+FONT_EXT = re.compile(r"\.(woff2?|ttf|otf)$", re.I)
 COLOURS = ("brand", "brand_ink", "paper", "ink", "accent", "accent_ink")
 
 
@@ -32,9 +34,38 @@ class CRMCatalogueTemplate(Document):
             frappe.throw(_("Spec keys must be lower-case words joined by underscores, like cup_score: {0}").format(
                 ", ".join(map(str, bad))))
         self._unique(keys, _("spec key"))
+        self._validate_order()
+        self._validate_fonts()
+        self._validate_page_text()
         if not self.frequencies:
             frappe.throw(_("Add at least one frequency buyers can order at, e.g. One-off."))
         self._unique([r.label for r in self.frequencies], _("frequency"))
+
+    def _validate_order(self):
+        blocks = [b.strip().lower() for b in (self.section_order or "letter,mixes,products").split(",") if b.strip()]
+        if sorted(blocks) != ["letter", "mixes", "products"]:
+            frappe.throw(_("Section order must list letter, mixes and products, each once."))
+        self.section_order = ",".join(blocks)
+
+    def _validate_fonts(self):
+        for field in ("font_head_file", "font_text_file", "font_note_file"):
+            url = (self.get(field) or "").strip()
+            if not url:
+                continue
+            # Served from this site only, so the buyer page makes no third-party request.
+            if not url.startswith("/files/") or not FONT_EXT.search(url):
+                frappe.throw(_("{0} must be a WOFF2, WOFF, TTF or OTF file uploaded to this site.").format(
+                    self.meta.get_label(field)))
+
+    def _validate_page_text(self):
+        raw = self.page_text
+        if not raw:
+            return
+        data = json.loads(raw) if isinstance(raw, str) else raw
+        if not isinstance(data, dict) or not all(isinstance(v, str) for v in data.values()):
+            frappe.throw(_("Page text must be plain phrases."))
+        clean = {k: v for k, v in data.items() if v.strip()}
+        self.page_text = json.dumps(clean) if clean else None
 
     def on_trash(self):
         from upande_crm.catalogue_templates import DEFAULT_TEMPLATE

@@ -66,7 +66,19 @@
   "show_estimate",
   "show_codes",
   "show_weight",
-  "show_more_info"
+  "show_more_info",
+  "sb_layout",
+  "card_style",
+  "density",
+  "cb_layout",
+  "heading_size",
+  "section_order",
+  "sb_fonts",
+  "font_head_file",
+  "font_text_file",
+  "font_note_file",
+  "sb_page_text",
+  "page_text"
  ],
  "fields": [
   {
@@ -395,6 +407,76 @@
    "fieldtype": "Check",
    "label": "Show More Info",
    "default": "1"
+  },
+  {
+   "fieldname": "sb_layout",
+   "fieldtype": "Section Break",
+   "label": "Layout"
+  },
+  {
+   "fieldname": "card_style",
+   "fieldtype": "Select",
+   "label": "Card style",
+   "options": "Photo left\nPhoto top\nNo photo",
+   "default": "Photo left"
+  },
+  {
+   "fieldname": "density",
+   "fieldtype": "Select",
+   "label": "Density",
+   "options": "Airy\nCompact",
+   "default": "Airy"
+  },
+  {
+   "fieldname": "cb_layout",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "heading_size",
+   "fieldtype": "Select",
+   "label": "Heading size",
+   "options": "Small\nMedium\nLarge",
+   "default": "Medium"
+  },
+  {
+   "fieldname": "section_order",
+   "fieldtype": "Data",
+   "label": "Section order",
+   "default": "letter,mixes,products",
+   "description": "letter, mixes and products, in page order"
+  },
+  {
+   "fieldname": "sb_fonts",
+   "fieldtype": "Section Break",
+   "label": "Own fonts"
+  },
+  {
+   "fieldname": "font_head_file",
+   "fieldtype": "Attach",
+   "label": "Headline font",
+   "description": "WOFF2, WOFF, TTF or OTF. Blank: the font pair's."
+  },
+  {
+   "fieldname": "font_text_file",
+   "fieldtype": "Attach",
+   "label": "Text font"
+  },
+  {
+   "fieldname": "font_note_file",
+   "fieldtype": "Attach",
+   "label": "Note font"
+  },
+  {
+   "fieldname": "sb_page_text",
+   "fieldtype": "Section Break",
+   "label": "Page text"
+  },
+  {
+   "fieldname": "page_text",
+   "fieldtype": "JSON",
+   "label": "Page text",
+   "description": "Overrides for the page's fixed phrases; blank keeps the default."
   }
  ],
  "permissions": [

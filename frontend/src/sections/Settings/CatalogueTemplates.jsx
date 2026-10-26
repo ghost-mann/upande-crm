@@ -27,6 +27,21 @@ const SECTIONS = [['show_cover', 'Cover'], ['show_letter', 'Letter from the farm
 const WORDING = [['unit_label', 'Unit (priced per)'], ['pack_label', 'Pack'], ['pack_label_plural', 'Pack, plural'], ['grade_label', 'Grade column'],
   ['bunch_label', 'Bunch column (blank hides it)'], ['weight_label', 'Weight unit'], ['price_label', 'Price column'], ['tier_label', 'Tier price'],
   ['qty_label', 'Quantity column'], ['cta_label', 'Send button']];
+// Page text: every fixed phrase on the buyer page, labelled by where it shows.
+const PAGE_TEXT_LABELS = {
+  mixes_heading: 'Mixes heading', mix_add: 'Mix button', mix_added: 'Mix button, once added', pack_heading: 'Pack column heading',
+  per_pack: 'Pack size ({count}, {pack})', more_about: 'More link ({name})', item_one: 'item (one)', item_many: 'items (many)',
+  line_one: 'line (one)', line_many: 'lines (many)', prices_in: 'Cover: currencies ({currencies})', valid_range: 'Cover: valid from–to ({from}, {to})',
+  valid_until: 'Cover: valid until ({to})', estimate_prefix: 'Estimate prefix', bar_empty: 'Bar, nothing picked yet',
+  form_title: 'Form title', form_title_personal: 'Form title on a personal link', form_hint: 'Form hint',
+  field_name: 'Field: name', field_company: 'Field: company', field_email: 'Field: email', field_phone: 'Field: phone',
+  field_country: 'Field: country', field_message: 'Field: message', back: 'Back button', sending: 'While sending',
+  thanks_heading: 'Thank-you heading', error_name: 'Error: no name', error_email: 'Error: no email',
+  unavailable_title: 'Unavailable heading', unavailable_withdrawn: 'Unavailable: withdrawn', empty: 'Empty catalogue',
+};
+const BLOCK_LABELS = { letter: 'Letter from the farm', mixes: 'Mixes', products: 'Products (with the group tabs)' };
+const pageText = (v) => { if (!v) return {}; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return {}; } };
+
 const COVER = [['issue_title', 'Issue title'], ['headline', 'Headline'], ['letter_heading', 'Letter heading'], ['letter_signoff', 'Letter sign-off']];
 
 function Colour({ value, onChange, disabled }) {
@@ -257,6 +272,87 @@ export default function CatalogueTemplates() {
               <Rows rows={draft.badges || []} disabled={ro} addLabel="Add a badge" blank={{ label: '', background: '#1E4D3A', ink: '#FFFFFF' }}
                 cols={[['label', 'Badge'], ['background', 'Background', 'colour'], ['ink', 'Text', 'colour']]}
                 onChange={(v) => set({ badges: v })} />
+            </Panel>
+
+            <Panel title="Layout" sub="How the products are laid out, and in what order the page reads">
+              <Row label="Card style">
+                <select className={cn(SELECT, 'w-[180px]')} disabled={ro} value={draft.card_style || 'Photo left'} onChange={(e) => set({ card_style: e.target.value })}>
+                  <option>Photo left</option><option>Photo top</option><option>No photo</option>
+                </select>
+              </Row>
+              <Row label="Density" help="Compact suits long price lists.">
+                <select className={cn(SELECT, 'w-[180px]')} disabled={ro} value={draft.density || 'Airy'} onChange={(e) => set({ density: e.target.value })}>
+                  <option>Airy</option><option>Compact</option>
+                </select>
+              </Row>
+              <Row label="Heading size" help="The cover headline and the section headings.">
+                <select className={cn(SELECT, 'w-[180px]')} disabled={ro} value={draft.heading_size || 'Medium'} onChange={(e) => set({ heading_size: e.target.value })}>
+                  <option>Small</option><option>Medium</option><option>Large</option>
+                </select>
+              </Row>
+              <div className="mt-3 text-[12.5px] font-medium text-ink">Order after the cover</div>
+              <div className="text-[11.5px] text-ink-mute mb-2">Drag to reorder (or use the arrows).</div>
+              {(() => {
+                const order = (draft.section_order || 'letter,mixes,products').split(',');
+                const move = (from, to) => {
+                  if (to < 0 || to >= order.length || from === to) return;
+                  const next = [...order]; const [b] = next.splice(from, 1); next.splice(to, 0, b);
+                  set({ section_order: next.join(',') });
+                };
+                return (
+                  <div className="grid gap-1.5 max-w-[360px]">
+                    {order.map((b, i) => (
+                      <div key={b} draggable={!ro}
+                        onDragStart={(e) => e.dataTransfer.setData('text/plain', String(i))}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => { e.preventDefault(); move(Number(e.dataTransfer.getData('text/plain')), i); }}
+                        className={cn('flex items-center gap-2 rounded-md border border-hairline bg-surface px-3 py-2 text-[13px]', !ro && 'cursor-grab')}>
+                        <Icon name="drag_indicator" className="text-[16px] text-ink-mute" />
+                        <span className="flex-1">{BLOCK_LABELS[b] || b}</span>
+                        {!ro && <>
+                          <button type="button" title="Up" disabled={i === 0} onClick={() => move(i, i - 1)} className="disabled:opacity-30"><Icon name="arrow_upward" className="text-[15px]" /></button>
+                          <button type="button" title="Down" disabled={i === order.length - 1} onClick={() => move(i, i + 1)} className="disabled:opacity-30"><Icon name="arrow_downward" className="text-[15px]" /></button>
+                        </>}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </Panel>
+
+            <Panel title="Own fonts" sub="Optional. Upload a font per role; any left empty use the font pair above.">
+              {[['font_head_file', 'Headlines'], ['font_text_file', 'Text'], ['font_note_file', 'Notes and the letter']].map(([k, label]) => (
+                <Row key={k} label={label} help="WOFF2, WOFF, TTF or OTF — make sure its licence allows web use.">
+                  <span className="flex items-center gap-2">
+                    {draft[k] && <span className="text-[12px] text-ink-mute max-w-[160px] truncate">{String(draft[k]).split('/').pop()}</span>}
+                    <label className={cn('text-[12.5px] text-gold-text', ro ? 'opacity-50' : 'cursor-pointer hover:underline')}>
+                      {draft[k] ? 'Replace' : 'Upload'}
+                      <input type="file" accept=".woff2,.woff,.ttf,.otf" className="hidden" disabled={ro} onChange={async (e) => {
+                        const f = e.target.files[0]; if (!f) return;
+                        try { set({ [k]: await uploadPublic(f) }); } catch (x) { setErr(x.message); }
+                      }} />
+                    </label>
+                    {draft[k] && !ro && <button type="button" className="text-[12px] text-ink-3 hover:text-bad" onClick={() => set({ [k]: null })}>Remove</button>}
+                  </span>
+                </Row>
+              ))}
+            </Panel>
+
+            <Panel title="Page text" sub="Every other phrase on the page. The default shows greyed — type only what you want to change.">
+              {(() => {
+                const cur = pageText(draft.page_text);
+                const defaults = list.page_text_defaults || {};
+                return Object.keys(defaults).map((k) => (
+                  <Row key={k} label={PAGE_TEXT_LABELS[k] || k}>
+                    <input className={cn(INPUT, 'w-[300px]')} disabled={ro} placeholder={defaults[k]} value={cur[k] || ''}
+                      onChange={(e) => {
+                        const next = { ...cur, [k]: e.target.value };
+                        if (!e.target.value) delete next[k];
+                        set({ page_text: Object.keys(next).length ? next : null });
+                      }} />
+                  </Row>
+                ));
+              })()}
             </Panel>
 
             <Panel title="Sections">

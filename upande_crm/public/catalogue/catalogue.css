@@ -169,3 +169,24 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: no-preference) {
   html { scroll-behavior: smooth; }
 }
+
+/* Layout options from the template (card style, density, heading size). */
+.alm.card-photo-top .var { grid-template-columns: 1fr; }
+.alm.card-photo-top .var .photo { aspect-ratio: 21 / 9; min-height: 0; }
+.alm.card-photo-top .var .sw { writing-mode: horizontal-tb; transform: none; padding: 6px 14px; }
+.alm.card-no-photo .var { grid-template-columns: 1fr; }
+.alm.card-no-photo .var .photo { display: none; }
+.alm.card-no-photo .var .sw { writing-mode: horizontal-tb; transform: none; padding: 5px 14px; }
+.alm.density-compact .var { margin-bottom: 8px; }
+.alm.density-compact .var .body { padding: 10px 12px; }
+.alm.density-compact .band { padding: 18px 0 8px; }
+.alm.density-compact .var .note { margin: 3px 0 6px; }
+.alm.density-compact .specs td { padding-top: 4px; padding-bottom: 4px; }
+.alm.density-compact .q input, .alm.density-compact .q select { min-height: 36px; }
+.alm.heads-small .cover h1 { font-size: clamp(36px, 9vw, 68px); }
+.alm.heads-small .band h2 { font-size: clamp(26px, 6vw, 38px); }
+.alm.heads-large .cover h1 { font-size: clamp(56px, 15vw, 132px); }
+.alm.heads-large .band h2 { font-size: clamp(40px, 11vw, 72px); }
+@media (min-width: 760px) {
+  .alm.card-photo-top .var, .alm.card-no-photo .var { grid-template-columns: 1fr; }
+}

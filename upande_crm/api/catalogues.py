@@ -676,9 +676,11 @@ def crm_catalogue_templates():
     used = dict(frappe.qb.from_(t).select(t.template, Count("*")).groupby(t.template).run())
     for r in rows:
         r["catalogues_using"] = used.get(r.name, 0)
+    from upande_crm.api.catalogue_display import PAGE_TEXT
+
     return {"rows": rows, "font_pairs": {k: {x: v[x] for x in ("label", "head", "text", "note")}
                                          for k, v in FONT_PAIRS.items()},
-            "can_edit": _can_write_templates()}
+            "page_text_defaults": PAGE_TEXT, "can_edit": _can_write_templates()}
 
 
 @frappe.whitelist()

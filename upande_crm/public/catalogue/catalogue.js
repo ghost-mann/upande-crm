@@ -77,6 +77,13 @@
   const defaultFreq = () => (state.data.frequencies[0] || { label: 'One-off' }).label;
   const picked = () => Object.entries(state.picks).filter(([, p]) => Number(p.qty) > 0);
   const t = () => state.data.text;
+  // The template's page text (every fixed phrase), with {placeholders} filled.
+  const P = (key, vars = {}) => {
+    let v = ((state.data && state.data.text.page) || {})[key] || '';
+    Object.entries(vars).forEach(([k, val]) => { v = v.split(`{${k}}`).join(val); });
+    return v;
+  };
+  const plural = (n, one, many) => `${n} ${P(n === 1 ? one : many)}`;
 
   // ---- theme
   let fontsLinked = '';
@@ -90,6 +97,15 @@
     root.style.setProperty('--font-text', `'${f.text}', system-ui, sans-serif`);
     root.style.setProperty('--font-note', `'${f.note}', Georgia, serif`);
     document.body.style.background = th.paper;
+    const lay = state.data.layout || {};
+    root.className = ['alm', `card-${(lay.card_style || 'Photo left').toLowerCase().replace(/\s+/g, '-')}`,
+      `density-${(lay.density || 'Airy').toLowerCase()}`, `heads-${(lay.heading_size || 'Medium').toLowerCase()}`].join(' ');
+    // Uploaded fonts (validated server-side as /files/ fonts) replace the pair per role.
+    const own = ['head', 'text', 'note'].filter((r) => /^\/files\/[^"'()\s]+$/.test(f[`${r}_url`] || ''));
+    let faces = document.getElementById('cat-own-fonts');
+    if (!faces) { faces = document.createElement('style'); faces.id = 'cat-own-fonts'; document.head.appendChild(faces); }
+    faces.textContent = own.map((r) => `@font-face { font-family: 'CatOwn-${r}'; src: url("${f[`${r}_url`]}"); font-display: swap; }`).join('\n');
+    own.forEach((r) => root.style.setProperty(`--font-${r}`, `'CatOwn-${r}', ${r === 'note' ? 'Georgia, serif' : 'system-ui, sans-serif'}`));
     if (f.css && fontsLinked !== f.css && safeUrl(f.css)) {
       const old = document.getElementById('cat-fonts');
       if (old) old.remove();
@@ -106,7 +122,8 @@
     const logo = safeUrl(th.logo) ? `<img class="logo" src="${esc(th.logo)}" alt="${esc(d.company)}">`
       : `<div class="wordmark">${esc(d.company)}</div>`;
     const curs = d.currencies.join(' or ');
-    const valid = d.valid_to ? ` · valid ${d.valid_from ? esc(day(d.valid_from)) + ' – ' : 'until '}${esc(day(d.valid_to))}` : '';
+    const valid = d.valid_to ? ` · ${esc(d.valid_from ? P('valid_range', { from: day(d.valid_from), to: day(d.valid_to) })
+      : P('valid_until', { to: day(d.valid_to) }))}` : '';
     let art = '';
     if (th.cover_mode === 'Image' && safeUrl(th.cover_image)) {
       art = `<div class="cover-img"><img src="${esc(th.cover_image)}" alt=""></div>`;
@@ -130,7 +147,7 @@
           ${x.issue ? `<div class="issue">${esc(x.issue)}</div>` : ''}
           <h1>${esc(x.headline || d.title)}</h1>
           ${x.dek ? `<p class="dek">${esc(x.dek)}</p>` : ''}
-          <div class="valid">${esc(d.title)} · prices in ${esc(curs)}${valid}</div>
+          <div class="valid">${esc(d.title)} · ${esc(P('prices_in', { currencies: curs }))}${valid}</div>
         </div>
         ${art}
       </div></header>`;
@@ -160,7 +177,7 @@
       const ink = g.swatch_ink || (i < 3 ? 'var(--brand-ink)' : 'var(--ink)');
       const n = g.products.length;
       return `<button type="button" class="tab" data-jump="${i}" style="background:${esc(bg)};color:${esc(ink)}">
-        ${esc(g.label)} <small>${n} ${n === 1 ? 'item' : 'items'}</small></button>`;
+        ${esc(g.label)} <small>${esc(plural(n, 'item_one', 'item_many'))}</small></button>`;
     }).join('') : '';
     const cur = d.currencies.length > 1 ? `<span class="cur" role="group" aria-label="Currency">${
       d.currencies.map((c) => `<button type="button" data-cur="${esc(c)}" aria-pressed="${c === state.currency}">${esc(c)}</button>`).join('')}</span>` : '';
@@ -176,9 +193,9 @@
       return `<div class="mix">
         <div class="stripes">${m.colours.map((c) => `<i style="background:${esc(c)}"></i>`).join('')}</div>
         <b>${esc(m.title)}</b><div class="m">${esc(m.summary)} — ${num(boxes)} ${esc(boxes === 1 ? t().pack : t().packs)}</div>
-        <button type="button" data-mix="${i}" class="${state.mixed[i] ? 'done' : ''}">${state.mixed[i] ? 'Added' : 'Add this mix'}</button></div>`;
+        <button type="button" data-mix="${i}" class="${state.mixed[i] ? 'done' : ''}">${esc(P(state.mixed[i] ? 'mix_added' : 'mix_add'))}</button></div>`;
     }).join('');
-    return `<section class="wrap mixes"><h2>Mixes we like this season</h2><div class="mixrow">${cards}</div></section>`;
+    return `<section class="wrap mixes"><h2>${esc(P('mixes_heading'))}</h2><div class="mixrow">${cards}</div></section>`;
   }
 
   function priceCell(l) {
@@ -193,7 +210,7 @@
     const x = t();
     // Priced per pack (unit = pack, e.g. per carton): "1 per carton" says nothing.
     const perPack = l.pack_qty && !(Number(l.pack_qty) === 1 && x.unit === x.pack);
-    return [perPack ? `${num(l.pack_qty)} per ${esc(x.pack)}` : '',
+    return [perPack ? esc(P('per_pack', { count: num(l.pack_qty) })) : '',
       l.bunch && x.bunch ? `${esc(x.bunch.toLowerCase())} ${esc(l.bunch)}` : '',
       l.weight ? `${num(l.weight, 2)} ${esc(x.weight)}` : ''].filter(Boolean).join(' · ');
   }
@@ -227,7 +244,7 @@
       <span>${esc(g.label)}</span>${code ? `<span>${esc(code)}</span>` : ''}</div>` : '';
     const more = (p.lines.find((l) => safeUrl(l.info_url) && /^https?:/i.test(l.info_url)) || {}).info_url;
     const colSpecs = d.specs.filter((s) => s.display === 'Column');
-    const head = `<thead><tr><th>${esc(x.grade)}</th><th>Pack</th>${colSpecs.map((s) => `<th>${esc(s.label)}</th>`).join('')}
+    const head = `<thead><tr><th>${esc(x.grade)}</th><th>${esc(P('pack_heading'))}</th>${colSpecs.map((s) => `<th>${esc(s.label)}</th>`).join('')}
       <th style="text-align:right">${esc(x.price)}</th>${d.open ? `<th style="text-align:right">${esc(x.qty)}</th>` : ''}</tr></thead>`;
     return `<article class="var${sw ? '' : ' nosw'}">
       <div class="photo">${photo}</div>${sw}
@@ -237,18 +254,18 @@
         ${p.badges.length ? `<div class="badges">${p.badges.map((b) => `<span class="badge" style="background:${esc(b.background)};color:${esc(b.ink)}">${esc(b.label)}</span>`).join('')}</div>` : ''}
         ${p.note ? `<p class="note">${esc(p.note)}</p>` : ''}
         <table class="specs">${head}<tbody>${p.lines.map((l) => rowHtml(l, d.open)).join('')}</tbody></table>
-        ${more ? `<a class="more" href="${esc(more)}" target="_blank" rel="noopener">More about ${esc(p.item_name)}</a>` : ''}
+        ${more ? `<a class="more" href="${esc(more)}" target="_blank" rel="noopener">${esc(P('more_about', { name: p.item_name }))}</a>` : ''}
       </div></article>`;
   }
 
   function groupsHtml() {
     const d = state.data;
-    if (!d.groups.length) return '<p class="wrap cat-notice">Nothing in this offer yet.</p>';
+    if (!d.groups.length) return `<p class="wrap cat-notice">${esc(P('empty'))}</p>`;
     return d.groups.map((g, i) => {
       const lines = g.products.reduce((s, p) => s + p.lines.length, 0);
       return `<section class="wrap">
         <div class="band" id="grp-${i}"><h2>${esc(g.label)}</h2>
-          <span>${g.products.length} ${g.products.length === 1 ? 'item' : 'items'} · ${lines} ${lines === 1 ? 'line' : 'lines'}</span></div>
+          <span>${esc(plural(g.products.length, 'item_one', 'item_many'))} · ${esc(plural(lines, 'line_one', 'line_many'))}</span></div>
         ${g.products.map((p) => productHtml(g, p)).join('')}</section>`;
     }).join('');
   }
@@ -256,13 +273,13 @@
   function barSummary() {
     const d = state.data, x = t();
     const n = picked().length;
-    if (!n) return `<span>Enter ${esc(x.packs)} on the lines you want</span>`;
+    if (!n) return `<span>${esc(P('bar_empty'))}</span>`;
     const boxes = picked().reduce((s, [, p]) => s + Number(p.qty), 0);
-    let h = `<b>${n}</b> line${n > 1 ? 's' : ''} · <b>${num(boxes)}</b> ${esc(boxes === 1 ? x.pack : x.packs)}`;
+    let h = `<b>${n}</b> ${esc(P(n === 1 ? 'line_one' : 'line_many'))} · <b>${num(boxes)}</b> ${esc(boxes === 1 ? x.pack : x.packs)}`;
     if (d.sections.estimate) {
       const est = estimate(allLines(), picked().map(([line, p]) => ({ line, qty: p.qty, frequency: p.frequency || defaultFreq() })),
         state.currency, d.tier_qty, d.frequencies);
-      if (est.length) h += `<br><span>about ${est.map((e) => `${esc(money(e.amount, 0))} ${esc(e.period_text)}`).join(' + ')}</span>`;
+      if (est.length) h += `<br><span>${esc(P('estimate_prefix'))} ${est.map((e) => `${esc(money(e.amount, 0))} ${esc(e.period_text)}`).join(' + ')}</span>`;
     }
     return h;
   }
@@ -273,7 +290,8 @@
       <button class="btn" data-act="form" ${picked().length ? '' : 'disabled'}>${esc(t().cta)}</button></div></div>` : '';
     return `${d.sections.cover ? coverHtml() : mastheadHtml()}
       ${d.open ? '' : `<div class="wrap"><div class="closed">${esc(t().closed)}</div></div>`}
-      ${d.sections.letter ? letterHtml() : ''}${indexHtml()}${mixesHtml()}${groupsHtml()}${bar}`;
+      ${(d.layout.order || ['letter', 'mixes', 'products']).map((b) => (b === 'letter' ? (d.sections.letter ? letterHtml() : '')
+        : b === 'mixes' ? mixesHtml() : indexHtml() + groupsHtml())).join('')}${bar}`;
   }
 
   function formHtml() {
@@ -289,19 +307,19 @@
         : `<input data-f="${k}" type="${type}" value="${esc(f[k] || '')}" ${req ? 'required' : ''}>`}</label>`;
     return `${mastheadHtml()}
       <div class="wrap"><form class="form" novalidate>
-        <h2>${d.personal ? 'Check your details' : 'Your details'}</h2>
-        <p class="hint">We'll get back to you about these lines.</p>
+        <h2>${esc(P(d.personal ? 'form_title_personal' : 'form_title'))}</h2>
+        <p class="hint">${esc(P('form_hint'))}</p>
         <ul>${items}</ul>
         <div class="fields">
-          ${field('name', 'Your name', 'text', false, true)}${field('company', 'Company', 'text')}
-          ${field('email', 'Email', 'email', false, !d.personal)}${field('phone', 'Phone / WhatsApp', 'tel')}
-          ${field('country', 'Country', 'text')}${field('message', 'Anything we should know?', 'textarea', true)}
+          ${field('name', esc(P('field_name')), 'text', false, true)}${field('company', esc(P('field_company')), 'text')}
+          ${field('email', esc(P('field_email')), 'email', false, !d.personal)}${field('phone', esc(P('field_phone')), 'tel')}
+          ${field('country', esc(P('field_country')), 'text')}${field('message', esc(P('field_message')), 'textarea', true)}
         </div>
         <div class="hp" aria-hidden="true"><label>Website<input data-f="website" tabindex="-1" autocomplete="off"></label></div>
         ${state.error ? `<div class="err" role="alert">${esc(state.error)}</div>` : ''}
         <div class="actions">
-          <button class="btn" type="submit" ${state.sending || d.preview ? 'disabled' : ''}>${d.preview ? 'Preview — sending is off' : state.sending ? 'Sending…' : esc(x.cta)}</button>
-          <button class="btn ghost" type="button" data-act="back">Back to the offer</button>
+          <button class="btn" type="submit" ${state.sending || d.preview ? 'disabled' : ''}>${d.preview ? 'Preview — sending is off' : state.sending ? esc(P('sending')) : esc(x.cta)}</button>
+          <button class="btn ghost" type="button" data-act="back">${esc(P('back'))}</button>
         </div></form></div>`;
   }
 
@@ -311,8 +329,8 @@
     if (!root) { app.innerHTML = '<div class="alm"></div>'; root = app.querySelector('.alm'); }
     applyTheme(root);
     if (state.view === 'thanks') {
-      root.innerHTML = `<div class="thanks"><h1>Thank you</h1><p>${esc(t().thank_you)}</p>
-        <button class="btn ghost" data-act="again">Back to the offer</button></div>`;
+      root.innerHTML = `<div class="thanks"><h1>${esc(P('thanks_heading'))}</h1><p>${esc(t().thank_you)}</p>
+        <button class="btn ghost" data-act="again">${esc(P('back'))}</button></div>`;
     } else {
       root.innerHTML = state.view === 'form' ? formHtml() : listHtml();
     }
@@ -376,8 +394,8 @@
     e.preventDefault();
     if (state.data.preview) return;
     const f = readForm();
-    if (!f.name || !f.name.trim()) { state.error = 'Please give your name.'; render(); return; }
-    if (!state.data.personal && !(f.email || '').includes('@')) { state.error = 'Please give your email address.'; render(); return; }
+    if (!f.name || !f.name.trim()) { state.error = P('error_name'); render(); return; }
+    if (!state.data.personal && !(f.email || '').includes('@')) { state.error = P('error_email'); render(); return; }
     state.sending = true; state.error = ''; render();
     const idx = index();
     // item/grade/box ride along so a submission still lands if the catalogue
@@ -404,7 +422,9 @@
   }
 
   function unavailable(text) {
-    app.innerHTML = `<div class="cat-notice"><h1>This offer isn't available</h1><p>${esc(text)}</p></div>`;
+    // Without a payload (a bad link) there is no template, so the default heading.
+    const title = (state.data && P('unavailable_title')) || "This offer isn't available";
+    app.innerHTML = `<div class="cat-notice"><h1>${esc(title)}</h1><p>${esc(text)}</p></div>`;
   }
 
   if (previewName) {
@@ -421,7 +441,7 @@
   // POST, not GET: the view records the open, and Frappe does not commit
   // writes made during a GET request.
   call('catalogue_public.catalogue_view', { token }).then((d) => {
-    if (!d.groups.length && !d.open) { unavailable('It may have been withdrawn. Please ask whoever sent you the link.'); return; }
+    if (!d.groups.length && !d.open) { state.data = d; unavailable(P('unavailable_withdrawn')); return; }
     take(d);
   }).catch((e) => {
     if (window.console) console.error(e); // a render fault, not only a bad link

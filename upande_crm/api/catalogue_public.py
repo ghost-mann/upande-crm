@@ -26,7 +26,6 @@ from upande_crm.api.whatsapp import _suffix
 DOCTYPE = "CRM Catalogue"
 LINK = "CRM Catalogue Link"
 INTEREST = "CRM Catalogue Interest"
-FREQUENCIES = ("One-off", "Weekly")
 UTM_SOURCE = "Catalogue"
 MAX_LEN = {"name": 140, "company": 140, "email": 140, "phone": 40, "country": 80, "message": 2000}
 
@@ -45,25 +44,10 @@ def resolve_token(token):
     raise frappe.DoesNotExistError(_("This offer isn't available."))
 
 
-def _lines_payload(doc):
-    """Lines grouped by Item, in line order, with what the page shows."""
-    items = {i.name: i for i in frappe.get_all(
-        "Item", filters={"name": ["in", list({l.item for l in doc.lines}) or [""]]},
-        fields=["name", "item_name", "image", "description"])}
-    groups, order = {}, []
-    for line in doc.lines:
-        if line.item not in groups:
-            it = items.get(line.item) or frappe._dict(item_name=line.item_name or line.item)
-            groups[line.item] = {"item": line.item, "item_name": it.item_name, "image": it.image,
-                                 "description": strip_html(it.description or "")
-                                 if (it.description or "") != (it.item_name or "") else "", "lines": []}
-            order.append(line.item)
-        groups[line.item]["lines"].append({
-            "line": line.name, "grade": line.grade, "box_type": line.box_type, "color": line.color,
-            "pack_qty": line.pack_qty, "bunch": line.bunch, "weight": line.weight, "info_url": line.info_url,
-            "prices": {c: dict(zip(("price", "tier"), doc.price_for(line, c))) for c in doc.currency_list()},
-        })
-    return [groups[i] for i in order]
+def _template(doc):
+    from upande_crm.catalogue_templates import DEFAULT_TEMPLATE, TEMPLATE
+
+    return frappe.get_doc(TEMPLATE, doc.template or DEFAULT_TEMPLATE)
 
 
 def _party_details(party_type, party):
@@ -90,15 +74,15 @@ def _record_open(doc, link):
 # POST only: it records the open, and Frappe does not commit a GET request's writes.
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def catalogue_view(token):
+    """The magazine payload for a link (api/catalogue_display.build_display),
+    plus who the link was sent to. A Draft shows nothing and records nothing."""
+    from upande_crm.api.catalogue_display import build_display
+
     doc, link = resolve_token(token)
-    company = frappe.db.get_value("Company", doc.company, ["company_name", "company_logo"], as_dict=True) or {}
-    out = {
-        "title": doc.title, "company": company.get("company_name") or doc.company,
-        "logo": company.get("company_logo"), "terms": doc.terms or "", "currencies": doc.currency_list(),
-        "tier_qty": cint(doc.volume_tier_qty) or None, "open": doc.is_open(),
-        "valid_to": str(doc.valid_to) if doc.valid_to else None, "personal": bool(link),
-        "groups": _lines_payload(doc) if doc.status != "Draft" else [],
-    }
+    out = build_display(doc, _template(doc))
+    out["personal"] = bool(link)
+    if doc.status == "Draft":
+        out["groups"], out["mixes"] = [], []
     if link:
         details = _party_details(link.party_type, link.party)
         out["prefill"] = {**details, "email": link.contact_email or details.get("email"),
@@ -193,6 +177,7 @@ def _contact(raw):
 
 def _wanted_lines(doc, raw, currency):
     picks = json.loads(raw) if isinstance(raw, str) else (raw or [])
+    frequencies = _template(doc).frequency_labels()
     by_name = {l.name: l for l in doc.lines}
     # A page opened before the catalogue was re-saved may carry line names that
     # no longer exist; the same item, grade and box type is the same line.
@@ -210,11 +195,20 @@ def _wanted_lines(doc, raw, currency):
         price, tier = doc.price_for(line, currency)
         rows.append({"line_ref": line.name, "item": line.item, "item_name": line.item_name, "grade": line.grade,
                      "box_type": line.box_type, "pack_qty": line.pack_qty, "qty": qty,
-                     "frequency": p.get("frequency") if p.get("frequency") in FREQUENCIES else "One-off",
+                     "frequency": _frequency(p.get("frequency"), frequencies),
                      "price": price or 0, "tier_price": tier or 0, "priced": 1 if price is not None else 0})
     if not rows:
         frappe.throw(_("Pick at least one line."))
     return rows
+
+
+def _frequency(value, allowed):
+    """The template's frequencies decide; none given means the first."""
+    if not value:
+        return allowed[0]
+    if value not in allowed:
+        frappe.throw(_("Unknown frequency {0}.").format(escape_html(str(value))))
+    return value
 
 
 def _notify(doc, interest, who):

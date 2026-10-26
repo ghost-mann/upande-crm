@@ -79,7 +79,7 @@ class TestView(PublicCase):
         out = P.catalogue_view(self.cat.public_token)
         self.assertTrue(out["open"])
         self.assertEqual(out["currencies"], ["USD", "EUR"])
-        self.assertEqual(out["groups"][0]["lines"][0]["prices"]["USD"]["price"], 0.232)
+        self.assertEqual(out["groups"][0]["products"][0]["lines"][0]["prices"]["USD"]["price"], 0.232)
         self.assertNotIn("prefill", out)
         frappe.set_user("Administrator")
         self.assertEqual(frappe.db.get_value("CRM Catalogue", self.cat.name, "views"), 1)
@@ -241,3 +241,74 @@ class TestReviewFixes(PublicCase):
         row = self.interests()[0]
         self.assertEqual((row.party_type, row.party), ("Customer", self.customer))
         self.assertEqual(frappe.db.count("Lead"), before)
+
+
+class TestMagazinePayload(PublicCase):
+    """The guest API on the magazine display model (2026-10-26 design)."""
+
+    def test_view_returns_theme_text_groups(self):
+        frappe.set_user("Guest")
+        out = P.catalogue_view(self.cat.public_token)
+        self.assertTrue({"theme", "text", "sections", "groups", "mixes", "frequencies"} <= set(out))
+        self.assertEqual(out["text"]["cta"], "Send my interest")
+
+    def _avocado(self):
+        return make_catalogue(status="Live", template="Avocado export", currencies="USD",
+                              lines=[{"item": self.cat.lines[0].item, "grade": "16", "pack_qty": 1,
+                                      "prices": {"USD": {"price": 12.4}}}])
+
+    def test_submit_accepts_template_frequency(self):
+        avo = self._avocado()
+        self.submit(token=avo.public_token, lines=json.dumps([{"line": avo.lines[0].name, "qty": 400,
+                                                               "frequency": "Per shipment"}]))
+        name = frappe.get_all(INTEREST, filters={"catalogue": avo.name}, pluck="name")[0]
+        self.assertEqual(frappe.get_doc(INTEREST, name).items[0].frequency, "Per shipment")
+
+    def test_missing_frequency_takes_the_first(self):
+        avo = self._avocado()
+        self.submit(token=avo.public_token, lines=json.dumps([{"line": avo.lines[0].name, "qty": 10}]))
+        name = frappe.get_all(INTEREST, filters={"catalogue": avo.name}, pluck="name")[0]
+        self.assertEqual(frappe.get_doc(INTEREST, name).items[0].frequency, "Per shipment")
+
+    def test_submit_rejects_unknown_frequency(self):
+        avo = self._avocado()
+        with self.assertRaises(frappe.ValidationError):
+            self.submit(token=avo.public_token, lines=json.dumps([{"line": avo.lines[0].name, "qty": 10,
+                                                                   "frequency": "Weekly"}]))
+        self.assertFalse(frappe.get_all(INTEREST, filters={"catalogue": avo.name}))
+
+
+class TestPreview(PublicCase):
+    def test_preview_ignores_status_and_records_nothing(self):
+        from upande_crm.api import catalogues as C
+
+        frappe.db.set_value("CRM Catalogue", self.cat.name, "status", "Draft")
+        out = C.crm_catalogue_preview(self.cat.name)
+        self.assertTrue(out["groups"])
+        self.assertTrue(out["preview"])
+        self.assertEqual(frappe.db.get_value("CRM Catalogue", self.cat.name, "views"), 0)
+
+    def test_preview_uses_unsaved_template(self):
+        from upande_crm.api import catalogues as C
+
+        draft = frappe.get_doc("CRM Catalogue Template", "Flowers almanac").as_dict()
+        draft["headline"] = "Draft headline"
+        out = C.crm_catalogue_preview(self.cat.name, frappe.as_json(draft))
+        self.assertEqual(out["text"]["headline"], "Draft headline")
+        self.assertNotEqual(frappe.db.get_value("CRM Catalogue Template", "Flowers almanac", "headline"),
+                            "Draft headline")
+
+    def test_preview_rejects_bad_draft_colour(self):
+        from upande_crm.api import catalogues as C
+
+        draft = frappe.get_doc("CRM Catalogue Template", "Flowers almanac").as_dict()
+        draft["brand"] = "red; background:url(x)"
+        with self.assertRaises(frappe.ValidationError):
+            C.crm_catalogue_preview(self.cat.name, frappe.as_json(draft))
+
+    def test_preview_requires_crm_user(self):
+        from upande_crm.api import catalogues as C
+
+        frappe.set_user("Guest")
+        with self.assertRaises(frappe.PermissionError):
+            C.crm_catalogue_preview(self.cat.name)

@@ -138,3 +138,17 @@ class TestInterestDeskPermissions(FrappeTestCase):
         frappe.set_user(RESTRICTED)
         self.assertIn(b, frappe.get_list("CRM Catalogue Interest", pluck="name", limit=0))
         self.assertTrue(frappe.has_permission("CRM Catalogue Interest", "read", b))
+
+
+class TestTemplateFrequencies(FrappeTestCase):
+    def tearDown(self):
+        frappe.set_user("Administrator")
+        frappe.db.rollback()
+
+    def test_make_opportunity_recurring_from_template(self):
+        cust = frappe.db.get_value("Customer", {}, "name")
+        cat = make_catalogue(status="Live", template="Avocado export", volume_tier_qty=0)
+        doc = interest(cat, "Customer", cust, qty=3, frequency="Monthly")
+        opp = frappe.get_doc("Opportunity", C.crm_catalogue_make_opportunity(doc.name)["opportunity"])
+        self.assertIn("Monthly", opp.items[0].description)
+        self.assertIn("recurring", opp.items[0].description)

@@ -15,7 +15,7 @@ import json
 import frappe
 from frappe import _
 from frappe.query_builder.functions import Count
-from frappe.utils import get_url
+from frappe.utils import cint, get_url
 
 from upande_crm.api.crm import _guard, _has
 from upande_crm.modules import requires_module
@@ -178,6 +178,30 @@ def crm_catalogue_status(name, status):
     doc.status = status
     doc.save(ignore_permissions=True)
     return {"status": doc.status}
+
+
+@frappe.whitelist(methods=["POST"])
+@requires_module("cat")
+def crm_catalogue_preview(name, template=None):
+    """The buyer's page payload for any catalogue the user can read, whatever
+    its status or dates, optionally with an unsaved template from the editor.
+    Records nothing."""
+    from upande_crm.api.catalogue_display import build_display
+    from upande_crm.catalogue_templates import DEFAULT_TEMPLATE, TEMPLATE
+
+    _guard()
+    frappe.has_permission(DOCTYPE, "read", name, throw=True)
+    doc = frappe.get_doc(DOCTYPE, name)
+    if template:
+        data = json.loads(template) if isinstance(template, str) else template
+        if not isinstance(data, dict):
+            frappe.throw(_("Malformed template"))
+        tpl = frappe.get_doc({**{k: v for k, v in data.items() if k not in ("name", "creation", "modified")},
+                              "doctype": TEMPLATE})
+        tpl.run_method("validate")
+    else:
+        tpl = frappe.get_doc(TEMPLATE, doc.template or DEFAULT_TEMPLATE)
+    return build_display(doc, tpl, preview=True)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -507,12 +531,17 @@ def crm_catalogue_make_opportunity(name):
         frappe.throw(_("This interest has no lead or customer to make an opportunity for."))
     cat = frappe.get_doc(DOCTYPE, doc.catalogue)
     tier_qty = frappe.utils.cint(cat.volume_tier_qty)
+    from upande_crm.catalogue_templates import DEFAULT_TEMPLATE, TEMPLATE
+
+    tpl = frappe.get_cached_doc(TEMPLATE, cat.template or DEFAULT_TEMPLATE)
+    recurring = {f.label for f in tpl.frequencies or [] if cint(f.recurring)}
     items = []
     for i in doc.items:
         units = i.qty * i.pack_qty if i.pack_qty else i.qty
         items.append({"item_code": i.item, "qty": units, "rate": _rate(i, tier_qty),
                       "description": f"{i.item_name or i.item} — {i.grade or ''} · {i.box_type or ''} · "
-                                     f"{frappe.utils.fmt_money(i.qty, precision=0)} boxes {i.frequency}"})
+                                     f"{frappe.utils.fmt_money(i.qty, precision=0)} {tpl.pack_label_plural or 'boxes'} {i.frequency}"
+                                     + (" — recurring" if i.frequency in recurring else "")})
     opp = frappe.get_doc({"doctype": "Opportunity", "opportunity_from": doc.party_type, "party_name": doc.party,
                           "company": cat.company, "currency": doc.currency, "items": items,
                           "contact_email": doc.email or None})

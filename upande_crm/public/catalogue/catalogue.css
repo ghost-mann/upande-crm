@@ -104,6 +104,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .specs td { padding: 0; }
 .specs .g { font-weight: 700; }
 .specs .g small { font-weight: 400; color: var(--mute); margin-left: 4px; }
+.specs .g .clr { display: block; font-weight: 400; font-size: 12px; color: var(--mute); }
 .specs .pk, .specs .xs { grid-column: 1; color: var(--mute); font-size: 12.5px; }
 .specs .pr { grid-column: 2; grid-row: 1 / span 2; text-align: right; font-variant-numeric: tabular-nums; }
 .specs .pr b { display: block; font-weight: 700; }

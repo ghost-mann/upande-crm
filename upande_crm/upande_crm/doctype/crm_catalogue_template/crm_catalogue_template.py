@@ -37,6 +37,11 @@ class CRMCatalogueTemplate(Document):
         self._unique([r.label for r in self.frequencies], _("frequency"))
 
     def on_trash(self):
+        from upande_crm.catalogue_templates import DEFAULT_TEMPLATE
+
+        if self.name == DEFAULT_TEMPLATE:
+            frappe.throw(_("{0} is the template new catalogues start with, so it cannot be deleted. "
+                           "Edit it, or copy it and change the copy.").format(self.name))
         n = frappe.db.count("CRM Catalogue", {"template": self.name})
         if n:
             frappe.throw(_("{0} catalogue(s) use the template {1}. Move them to another template first.").format(

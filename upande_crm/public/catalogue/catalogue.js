@@ -209,7 +209,8 @@
     const q = open ? `<td class="q"><input type="number" min="0" step="1" inputmode="numeric" placeholder="0"
         aria-label="${esc(x.qty)}" data-line="${esc(l.line)}" data-k="qty" value="${esc(pick.qty)}">${freq}</td>` : '';
     return `<tr class="${Number(pick.qty) > 0 ? 'picked' : ''}">
-      <td class="g">${esc(l.grade || '')}${l.box_type ? `<small>${esc(l.box_type)}</small>` : ''}</td>
+      <td class="g">${esc(l.grade || '')}${l.box_type ? `<small>${esc(l.box_type)}</small>` : ''}${
+        l.color ? `<span class="clr">${esc(l.color)}</span>` : ''}</td>
       <td class="pk">${packText(l)}</td>${specCells}
       <td class="pr">${priceCell(l)}</td>${q}</tr>`;
   }

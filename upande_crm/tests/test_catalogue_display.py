@@ -176,3 +176,26 @@ class TestEstimate(DisplayCase):
                                       {"line": "c", "qty": 3, "frequency": "Weekly"},
                                       {"line": "d", "qty": 3, "frequency": "One-off"}], "USD", 4, self.FREQ)
         self.assertEqual(out, [{"frequency": "Weekly", "period_text": "a week", "amount": 330.6}])
+
+
+class TestReviewFixes(DisplayCase):
+    def test_catalogue_cover_wins_over_template_mode(self):
+        doc = make_catalogue(cover_image="/files/season-cover.jpg")
+        theme = D.build_display(doc, self.flowers)["theme"]
+        self.assertEqual((theme["cover_mode"], theme["cover_image"]), ("Image", "/files/season-cover.jpg"))
+
+    def test_spec_shown_after_display_kind_changes(self):
+        # A Column spec switched to Subtitle still shows, read from the lines.
+        a, = _items(1)
+        doc = make_catalogue(template="Coffee lots", lines=[{"item": a, "grade": "AA", "prices": price(9.6),
+                                                              "specs": {"process": "Washed"}}])
+        tpl = frappe.get_doc(TEMPLATE, "Coffee lots")
+        next(s for s in tpl.spec_columns if s.key == "process").display = "Subtitle"
+        card = D.build_display(doc, tpl)["groups"][0]["products"][0]
+        self.assertIn({"label": "Process", "value": "Washed"}, card["subtitle"])
+
+    def test_line_keeps_its_colour_word(self):
+        a, = _items(1)
+        doc = make_catalogue(lines=[{"item": a, "color": "Burgundy Red", "prices": price(0.2)}])
+        line = self.groups(doc)[0]["products"][0]["lines"][0]
+        self.assertEqual(line["color"], "Burgundy Red")

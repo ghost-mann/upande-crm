@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import Icon from '../../components/Icon';
 import { Panel, Row, Toggle, SELECT } from './parts';
 import {
-  templatesApi, templateGetApi, templateSaveApi, templateCopyApi, templateDeleteApi, cataloguesApi,
+  templatesApi, templateGetApi, templateSaveApi, templateCopyApi, templateDeleteApi, cataloguesApi, uploadPublic,
 } from '@/lib/catalogues';
 
 // Settings → Catalogue templates: the magazine look and wording a catalogue is
@@ -196,6 +196,22 @@ export default function CatalogueTemplates() {
                   <option>Collage</option><option>Image</option>
                 </select>
               </Row>
+              {[['cover_image', 'Cover image', 'Used in Image mode (a catalogue can use its own instead).'],
+                ['logo', 'Logo', "Blank: the company's logo, else its name."]].map(([k, label, help]) => (
+                <Row key={k} label={label} help={help}>
+                  <span className="flex items-center gap-2">
+                    {draft[k] && <img src={draft[k]} alt="" className="h-8 w-12 object-contain rounded bg-surface-2" />}
+                    <label className={cn('text-[12.5px] text-gold-text', ro ? 'opacity-50' : 'cursor-pointer hover:underline')}>
+                      {draft[k] ? 'Replace' : 'Upload'}
+                      <input type="file" accept="image/*" className="hidden" disabled={ro} onChange={async (e) => {
+                        const f = e.target.files[0]; if (!f) return;
+                        try { set({ [k]: await uploadPublic(f) }); } catch (x) { setErr(x.message); }
+                      }} />
+                    </label>
+                    {draft[k] && !ro && <button type="button" className="text-[12px] text-ink-3 hover:text-bad" onClick={() => set({ [k]: null })}>Remove</button>}
+                  </span>
+                </Row>
+              ))}
               {COVER.map(([k, label]) => (
                 <Row key={k} label={label}><input className={cn(INPUT, 'w-[280px]')} disabled={ro} value={draft[k] || ''} onChange={(e) => set({ [k]: e.target.value })} /></Row>
               ))}

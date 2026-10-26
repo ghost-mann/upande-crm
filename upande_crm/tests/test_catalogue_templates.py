@@ -103,13 +103,27 @@ class TestCatalogueFollowsTemplate(TemplateCase):
         doc.save()
         self.assertEqual([(p.item, p.note) for p in doc.products], [(a, "Keeps two weeks")])
 
-    def test_unknown_badges_and_specs_dropped(self):
+    def test_template_changes_never_delete_catalogue_data(self):
+        # Review fix: badges/specs the template no longer lists are kept in
+        # storage (only the page filters them), so renaming a badge or picking
+        # the wrong template and saving loses nothing.
         a, _b = self._two_items()
-        doc = make_catalogue(lines=[{"item": a, "specs": {"bogus": "1"}}])
-        doc.products[0].badges = "Bestseller\nBogus"
+        doc = make_catalogue(lines=[{"item": a, "specs": {"process": "Washed"}}])
+        doc.products[0].badges = "Bestseller\nMicrolot"
         doc.save()
-        self.assertEqual(doc.products[0].badges, "Bestseller")
-        self.assertFalse(frappe.parse_json(doc.lines[0].specs or "{}"))
+        doc.template = "Avocado export"
+        doc.save()
+        doc.reload()
+        self.assertEqual(doc.products[0].badges, "Bestseller\nMicrolot")
+        self.assertEqual(frappe.parse_json(doc.lines[0].specs), {"process": "Washed"})
+
+    def test_default_template_cannot_be_deleted(self):
+        from upande_crm.api import catalogues as C
+
+        for name in frappe.get_all("CRM Catalogue", filters={"template": "Flowers almanac"}, pluck="name"):
+            frappe.db.set_value("CRM Catalogue", name, "template", "Coffee lots")
+        with self.assertRaises(frappe.ValidationError):
+            C.crm_catalogue_template_delete("Flowers almanac")
 
     def test_existing_catalogues_get_flowers_almanac(self):
         doc = make_catalogue()
@@ -176,7 +190,7 @@ class TestTemplateApi(TemplateCase):
         got = C.crm_catalogue_get(out["name"])["catalogue"]
         self.assertEqual(got["products"], [{"item": a, "badges": ["Microlot"], "note": "Bright",
                                             "specs": {"cup_score": "86"}}])
-        self.assertEqual(got["mixes"][0]["items"], [{"line": line, "boxes": 2}])
+        self.assertEqual([(i["line"], i["boxes"]) for i in got["mixes"][0]["items"]], [(line, 2)])
         self.assertEqual(got["lines"][0]["specs"], {"process": "Washed"})
         self.assertEqual(got["lines"][0]["group"], "AA")
 
@@ -186,3 +200,35 @@ class TestTemplateApi(TemplateCase):
         make_catalogue(template="Avocado export")
         with self.assertRaises(frappe.ValidationError):
             C.crm_catalogue_template_delete("Avocado export")
+
+
+class TestMixesSurvive(TemplateCase):
+    def _lines(self):
+        a, b = frappe.get_all("Item", filters={"disabled": 0}, pluck="name", limit=2)
+        return [{"item": a, "grade": "60 cm", "box_type": "Standard", "color": "White"},
+                {"item": b, "grade": "70 cm", "box_type": "Standard", "color": "Pink"}]
+
+    def test_duplicate_keeps_mixes_pointing_at_its_own_lines(self):
+        from upande_crm.api import catalogues as C
+
+        doc = make_catalogue(lines=self._lines())
+        doc.append("mixes", {"title": "Pair", "items": frappe.as_json([{"line": doc.lines[0].name, "boxes": 2},
+                                                                        {"line": doc.lines[1].name, "boxes": 1}])})
+        doc.save()
+        new = frappe.get_doc("CRM Catalogue", C.crm_catalogue_duplicate(doc.name)["name"])
+        refs = [i["line"] for i in frappe.parse_json(new.mixes[0].items)]
+        self.assertEqual(refs, [l.name for l in new.lines])
+        self.assertEqual([i["boxes"] for i in frappe.parse_json(new.mixes[0].items)], [2, 1])
+
+    def test_reimport_keeps_mixes(self):
+        from upande_crm.api import catalogues as C
+
+        doc = make_catalogue(lines=self._lines())
+        doc.append("mixes", {"title": "Pair", "items": frappe.as_json([{"line": doc.lines[0].name, "boxes": 2}])})
+        doc.save()
+        got = C.crm_catalogue_get(doc.name)["catalogue"]
+        fresh = [{k: l[k] for k in ("item", "grade", "box_type", "color")} for l in got["lines"]]  # no names: an import
+        out = C.crm_catalogue_save(frappe.as_json({**got, "lines": fresh}))["catalogue"]
+        ref = out["mixes"][0]["items"][0]["line"]
+        self.assertIn(ref, [l["name"] for l in out["lines"]])
+        self.assertEqual(next(l for l in out["lines"] if l["name"] == ref)["grade"], "60 cm")

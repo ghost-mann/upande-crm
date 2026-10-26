@@ -203,8 +203,10 @@ def crm_catalogue_save(catalogue=None):
         for item, p in given.items():
             _set_product(doc.append("products", {"item": item}), p)
     if "mixes" in payload:
+        # Keep item/grade/box with each reference so a mix can follow its lines
+        # through a re-import (CRMCatalogue._remap_mixes).
         doc.set("mixes", [{"title": m.get("title"), "summary": m.get("summary"),
-                           "items": json.dumps([{"line": i.get("line"), "boxes": flt(i.get("boxes")) or 1}
+                           "items": json.dumps([{k: i.get(k) for k in ("line", "boxes", "item", "grade", "box_type")}
                                                 for i in m.get("items") or [] if isinstance(i, dict)])}
                           for m in payload.get("mixes") or [] if isinstance(m, dict) and m.get("title")])
     # Ownership is enforced above; DocPerms for the CRM roles vary by site.

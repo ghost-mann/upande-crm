@@ -99,7 +99,9 @@ def _theme(doc, template, company_logo):
     fonts["css"] = FONT_CSS.format(pair)
     return {
         **{c: _value(template, c) for c in ("brand", "brand_ink", "paper", "ink", "accent", "accent_ink")},
-        "font_pair": pair, "fonts": fonts, "cover_mode": template.cover_mode or "Collage",
+        # A catalogue's own cover picture always wins, whatever the template's mode.
+        "font_pair": pair, "fonts": fonts,
+        "cover_mode": "Image" if doc.get("cover_image") else (template.cover_mode or "Collage"),
         "cover_image": doc.get("cover_image") or template.cover_image, "logo": template.logo or company_logo,
     }
 
@@ -122,10 +124,18 @@ def build_display(doc, template, preview=False):
     products = {p.item: p for p in doc.get("products") or []}
     company = frappe.db.get_value("Company", doc.company, ["company_name", "company_logo"], as_dict=True) or {}
 
+    # Spec values may sit on the line or the product (a spec whose display kind
+    # changed keeps its values where they were); product first, then any line.
+    line_specs_by_item = {}
+    for l in doc.lines:
+        for k, v in _json(l.get("specs"), {}).items():
+            if v not in (None, ""):
+                line_specs_by_item.setdefault(l.item, {}).setdefault(k, v)
+
     def card(item):
         it = items.get(item) or frappe._dict(item_name=item)
         prod = products.get(item) or frappe._dict()
-        pspecs = _json(prod.get("specs"), {})
+        pspecs = {**line_specs_by_item.get(item, {}), **_json(prod.get("specs"), {})}
         badges = []
         if sections["badges"]:
             badges = [{"label": b, **badge_style[b]} for b in (prod.get("badges") or "").split("\n")
@@ -150,7 +160,7 @@ def build_display(doc, template, preview=False):
         cards = groups[key]["products"]
         if line.item not in cards:
             cards[line.item] = card(line.item)
-        lspecs = _json(line.get("specs"), {})
+        lspecs = {**_json((products.get(line.item) or {}).get("specs"), {}), **_json(line.get("specs"), {})}
         cards[line.item]["lines"].append({
             "line": line.name, "grade": line.grade, "box_type": line.box_type, "color": line.color,
             "pack_qty": line.pack_qty, "bunch": line.bunch if (template.get("bunch_label") or "") else None,

@@ -46,15 +46,21 @@ class CRMCatalogue(Document):
 
         items = list(dict.fromkeys(l.item for l in self.lines or [] if l.item))
         kept = {p.item: p for p in self.products or [] if p.item in items}
+        # Reuse the row objects, not copies: a copy of a row added in this save
+        # carries its fresh name without the new-row flag, so Frappe updates a
+        # row that is not in the table yet and the row is silently lost.
         rows = []
         for item in items:
-            row = kept.get(item) or frappe._dict(item=item)
+            row = kept.get(item)
+            if row is None:
+                rows.append({"item": item})
+                continue
             specs = {k: v for k, v in _json(row.get("specs")).items() if v not in (None, "")}
-            rows.append({"item": item, "image": row.get("image") or None, "note": row.get("note"), "badges": row.get("badges") or None,
-                         "specs": json.dumps(specs) if specs else None, "name": row.get("name")})
-        self.set("products", [])
-        for r in rows:
-            self.append("products", {k: v for k, v in r.items() if v is not None})
+            row.image = row.get("image") or None
+            row.badges = row.get("badges") or None
+            row.specs = json.dumps(specs) if specs else None
+            rows.append(row)
+        self.set("products", rows)
         self._remap_mixes()
 
     def _remap_mixes(self):

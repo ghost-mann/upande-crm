@@ -80,6 +80,18 @@ class TestCatalogueModel(FrappeTestCase):
         doc.reload()
         self.assertEqual(doc.products[0].image, "/files/aster.jpg")
 
+    def test_new_product_rows_reach_the_database(self):
+        # Replacing the product table with fresh rows (as the desk, REST or an
+        # MCP update does) must store them, not only keep them in memory.
+        doc = make_catalogue()
+        item = doc.lines[0].item
+        doc.set("products", [])
+        doc.append("products", {"item": item, "image": "/files/new.jpg", "note": "Fresh"})
+        doc.save()
+        stored = frappe.get_all("CRM Catalogue Product", filters={"parent": doc.name},
+                                fields=["item", "image", "note"])
+        self.assertEqual([(r.item, r.image, r.note) for r in stored], [(item, "/files/new.jpg", "Fresh")])
+
     def test_module_registered(self):
         self.assertIn("cat", enabled_map())
 

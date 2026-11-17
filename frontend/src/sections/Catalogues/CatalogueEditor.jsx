@@ -24,6 +24,39 @@ const curList = (s) => String(s || '').split(',').map((c) => c.trim().toUpperCas
 let seq = 0;
 const key = () => `k${++seq}`;
 
+// Prices show at least 2 decimal places (0.20, not 0.2) and keep any further
+// precision a stem price needs (0.232 stays 0.232). The arrows step by 0.01.
+const PRICE_TYPING = /^\d*\.?\d*$/;
+const showPrice = (v) => {
+  if (v == null || v === '' || Number.isNaN(Number(v))) return '';
+  const n = Number(v);
+  return Number.isInteger(n * 100) || Math.abs(n * 100 - Math.round(n * 100)) < 1e-9 ? n.toFixed(2) : String(n);
+};
+function PriceInput({ value, onChange, className, disabled }) {
+  const [text, setText] = useState(showPrice(value));
+  const [focused, setFocused] = useState(false);
+  useEffect(() => { if (!focused) setText(showPrice(value)); }, [value, focused]);
+  return (
+    <input className={className} disabled={disabled} type="text" inputMode="decimal" placeholder="0.00" value={text}
+      onFocus={() => setFocused(true)}
+      onBlur={() => { setFocused(false); setText(showPrice(value)); }}
+      onKeyDown={(e) => {
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+        e.preventDefault();
+        const step = (Number(text) || 0) + (e.key === 'ArrowUp' ? 0.01 : -0.01);
+        const next = Math.max(0, Math.round(step * 1e6) / 1e6);
+        setText(showPrice(next)); onChange(next);
+      }}
+      onChange={(e) => {
+        const v = e.target.value.trim();
+        if (!PRICE_TYPING.test(v)) return;
+        setText(v);
+        if (v === '') onChange('');
+        else if (v !== '.') onChange(Number(v));
+      }} />
+  );
+}
+
 export default function CatalogueEditor({ name, onBack, onOpen }) {
   const [doc, setDoc] = useState(name ? null : blank());
   const [url, setUrl] = useState('');
@@ -282,8 +315,8 @@ export default function CatalogueEditor({ name, onBack, onOpen }) {
                       <td><input className={`${INPUT} ${W.bunch}`} disabled={!editable} value={l.bunch || ''} onChange={(e) => setLine(i, { bunch: e.target.value })} /></td>
                       <td><input className={`${NUM} ${W.weight}`} disabled={!editable} type="number" value={l.weight ?? ''} onChange={(e) => setLine(i, { weight: e.target.value === '' ? null : Number(e.target.value) })} /></td>
                       {currencies.map((c) => [
-                        <td key={`${c}p`}><input className={`${NUM} ${W.price}`} disabled={!editable} type="number" step="any" value={l.prices?.[c]?.price ?? ''} onChange={(e) => setPrice(i, c, 'price', e.target.value)} /></td>,
-                        <td key={`${c}t`}><input className={`${NUM} ${W.price}`} disabled={!editable} type="number" step="any" value={l.prices?.[c]?.tier ?? ''} onChange={(e) => setPrice(i, c, 'tier', e.target.value)} /></td>,
+                        <td key={`${c}p`}><PriceInput className={`${NUM} ${W.price}`} disabled={!editable} value={l.prices?.[c]?.price} onChange={(v) => setPrice(i, c, 'price', v)} /></td>,
+                        <td key={`${c}t`}><PriceInput className={`${NUM} ${W.price}`} disabled={!editable} value={l.prices?.[c]?.tier} onChange={(v) => setPrice(i, c, 'tier', v)} /></td>,
                       ])}
                       <td><input className={`${INPUT} ${W.url}`} disabled={!editable} value={l.info_url || ''} onChange={(e) => setLine(i, { info_url: e.target.value })} /></td>
                       <td>{editable && <button type="button" className="text-ink-3 hover:text-bad" title="Remove line" onClick={() => removeLine(i)}><Icon name="close" className="text-[16px]" /></button>}</td>

@@ -27,6 +27,8 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
+from upande_crm.upande_crm.doctype.crm_catalogue.crm_catalogue import round_price
+
 from upande_crm.api.crm import _guard
 from upande_crm.modules import requires_module
 
@@ -160,10 +162,10 @@ def parse_offer_sheet(content, currencies, spec_headers=None):
                             "prices": {}}
                     lines[key] = line
                     order.append(key)
-                entry = {"price": round(flt(price), 6)}
+                entry = {"price": round_price(price)}
                 tier = get(cols.get("tier"))
                 if isinstance(tier, (int, float)) and tier > 0:
-                    entry["tier"] = round(flt(tier), 6)
+                    entry["tier"] = round_price(tier)
                 line["prices"][cur] = entry
     return {"lines": [lines[k] for k in order], "terms": terms}
 

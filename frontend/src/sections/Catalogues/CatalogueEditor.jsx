@@ -24,14 +24,12 @@ const curList = (s) => String(s || '').split(',').map((c) => c.trim().toUpperCas
 let seq = 0;
 const key = () => `k${++seq}`;
 
-// Prices show at least 2 decimal places (0.20, not 0.2) and keep any further
-// precision a stem price needs (0.232 stays 0.232). The arrows step by 0.01.
+// Prices are kept to 2 decimal places, rounded half up (0.235 -> 0.24), never
+// truncated: type any decimals and the price is rounded; the field shows the
+// rounded value (e.g. 1.50) once you leave it. The arrows step by 0.01.
 const PRICE_TYPING = /^\d*\.?\d*$/;
-const showPrice = (v) => {
-  if (v == null || v === '' || Number.isNaN(Number(v))) return '';
-  const n = Number(v);
-  return Number.isInteger(n * 100) || Math.abs(n * 100 - Math.round(n * 100)) < 1e-9 ? n.toFixed(2) : String(n);
-};
+const roundPrice = (v) => Number(`${Math.round(Number(`${Number(v)}e2`))}e-2`);
+const showPrice = (v) => (v == null || v === '' || Number.isNaN(Number(v)) ? '' : roundPrice(v).toFixed(2));
 function PriceInput({ value, onChange, className, disabled }) {
   const [text, setText] = useState(showPrice(value));
   const [focused, setFocused] = useState(false);
@@ -43,8 +41,7 @@ function PriceInput({ value, onChange, className, disabled }) {
       onKeyDown={(e) => {
         if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
         e.preventDefault();
-        const step = (Number(text) || 0) + (e.key === 'ArrowUp' ? 0.01 : -0.01);
-        const next = Math.max(0, Math.round(step * 1e6) / 1e6);
+        const next = Math.max(0, roundPrice((Number(text) || 0) + (e.key === 'ArrowUp' ? 0.01 : -0.01)));
         setText(showPrice(next)); onChange(next);
       }}
       onChange={(e) => {
@@ -52,7 +49,7 @@ function PriceInput({ value, onChange, className, disabled }) {
         if (!PRICE_TYPING.test(v)) return;
         setText(v);
         if (v === '') onChange('');
-        else if (v !== '.') onChange(Number(v));
+        else if (v !== '.') onChange(roundPrice(v));
       }} />
   );
 }
@@ -120,7 +117,7 @@ export default function CatalogueEditor({ name, onBack, onOpen }) {
   const setPrice = (i, cur, field, v) => {
     const prices = { ...(doc.lines[i].prices || {}) };
     const entry = { ...(prices[cur] || {}) };
-    if (v === '') delete entry[field]; else entry[field] = Number(v);
+    if (v === '') delete entry[field]; else entry[field] = roundPrice(v);
     if (Object.keys(entry).length) prices[cur] = entry; else delete prices[cur];
     setLine(i, { prices });
   };

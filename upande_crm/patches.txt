@@ -2,3 +2,4 @@
 
 [post_model_sync]
 upande_crm.patches.enable_claims_quotes_visits
+upande_crm.patches.round_catalogue_prices

@@ -52,7 +52,7 @@ class TestCatalogues(FrappeTestCase):
         name = C.crm_catalogue_save(payload())["catalogue"]["name"]
         got = C.crm_catalogue_get(name)
         line = got["catalogue"]["lines"][0]
-        self.assertEqual(line["prices"], {"USD": {"price": 0.232, "tier": 0.2204}, "EUR": {"price": 0.2}})
+        self.assertEqual(line["prices"], {"USD": {"price": 0.23, "tier": 0.22}, "EUR": {"price": 0.2}})
         self.assertEqual(line["grade"], "60 cm")
         self.assertTrue(got["public_url"].endswith("/catalogue/" + got["catalogue"]["public_token"]))
 

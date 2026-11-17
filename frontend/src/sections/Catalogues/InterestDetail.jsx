@@ -35,7 +35,7 @@ export default function InterestDetail({ name, onClose, onChanged }) {
     } catch (e) { setErr(e.message); } finally { setSaving(false); }
   }
 
-  const money = (v) => (v == null ? '—' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 }));
+  const money = (v) => (v == null ? '—' : Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
   return (
     <DialogShell title={doc ? `${doc.contact_name || doc.email} · ${doc.catalogue_title}` : 'Interest'}
       onClose={onClose} onSave={makeOpp} saving={saving} err={err} width={760}

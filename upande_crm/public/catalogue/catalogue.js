@@ -24,7 +24,7 @@
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const safeUrl = (u) => (/^(https?:\/\/|\/)/i.test(String(u || '')) ? String(u) : '');
   const num = (v, d) => (v == null || v === '' ? '' : Number(v).toLocaleString(undefined, { maximumFractionDigits: d }));
-  const money = (v, digits = 4) => (v == null ? null : Number(v).toLocaleString(undefined, {
+  const money = (v, digits = 2) => (v == null ? null : Number(v).toLocaleString(undefined, {
     style: 'currency', currency: state.currency, minimumFractionDigits: Math.min(2, digits), maximumFractionDigits: digits }));
   const day = (iso) => {
     if (!iso) return '';

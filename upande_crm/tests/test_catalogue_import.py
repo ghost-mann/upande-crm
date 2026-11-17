@@ -78,11 +78,11 @@ class TestParse(FrappeTestCase):
         std = _line(lines, "Agapanthus 'Gletsjer'", "60 cm")
         eighth = _line(lines, "Agapanthus 'Gletsjer'", "60 cm", "1/8 box")
         self.assertEqual((std["pack_qty"], std["bunch"], std["weight"], std["color"]), (300, "x10", 11.28, "White"))
-        self.assertAlmostEqual(std["prices"]["USD"]["price"], 0.232, 3)
-        self.assertAlmostEqual(std["prices"]["USD"]["tier"], 0.2204, 4)
+        self.assertEqual(std["prices"]["USD"]["price"], 0.23)
+        self.assertEqual(std["prices"]["USD"]["tier"], 0.22)
         self.assertEqual(eighth["pack_qty"], 50)
         self.assertEqual(eighth["bunch"], "x10")
-        self.assertAlmostEqual(eighth["prices"]["USD"]["price"], 0.2668, 4)
+        self.assertEqual(eighth["prices"]["USD"]["price"], 0.27)
         self.assertNotIn("tier", eighth["prices"]["USD"])
         self.assertEqual(std["info_url"], "https://www.marginpar.com/flowers/agapanthus-gletsjer")
         self.assertEqual(std["vbn"], "114199")
@@ -94,12 +94,12 @@ class TestParse(FrappeTestCase):
     def test_events_block_is_ignored(self):
         lines = I.parse_offer_sheet(sample_sheet(), ["USD"])["lines"]
         std = _line(lines, "Aster (Novi Belgii Grp) Dark Milka", "70 cm")
-        self.assertAlmostEqual(std["prices"]["USD"]["price"], 0.2088, 4)  # not the 0.3045 Xmas price
+        self.assertEqual(std["prices"]["USD"]["price"], 0.21)  # not the 0.3045 Xmas price
 
     def test_joins_usd_and_eur_tabs(self):
         lines = I.parse_offer_sheet(sample_sheet(), ["USD", "EUR"])["lines"]
         std = _line(lines, "Agapanthus 'Gletsjer'", "60 cm")
-        self.assertAlmostEqual(std["prices"]["EUR"]["price"], 0.232 * 0.86, 4)
+        self.assertEqual(std["prices"]["EUR"]["price"], 0.2)
         self.assertEqual(len(lines), 6)  # 4 standard + 2 eighth, not doubled by the second tab
 
     def test_only_requested_currencies(self):

@@ -94,7 +94,7 @@ class TestInterests(FrappeTestCase):
         self.assertEqual((opp.opportunity_from, opp.party_name, opp.currency), ("Customer", self.mine, "USD"))
         row = opp.items[0]
         self.assertEqual(row.qty, 1500)
-        self.assertAlmostEqual(row.rate, 0.2204)
+        self.assertAlmostEqual(row.rate, 0.22)
         self.assertIn("Weekly", row.description)
         doc = frappe.get_doc("CRM Catalogue Interest", name)
         self.assertEqual((doc.status, doc.opportunity), ("Converted", opp.name))
@@ -102,7 +102,7 @@ class TestInterests(FrappeTestCase):
     def test_make_opportunity_below_tier_uses_price(self):
         name = interest(self.cat, "Customer", self.mine, qty=2, frequency="One-off").name
         opp = frappe.get_doc("Opportunity", C.crm_catalogue_make_opportunity(name)["opportunity"])
-        self.assertAlmostEqual(opp.items[0].rate, 0.232)
+        self.assertAlmostEqual(opp.items[0].rate, 0.23)
 
     def test_make_opportunity_idempotent(self):
         name = interest(self.cat, "Customer", self.mine).name

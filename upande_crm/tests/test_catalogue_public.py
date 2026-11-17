@@ -79,7 +79,7 @@ class TestView(PublicCase):
         out = P.catalogue_view(self.cat.public_token)
         self.assertTrue(out["open"])
         self.assertEqual(out["currencies"], ["USD", "EUR"])
-        self.assertEqual(out["groups"][0]["products"][0]["lines"][0]["prices"]["USD"]["price"], 0.232)
+        self.assertEqual(out["groups"][0]["products"][0]["lines"][0]["prices"]["USD"]["price"], 0.23)
         self.assertNotIn("prefill", out)
         frappe.set_user("Administrator")
         self.assertEqual(frappe.db.get_value("CRM Catalogue", self.cat.name, "views"), 1)
@@ -124,8 +124,8 @@ class TestSubmit(PublicCase):
         self.submit()
         item = frappe.get_doc(INTEREST, self.interests()[0].name).items[0]
         self.assertEqual((item.qty, item.frequency, item.grade, item.pack_qty), (5, "Weekly", "60 cm", 300))
-        self.assertAlmostEqual(item.price, 0.232)
-        self.assertAlmostEqual(item.tier_price, 0.2204)
+        self.assertAlmostEqual(item.price, 0.23)
+        self.assertAlmostEqual(item.tier_price, 0.22)
         self.assertEqual(item.priced, 1)
 
     def test_missing_currency_price_snapshots_unpriced(self):

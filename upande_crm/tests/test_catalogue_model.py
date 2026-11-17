@@ -6,6 +6,8 @@ an unguessable token, currencies that exist, prices only in those currencies,
 and whether the offer is open today.
 """
 
+import json
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_days, nowdate
@@ -60,7 +62,12 @@ class TestCatalogueModel(FrappeTestCase):
     def test_missing_currency_price_is_none(self):
         doc = make_catalogue(currencies="USD, EUR")
         self.assertEqual(doc.price_for(doc.lines[0], "EUR"), (None, None))
-        self.assertEqual(doc.price_for(doc.lines[0], "USD"), (0.232, 0.2204))
+        self.assertEqual(doc.price_for(doc.lines[0], "USD"), (0.23, 0.22))
+
+    def test_prices_round_half_up_to_2dp(self):
+        doc = make_catalogue(lines=[{"item": _item(), "prices": {"USD": {"price": 0.235, "tier": 1.005}}}])
+        self.assertEqual(doc.price_for(doc.lines[0], "USD"), (0.24, 1.01))
+        self.assertEqual(json.loads(doc.lines[0].prices), {"USD": {"price": 0.24, "tier": 1.01}})
 
     def test_is_open(self):
         doc = make_catalogue()

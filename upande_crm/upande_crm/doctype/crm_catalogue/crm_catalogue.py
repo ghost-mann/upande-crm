@@ -5,10 +5,11 @@ unguessable public token, currencies that exist, prices only in those
 currencies, and whether the offer is open today. Line prices live in a JSON
 map per line ({"USD": {"price": .., "tier": ..}}) so a catalogue can carry any
 number of currencies, and a currency with no price stays absent rather than
-reading as 0.
+reading as 0. Prices are kept to 2 decimal places, rounded half up.
 """
 
 import json
+from decimal import ROUND_HALF_UP, Decimal
 
 import frappe
 from frappe import _
@@ -120,7 +121,7 @@ class CRMCatalogue(Document):
                     frappe.throw(_("Row {0}: {1} is not one of this catalogue's currencies ({2}).").format(
                         line.idx, cur, self.currencies))
                 p = p or {}
-                entry = {k: flt(p[k]) for k in ("price", "tier") if p.get(k) not in (None, "")}
+                entry = {k: round_price(p[k]) for k in ("price", "tier") if p.get(k) not in (None, "")}
                 if any(v < 0 for v in entry.values()):
                     frappe.throw(_("Row {0}: prices cannot be negative.").format(line.idx))
                 if entry:
@@ -130,7 +131,7 @@ class CRMCatalogue(Document):
     def price_for(self, line, currency):
         """(price, tier) for `line` in `currency`; None where there is no price."""
         p = _prices(line).get((currency or "").upper()) or {}
-        return (p.get("price"), p.get("tier"))
+        return tuple(None if p.get(k) in (None, "") else round_price(p[k]) for k in ("price", "tier"))
 
     def is_open(self, today=None):
         if self.status != "Live":
@@ -165,6 +166,12 @@ def _json_list(raw):
     except (TypeError, ValueError):
         return []
     return [x for x in val if isinstance(x, dict)] if isinstance(val, list) else []
+
+
+def round_price(value):
+    """A catalogue price to 2 decimal places, rounded half up (0.235 -> 0.24),
+    never truncated. Decimal avoids float artefacts such as 1.005 -> 1.00."""
+    return float(Decimal(str(flt(value))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
 def _prices(line):
